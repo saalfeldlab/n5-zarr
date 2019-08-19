@@ -12,12 +12,12 @@
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
-	<artifactId>n5-blosc</artifactId>
+	<artifactId>n5-zarr</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 
-	<name>N5 Blosc</name>
-	<description>Blosc compression for N5</description>
-	<url>https://github.com/saalfeldlab/n5-blosc</url>
+	<name>N5 Zarr</name>
+	<description>Zarr backends for N5</description>
+	<url>https://github.com/saalfeldlab/n5-zarr</url>
 	<inceptionYear>2019</inceptionYear>
 	<organization>
 		<name>Saalfeld Lab</name>
@@ -39,19 +39,19 @@
 
 	<scm>
 		<connection>scm:git:git://github.com/saalfedllab/n5</connection>
-		<developerConnection>scm:git:git@github.com:saalfeldlab/n5-blosc</developerConnection>
+		<developerConnection>scm:git:git@github.com:saalfeldlab/n5-zarr</developerConnection>
 		<tag>HEAD</tag>
-		<url>https://github.com/saalfeldlab/n5-blosc</url>
+		<url>https://github.com/saalfeldlab/n5-zarr</url>
 	</scm>
 
 	<issueManagement>
 		<system>GitHub</system>
-		<url>https://github.com/saalfedlab/n5-blosc/issues</url>
+		<url>https://github.com/saalfedlab/n5-zarr/issues</url>
 	</issueManagement>
 
 	<ciManagement>
 		<system>Travis CI</system>
-		<url>https://travis-ci.org/saalfeldlab/n5-blosc</url>
+		<url>https://travis-ci.org/saalfeldlab/n5-zarr</url>
 	</ciManagement>
 
 	<properties>
@@ -104,12 +104,6 @@
 			<artifactId>n5</artifactId>
 			<version>2.1.1</version>
 		</dependency>
-		<dependency>
-			<groupId>org.lasersonlab</groupId>
-			<artifactId>jblosc</artifactId>
-			<version>1.0.1</version>
-		</dependency>
-
 
 		<!-- Test dependencies -->
 		<dependency>
@@ -162,6 +156,11 @@
 			<version>2.1.1</version>
 			<type>test-jar</type>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-blosc</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
 	</dependencies>
 

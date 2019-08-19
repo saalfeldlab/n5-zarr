@@ -23,29 +23,10 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-package org.janelia.saalfeldlab.n5.blosc;
-
-import java.io.IOException;
-
-import org.janelia.saalfeldlab.n5.AbstractN5Test;
-import org.janelia.saalfeldlab.n5.N5FSWriter;
-import org.janelia.saalfeldlab.n5.N5Writer;
-
 /**
- *
+ * Zarr backends for N5
  *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
+ *
  */
-public class N5FSTest extends AbstractN5Test {
-
-	static private String testDirPath = System.getProperty("user.home") + "/tmp/n5-test";
-
-	/**
-	 * @throws IOException
-	 */
-	@Override
-	protected N5Writer createN5Writer() throws IOException {
-
-		return new N5FSWriter(testDirPath);
-	}
-}
+package org.janelia.saalfeldlab.n5.zarr;

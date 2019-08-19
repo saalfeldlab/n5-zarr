@@ -23,29 +23,29 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-package org.janelia.saalfeldlab.n5.blosc;
+package org.janelia.saalfeldlab.n5.zarr;
 
-import java.io.IOException;
+import org.janelia.saalfeldlab.n5.Compression;
+import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 
-import org.janelia.saalfeldlab.n5.AbstractN5Test;
-import org.janelia.saalfeldlab.n5.N5FSWriter;
-import org.janelia.saalfeldlab.n5.N5Writer;
 
 /**
- *
- *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
+ *
  */
-public class N5FSTest extends AbstractN5Test {
+public class ZarrDatasetAttributes extends DatasetAttributes {
 
-	static private String testDirPath = System.getProperty("user.home") + "/tmp/n5-test";
+	private final boolean isRowMajor;
 
-	/**
-	 * @throws IOException
-	 */
-	@Override
-	protected N5Writer createN5Writer() throws IOException {
+	public ZarrDatasetAttributes(
+			final long[] dimensions,
+			final int[] blockSize,
+			final DataType dataType,
+			final Compression compression,
+			final boolean isRowMajor) {
 
-		return new N5FSWriter(testDirPath);
+		super(dimensions, blockSize, dataType, compression);
+		this.isRowMajor = isRowMajor;
 	}
 }
