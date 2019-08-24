@@ -26,6 +26,8 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
 import java.lang.reflect.Type;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.EnumMap;
 
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
@@ -50,7 +52,7 @@ import com.google.gson.JsonSerializer;
  * https://docs.scipy.org/doc/numpy/reference/arrays.interface.html
  *
  * At this time, only primitive types are supported, no recursive structs.
- * This is compatible with the upcoming Zarr spec v3 core types plus
+ * This is compatible with the upcoming Zarr spec v3 core types plus extras.
  *
  * @author Stephan Saalfeld
  */
@@ -68,33 +70,6 @@ public class DType {
 		typestrs.put(DataType.UINT64, ">u8");
 		typestrs.put(DataType.FLOAT32, ">f4");
 		typestrs.put(DataType.FLOAT64, ">f8");
-	}
-
-	public static enum Endianness {
-
-		LITTLE('<'),
-		BIG('>'),
-		NOT_RELEVANT('|');
-
-		private final char code;
-
-		private Endianness(final char code) {
-
-			this.code = code;
-		}
-
-		public char code() {
-
-			return code;
-		}
-
-		public static Endianness fromCode(final char code) {
-
-			for (final Endianness value : values())
-				if (value.code() == code)
-					return value;
-			return null;
-		}
 	}
 
 	public static enum Primitive {
@@ -134,7 +109,7 @@ public class DType {
 	}
 
 	protected String typestr;
-	protected final Endianness endianness;
+	protected final ByteOrder order;
 
 	/* According to https://docs.scipy.org/doc/numpy/reference/arrays.interface.html
 	 * this should be the number of bytes per scalar except for BIT where it is the
@@ -142,7 +117,10 @@ public class DType {
 	 * and objects
 	 */
 	protected final int nBytes;
+	protected final int nBits;
+	protected final ByteBlockFactory byteBlockFactory;
 	protected final DataBlockFactory dataBlockFactory;
+
 
 	/* the closest possible N5 DataType */
 	protected final DataType dataType;
@@ -151,17 +129,23 @@ public class DType {
 
 		this.typestr = typestr;
 
-		endianness = Endianness.fromCode(typestr.charAt(0));
+		order = typestr.charAt(0) == '<' ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
 		final Primitive primitive = Primitive.fromCode(typestr.charAt(1));
-		nBytes= Integer.parseInt(typestr.substring(2));
+		final int nB = Integer.parseInt(typestr.substring(2));
 
 		switch (primitive) {
 		case BIT:
+			nBytes = 0;
+			nBits = nB;
 			dataBlockFactory = (blockSize, gridPosition, numElements) ->
-					new ByteArrayDataBlock(blockSize, gridPosition, new byte[(numElements * nBytes + 7) / 8]);
+					new ByteArrayDataBlock(blockSize, gridPosition, new byte[(numElements * nBits + 7) / 8]);
+			byteBlockFactory = (blockSize, gridPosition, numElements) ->
+					new ByteArrayDataBlock(blockSize, gridPosition, new byte[(numElements * nBits + 7) / 8]);
 			break;
 		case UNSIGNED_INT:
 		case INT:
+			nBytes = nB;
+			nBits = 0;
 			switch (nBytes) {
 			case 1:
 				dataBlockFactory = (blockSize, gridPosition, numElements) ->
@@ -183,8 +167,12 @@ public class DType {
 				dataBlockFactory = (blockSize, gridPosition, numElements) ->
 						new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			}
+			byteBlockFactory = (blockSize, gridPosition, numElements) ->
+					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			break;
 		case FLOAT:
+			nBytes = nB;
+			nBits = 0;
 			switch (nBytes) {
 			case 4:
 				dataBlockFactory = (blockSize, gridPosition, numElements) ->
@@ -198,8 +186,12 @@ public class DType {
 				dataBlockFactory = (blockSize, gridPosition, numElements) ->
 						new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			}
+			byteBlockFactory = (blockSize, gridPosition, numElements) ->
+					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			break;
 		case COMPLEX_FLOAT:
+			nBytes = nB;
+			nBits = 0;
 			switch (nBytes) {
 			case 8: // this would support mapping onto an ImgLib2 ComplexFloatType
 				dataBlockFactory = (blockSize, gridPosition, numElements) ->
@@ -213,6 +205,8 @@ public class DType {
 				dataBlockFactory = (blockSize, gridPosition, numElements) ->
 						new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			}
+			byteBlockFactory = (blockSize, gridPosition, numElements) ->
+					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			break;
 //		case BOOLEAN:
 //		case OBJECT:    // not sure about this
@@ -222,7 +216,11 @@ public class DType {
 //		case TIMEDELTA: // not sure about this
 //		case DATETIME:  // not sure about this
 		default:
+			nBytes = nB;
+			nBits = 0;
 			dataBlockFactory = (blockSize, gridPosition, numElements) ->
+					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
+			byteBlockFactory = (blockSize, gridPosition, numElements) ->
 					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 		}
 
@@ -232,7 +230,8 @@ public class DType {
 	public DType(final DataType dataType, final int nPrimitives) {
 
 		typestr = typestrs.get(dataType);
-		endianness = Endianness.BIG;
+		order = ByteOrder.BIG_ENDIAN;
+		nBits = 0;
 
 		this.dataType = dataType;
 
@@ -272,6 +271,8 @@ public class DType {
 			dataBlockFactory = (blockSize, gridPosition, numElements) ->
 					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nPrimitives]);
 		}
+		byteBlockFactory = (blockSize, gridPosition, numElements) ->
+				new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 	}
 
 	public DType(final DataType dataType) {
@@ -355,6 +356,19 @@ public class DType {
 	}
 
 	/**
+	 * Factory for {@link ByteArrayDataBlock ByteArrayDataBlocks}.
+	 *
+	 * @param blockSize
+	 * @param gridPosition
+	 * @param numElements not necessarily one element per block element
+	 * @return
+	 */
+	public ByteArrayDataBlock createByteBlock(final int[] blockSize, final long[] gridPosition, final int numElements) {
+
+		return byteBlockFactory.createByteBlock(blockSize, gridPosition, numElements);
+	}
+
+	/**
 	 * Factory for {@link DataBlock DataBlocks} with one data element for each
 	 * block element (e.g. pixel image).
 	 *
@@ -367,9 +381,26 @@ public class DType {
 		return dataBlockFactory.createDataBlock(blockSize, gridPosition, DataBlock.getNumElements(blockSize));
 	}
 
+	/**
+	 * Factory for {@link ByteArrayDataBlock ByteArrayDataBlocks}.
+	 *
+	 * @param blockSize
+	 * @param gridPosition
+	 * @return
+	 */
+	public ByteArrayDataBlock createByteBlock(final int[] blockSize, final long[] gridPosition) {
+
+		return byteBlockFactory.createByteBlock(blockSize, gridPosition, DataBlock.getNumElements(blockSize));
+	}
+
 	private static interface DataBlockFactory {
 
 		public DataBlock<?> createDataBlock(final int[] blockSize, final long[] gridPosition, final int numElements);
+	}
+
+	private static interface ByteBlockFactory {
+
+		public ByteArrayDataBlock createByteBlock(final int[] blockSize, final long[] gridPosition, final int numElements);
 	}
 
 	static public class JsonAdapter implements JsonDeserializer<DType>, JsonSerializer<DType> {
@@ -391,5 +422,94 @@ public class DType {
 
 			return new JsonPrimitive(src.toString());
 		}
+	}
+
+	public ByteOrder getOrder() {
+
+		return order;
+	}
+
+	/**
+	 * Returns the number of bytes of this type.  If the type counts the number
+	 * of bits, this method returns 0.
+	 *
+	 * @return number of bytes
+	 */
+	public int getNBytes() {
+
+		return nBytes;
+	}
+
+	/**
+	 * Returns the number of bits of this type.  If the type counts the number
+	 * of bytes, this method returns 0;
+	 * @return
+	 */
+	public int getNBits() {
+
+		return nBits;
+	}
+
+	public byte[] createFillBytes(final String fill_value) {
+
+		final byte[] fillBytes = new byte[nBytes];
+		final ByteBuffer fillBuffer = ByteBuffer.wrap(fillBytes);
+		fillBuffer.order(order);
+
+		if (fill_value.equals("NaN")) {
+			if (nBytes == 8) {
+				fillBuffer.putDouble(Double.NaN);
+			} else if (nBytes == 4) {
+				fillBuffer.putFloat(Float.NaN);
+			}
+		} else if (fill_value.equals("Infinity")) {
+			if (nBytes == 8) {
+				fillBuffer.putDouble(Double.POSITIVE_INFINITY);
+			} else if (nBytes == 4) {
+				fillBuffer.putFloat(Float.POSITIVE_INFINITY);
+			}
+		} else if (fill_value.equals("-Infinity")) {
+			if (nBytes == 8) {
+				fillBuffer.putDouble(Double.NEGATIVE_INFINITY);
+			} else if (nBytes == 4) {
+				fillBuffer.putFloat(Float.NEGATIVE_INFINITY);
+			}
+		} else {
+			try {
+				switch (dataType) {
+				case INT8:
+					fillBytes[0] = Byte.parseByte(fill_value);
+					break;
+				case UINT8:
+					fillBytes[0] = (byte)(0xff & Integer.parseInt(fill_value));
+					break;
+				case INT16:
+					fillBuffer.putShort(Short.parseShort(fill_value));
+					break;
+				case UINT16:
+					fillBuffer.putShort((short)(0xffff & Integer.parseInt(fill_value)));
+					break;
+				case INT32:
+					fillBuffer.putInt(Integer.parseInt(fill_value));
+					break;
+				case UINT32:
+					fillBuffer.putInt(Integer.parseUnsignedInt(fill_value));
+					break;
+				case INT64:
+					fillBuffer.putLong(Long.parseLong(fill_value));
+					break;
+				case UINT64:
+					fillBuffer.putLong(Long.parseUnsignedLong(fill_value));
+					break;
+				case FLOAT32:
+					fillBuffer.putFloat(Float.parseFloat(fill_value));
+					break;
+				case FLOAT64:
+					fillBuffer.putDouble(Double.parseDouble(fill_value));
+					break;
+				}
+			} catch (final NumberFormatException e) {}
+		}
+		return fillBytes;
 	}
 }

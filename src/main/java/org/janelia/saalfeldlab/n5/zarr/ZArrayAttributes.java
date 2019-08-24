@@ -51,9 +51,9 @@ public class ZArrayAttributes {
 	private final int[] chunks;
 	private final DType dtype;
 	private final ZarrCompressor compressor;
-	final String fill_value;
-	final char order;
-	final List<Filter> filters = new ArrayList<>();
+	private final String fill_value;
+	private final char order;
+	private final List<Filter> filters = new ArrayList<>();
 
 	public ZArrayAttributes(
 			final int zarr_format,
@@ -72,7 +72,8 @@ public class ZArrayAttributes {
 		this.compressor = compressor;
 		this.fill_value = fill_value;
 		this.order = order;
-		this.filters.addAll(filters);
+		if (filters != null)
+			this.filters.addAll(filters);
 	}
 
 	public ZarrDatasetAttributes getDatasetAttributes() {
@@ -82,16 +83,17 @@ public class ZArrayAttributes {
 		final int[] blockSize = chunks.clone();
 
 		if (isRowMajor) {
-			reorder(dimensions);
-			reorder(blockSize);
+			Utils.reorder(dimensions);
+			Utils.reorder(blockSize);
 		}
 
 		return new ZarrDatasetAttributes(
 				dimensions,
 				blockSize,
-				dtype.getDataType(),
+				dtype,
 				compressor.getCompression(),
-				isRowMajor);
+				isRowMajor,
+				fill_value);
 	}
 
 	public long[] getShape() {
@@ -150,27 +152,8 @@ public class ZArrayAttributes {
 		return map;
 	}
 
-	protected static void reorder(final long[] array) {
+	public Collection<Filter> getFilters() {
 
-		long a;
-		final int max = array.length - 1;
-		for (int i = (max - 1) / 2; i >= 0; --i) {
-			final int j = max - i;
-			a = array[i];
-			array[i] = array[j];
-			array[j] = a;
-		}
-	}
-
-	protected static void reorder(final int[] array) {
-
-		int a;
-		final int max = array.length - 1;
-		for (int i = (max - 1) / 2; i >= 0; --i) {
-			final int j = max - i;
-			a = array[i];
-			array[i] = array[j];
-			array[j] = a;
-		}
+		return filters;
 	}
 }

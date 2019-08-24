@@ -23,29 +23,36 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-package org.janelia.saalfeldlab.n5.blosc;
+package org.janelia.saalfeldlab.n5.zarr;
 
-import java.io.IOException;
-
-import org.janelia.saalfeldlab.n5.AbstractN5Test;
-import org.janelia.saalfeldlab.n5.N5FSWriter;
-import org.janelia.saalfeldlab.n5.N5Writer;
 
 /**
- *
- *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
+ *
  */
-public class N5FSTest extends AbstractN5Test {
+public interface Utils {
 
-	static private String testDirPath = System.getProperty("user.home") + "/tmp/n5-test";
+	public static void reorder(final long[] array) {
 
-	/**
-	 * @throws IOException
-	 */
-	@Override
-	protected N5Writer createN5Writer() throws IOException {
+		long a;
+		final int max = array.length - 1;
+		for (int i = (max - 1) / 2; i >= 0; --i) {
+			final int j = max - i;
+			a = array[i];
+			array[i] = array[j];
+			array[j] = a;
+		}
+	}
 
-		return new N5FSWriter(testDirPath);
+	public static void reorder(final int[] array) {
+
+		int a;
+		final int max = array.length - 1;
+		for (int i = (max - 1) / 2; i >= 0; --i) {
+			final int j = max - i;
+			a = array[i];
+			array[i] = array[j];
+			array[j] = a;
+		}
 	}
 }

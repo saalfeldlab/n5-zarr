@@ -25,8 +25,9 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Type;
-import java.util.AbstractMap;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -41,14 +42,42 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  *
  */
 public interface ZarrCompressor {
+
+	/* idiotic stream based initialization because Java cannot have static initialization code in interfaces */
+	public static Map<String, Class<? extends ZarrCompressor>> registry = Stream.of(
+			new SimpleImmutableEntry<>("blosc", Blosc.class),
+			new SimpleImmutableEntry<>("zlib", Zlib.class),
+			new SimpleImmutableEntry<>("gzip", Gzip.class),
+			new SimpleImmutableEntry<>("bz2", Bz2.class))
+			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+	public static ZarrCompressor fromCompression(final Compression compression) {
+
+		try {
+			if (compression instanceof BloscCompression) {
+				return new Blosc((BloscCompression)compression);
+			} else if (compression instanceof GzipCompression) {
+				final Class<? extends Compression> clazz = compression.getClass();
+				final Field field = clazz.getDeclaredField("useZlib");
+				field.setAccessible(true);
+				final Boolean useZlib = (Boolean)field.get(compression);
+				field.setAccessible(false);
+				return useZlib != null && useZlib ? new Zlib((GzipCompression)compression) : new Gzip((GzipCompression)compression);
+			} else if (compression instanceof Bzip2Compression) {
+				return new Bz2((Bzip2Compression)compression);
+			} else {
+				return null;
+			}
+		} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+			return null;
+		}
+	}
 
 	public Compression getCompression();
 
@@ -75,10 +104,40 @@ public interface ZarrCompressor {
 			this.nthreads = nthreads;
 		}
 
+		public Blosc(final BloscCompression compression) throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException {
+
+			final Class<? extends BloscCompression> clazz = compression.getClass();
+
+			Field field = clazz.getDeclaredField("cname");
+			field.setAccessible(true);
+			cname = (String)field.get(compression);
+			field.setAccessible(false);
+
+			field = clazz.getDeclaredField("clevel");
+			field.setAccessible(true);
+			clevel = field.getInt(compression);
+			field.setAccessible(false);
+
+			field = clazz.getDeclaredField("shuffle");
+			field.setAccessible(true);
+			shuffle = field.getInt(compression);
+			field.setAccessible(false);
+
+			field = clazz.getDeclaredField("blocksize");
+			field.setAccessible(true);
+			blocksize = field.getInt(compression);
+			field.setAccessible(false);
+
+			field = clazz.getDeclaredField("nthreads");
+			field.setAccessible(true);
+			nthreads = field.getInt(compression);
+			field.setAccessible(false);
+		}
+
 		@Override
 		public BloscCompression getCompression() {
 
-			return new BloscCompression(cname, clevel, shuffle, blocksize, nthreads);
+			return new BloscCompression(cname, clevel, shuffle, blocksize, Math.max(1, nthreads));
 		}
 	}
 
@@ -90,6 +149,16 @@ public interface ZarrCompressor {
 		public Zlib(final int level) {
 
 			this.level = level;
+		}
+
+		public Zlib(final GzipCompression compression) throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException {
+
+			final Class<? extends GzipCompression> clazz = compression.getClass();
+
+			final Field field = clazz.getDeclaredField("level");
+			field.setAccessible(true);
+			level = field.getInt(compression);
+			field.setAccessible(false);
 		}
 
 		@Override
@@ -109,6 +178,16 @@ public interface ZarrCompressor {
 			this.level = level;
 		}
 
+		public Gzip(final GzipCompression compression) throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException {
+
+			final Class<? extends GzipCompression> clazz = compression.getClass();
+
+			final Field field = clazz.getDeclaredField("level");
+			field.setAccessible(true);
+			level = field.getInt(compression);
+			field.setAccessible(false);
+		}
+
 		@Override
 		public GzipCompression getCompression() {
 
@@ -126,6 +205,16 @@ public interface ZarrCompressor {
 			this.level = level;
 		}
 
+		public Bz2(final Bzip2Compression compression) throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException {
+
+			final Class<? extends Bzip2Compression> clazz = compression.getClass();
+
+			final Field field = clazz.getDeclaredField("blockSize");
+			field.setAccessible(true);
+			level = field.getInt(compression);
+			field.setAccessible(false);
+		}
+
 		@Override
 		public Bzip2Compression getCompression() {
 
@@ -135,20 +224,7 @@ public interface ZarrCompressor {
 
 	public static JsonAdapter jsonAdapter = new JsonAdapter();
 
-	static public class JsonAdapter implements JsonDeserializer<ZarrCompressor>, JsonSerializer<ZarrCompressor> {
-
-		/* idiotic stream based initialization because Java cannot have static initialization code in interfaces */
-		public static Map<String, Class<? extends ZarrCompressor>> registry = Stream.of(
-				new AbstractMap.SimpleImmutableEntry<>("blosc", Blosc.class),
-				new AbstractMap.SimpleImmutableEntry<>("zlib", Zlib.class),
-				new AbstractMap.SimpleImmutableEntry<>("gzip", Gzip.class),
-				new AbstractMap.SimpleImmutableEntry<>("bz2", Bz2.class))
-				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-		@Override
-		public JsonElement serialize(final ZarrCompressor compression, final Type typeOfSrc, final JsonSerializationContext context) {
-
-			return context.serialize(compression);
-		}
+	static public class JsonAdapter implements JsonDeserializer<ZarrCompressor> {
 
 		@Override
 		public ZarrCompressor deserialize(final JsonElement json, final Type typeOfT, final JsonDeserializationContext context)

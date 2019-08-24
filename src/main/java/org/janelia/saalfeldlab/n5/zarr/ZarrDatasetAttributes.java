@@ -26,7 +26,6 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
 import org.janelia.saalfeldlab.n5.Compression;
-import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 
 
@@ -37,15 +36,36 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 public class ZarrDatasetAttributes extends DatasetAttributes {
 
 	private final boolean isRowMajor;
+	private final DType dType;
+	private final byte[] fillBytes;
 
 	public ZarrDatasetAttributes(
 			final long[] dimensions,
 			final int[] blockSize,
-			final DataType dataType,
+			final DType dType,
 			final Compression compression,
-			final boolean isRowMajor) {
+			final boolean isRowMajor,
+			final String fill_value) {
 
-		super(dimensions, blockSize, dataType, compression);
+		super(dimensions, blockSize, dType.getDataType(), compression);
+		this.dType = dType;
 		this.isRowMajor = isRowMajor;
+		this.fillBytes = dType.createFillBytes(fill_value);
+	}
+
+	public boolean isRowMajor() {
+
+		return isRowMajor;
+	}
+
+	public DType getDType() {
+
+		return dType;
+	}
+
+	public byte[] getFillBytes() {
+
+		// TODO Auto-generated method stub
+		return fillBytes;
 	}
 }
