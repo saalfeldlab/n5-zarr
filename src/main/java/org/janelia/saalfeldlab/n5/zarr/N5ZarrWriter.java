@@ -460,7 +460,13 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 		else
 			zarrDatasetAttributes = getZArraryAttributes(pathName).getDatasetAttributes();
 
-		final Path path = Paths.get(basePath, removeLeadingSlash(pathName), getZarrDataBlockPath(dataBlock.getGridPosition(), dimensionSeparator).toString());
+		final Path path = Paths.get(
+				basePath,
+				removeLeadingSlash(pathName),
+				getZarrDataBlockPath(
+						dataBlock.getGridPosition(),
+						dimensionSeparator,
+						zarrDatasetAttributes.isRowMajor()).toString());
 		createDirectories(path.getParent());
 		try (final LockedFileChannel lockedChannel = LockedFileChannel.openForWriting(path)) {
 

@@ -446,7 +446,13 @@ public class N5ZarrReader extends N5FSReader {
 		else
 			zarrDatasetAttributes = getZArraryAttributes(pathName).getDatasetAttributes();
 
-		final Path path = Paths.get(basePath, removeLeadingSlash(pathName), getZarrDataBlockPath(gridPosition, dimensionSeparator).toString());
+		final Path path = Paths.get(
+				basePath,
+				removeLeadingSlash(pathName),
+				getZarrDataBlockPath(
+						gridPosition,
+						dimensionSeparator,
+						zarrDatasetAttributes.isRowMajor()).toString());
 		if (!Files.exists(path))
 			return null;
 
@@ -487,13 +493,22 @@ public class N5ZarrReader extends N5FSReader {
 	 */
 	protected static Path getZarrDataBlockPath(
 			final long[] gridPosition,
-			final String dimensionSeparator) {
+			final String dimensionSeparator,
+			final boolean isRowMajor) {
 
 		final StringBuilder pathStringBuilder = new StringBuilder();
-		pathStringBuilder.append(gridPosition[gridPosition.length - 1]);
-		for (int i = gridPosition.length - 2; i >= 0 ; --i) {
-			pathStringBuilder.append(dimensionSeparator);
-			pathStringBuilder.append(gridPosition[i]);
+		if (isRowMajor) {
+			pathStringBuilder.append(gridPosition[gridPosition.length - 1]);
+			for (int i = gridPosition.length - 2; i >= 0 ; --i) {
+				pathStringBuilder.append(dimensionSeparator);
+				pathStringBuilder.append(gridPosition[i]);
+			}
+		} else {
+			pathStringBuilder.append(gridPosition[0]);
+			for (int i = 1; i < gridPosition.length; ++i) {
+				pathStringBuilder.append(dimensionSeparator);
+				pathStringBuilder.append(gridPosition[i]);
+			}
 		}
 
 		return Paths.get(pathStringBuilder.toString());
