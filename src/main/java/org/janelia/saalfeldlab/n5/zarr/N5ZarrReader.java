@@ -346,19 +346,19 @@ public class N5ZarrReader extends N5FSReader {
 		final BlockReader reader = datasetAttributes.getCompression().getReader();
 		reader.read(byteBlock, in);
 
-		final DataBlock<?> dataBlock = dType.createDataBlock(blockSize, gridPosition);
-		if (dataBlock instanceof ByteArrayDataBlock) {
-			if (datasetAttributes.isRowMajor())
-				return byteBlock;
-		} else {
-			/* translate into target type */
-			final ByteBuffer byteBuffer = byteBlock.toByteBuffer();
-			byteBuffer.order(dType.getOrder());
-
-			dataBlock.readData(byteBuffer);
+		switch (dType.getDataType()) {
+		case UINT8:
+		case INT8:
+			return byteBlock;
 		}
 
-		/* TODO I do not think that makes sense, C major should be opened transposed, the consumer can decide what to do with them? */
+		/* else translate into target type */
+		final DataBlock<?> dataBlock = dType.createDataBlock(blockSize, gridPosition);
+		final ByteBuffer byteBuffer = byteBlock.toByteBuffer();
+		byteBuffer.order(dType.getOrder());
+		dataBlock.readData(byteBuffer);
+
+		/* TODO I do not think that makes sense, F order should be opened transposed, the consumer can decide what to do with them? */
 //		if (!datasetAttributes.isRowMajor()) {
 //
 //			final long[] blockDimensions = new long[blockSize.length];
