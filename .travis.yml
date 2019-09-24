@@ -2,6 +2,8 @@ dist: bionic
 before_install:
   - sudo apt-get update
   - sudo apt-get install -y libblosc1
+  - sudo apt-get install -y pip3
+  - sudo pip3 install zarr
 language: java
 jdk: openjdk10
 branches:
