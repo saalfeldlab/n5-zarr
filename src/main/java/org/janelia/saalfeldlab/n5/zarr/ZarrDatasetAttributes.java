@@ -35,9 +35,9 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
  */
 public class ZarrDatasetAttributes extends DatasetAttributes {
 
-	private final boolean isRowMajor;
-	private final DType dType;
-	private final byte[] fillBytes;
+	private final transient boolean isRowMajor;
+	private final transient DType dType;
+	private final transient byte[] fillBytes;
 
 	public ZarrDatasetAttributes(
 			final long[] dimensions,
