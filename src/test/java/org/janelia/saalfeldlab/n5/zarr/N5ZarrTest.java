@@ -25,9 +25,15 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.AbstractN5Test;
@@ -38,8 +44,19 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.junit.Assert;
 import org.junit.Test;
+
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.real.DoubleType;
+import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.view.Views;
 
 /**
  *
@@ -49,6 +66,9 @@ import org.junit.Test;
 public class N5ZarrTest extends AbstractN5Test {
 
 	static private String testDirPath = System.getProperty("user.home") + "/tmp/n5-test.zarr";
+	static private String testZarrDirPath = System.getProperty("user.home") + "/tmp/zarr-test.zarr";
+	static private String testZarrDatasetName = "/test/data";
+
 
 	/**
 	 * @throws IOException
@@ -177,6 +197,131 @@ public class N5ZarrTest extends AbstractN5Test {
 	public void testMode1WriteReadByteBlock() {
 
 		// Not supported by Zarr
+	}
+
+	private boolean runPythonTest() throws IOException, InterruptedException {
+
+		final boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+		Process process;
+		if (isWindows) {
+		    process = Runtime.getRuntime().exec("cmd.exe /c python3 src\\test\\python\\zarr-test.py");
+		} else {
+		    process = Runtime.getRuntime().exec("python3 src/test/python/zarr-test.py");
+		}
+		final int exitCode = process.waitFor();
+		new BufferedReader(new InputStreamReader(process.getErrorStream())).lines().forEach(System.out::println);
+		process.destroy();
+
+		return (exitCode == 0);
+	}
+
+	private static <T extends IntegerType<T>> void assertIsSequence(
+			final RandomAccessibleInterval<T> source,
+			final T ref) {
+
+		ref.setZero();
+		for (final T t : Views.flatIterable(source)) {
+
+			if (!t.valueEquals(ref))
+				throw new AssertionError("values not equal: expected " + ref + ", actual " + t);
+			ref.inc();
+		}
+	}
+
+	private static <T extends RealType<T>> void assertIsSequence(
+			final RandomAccessibleInterval<T> source,
+			final T ref) {
+
+		ref.setReal(0);
+		for (final T t : Views.flatIterable(source)) {
+
+			if (!t.valueEquals(ref))
+				throw new AssertionError("values not equal: expected " + ref + ", actual " + t);
+			ref.inc();
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testReadZarrPython() throws IOException, InterruptedException {
+
+		/* create test data with python */
+		if (!runPythonTest()) {
+			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
+			return;
+		}
+
+		final N5ZarrWriter n5Zarr = new N5ZarrWriter(testZarrDirPath, ".", true);
+		final N5ZarrWriter n5ZarrWithoutMapping = new N5ZarrWriter(testZarrDirPath, ".", false);
+
+		/* groups */
+		assertTrue(n5Zarr.exists(testZarrDatasetName) && !n5Zarr.datasetExists(testZarrDatasetName));
+
+		/* array parameters */
+		final DatasetAttributes datasetAttributesC = n5Zarr.getDatasetAttributes(testZarrDatasetName + "/3x2_c_<i8");
+		assertArrayEquals(datasetAttributesC.getDimensions(), new long[]{3, 2});
+		assertArrayEquals(datasetAttributesC.getBlockSize(), new int[]{3, 2});
+		assertEquals(datasetAttributesC.getDataType(), DataType.INT64);
+
+		final DatasetAttributes datasetAttributesF = n5Zarr.getDatasetAttributes(testZarrDatasetName + "/3x2_f_<i8");
+		assertArrayEquals(datasetAttributesF.getDimensions(), new long[]{2, 3});
+		assertArrayEquals(datasetAttributesF.getBlockSize(), new int[]{2, 3});
+		assertEquals(datasetAttributesF.getDataType(), DataType.INT64);
+
+		/* N5 array parameter mapping */
+		assertArrayEquals(n5Zarr.getAttribute(testZarrDatasetName + "/3x2_c_<i8", "dimensions", long[].class), new long[]{3, 2});
+		assertArrayEquals(n5Zarr.getAttribute(testZarrDatasetName + "/3x2_c_<i8", "blockSize", int[].class), new int[]{3, 2});
+		assertEquals(n5Zarr.getAttribute(testZarrDatasetName + "/3x2_c_<i8", "dataType", DataType.class), DataType.INT64);
+
+		assertNull(n5ZarrWithoutMapping.getAttribute(testZarrDatasetName + "/3x2_c_<i8", "dimensions", long[].class));
+		assertNull(n5ZarrWithoutMapping.getAttribute(testZarrDatasetName + "/3x2_c_<i8", "blockSize", int[].class));
+		assertNull(n5ZarrWithoutMapping.getAttribute(testZarrDatasetName + "/3x2_c_<i8", "dataType", DataType.class));
+
+
+		/* LE uint8 in C and F order */
+		final UnsignedByteType refUnsignedByte = new UnsignedByteType();
+
+		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_|u1"), refUnsignedByte);
+		assertIsSequence(Views.permute((RandomAccessibleInterval<UnsignedByteType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_f_|u1"), 0, 1), refUnsignedByte);
+
+		/* LE int64 in C and F order */
+		final LongType refLong = new LongType();
+
+		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_<i8"), refLong);
+		assertIsSequence(Views.permute((RandomAccessibleInterval<LongType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_f_<i8"), 0, 1), refLong);
+
+		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_<i8"), refLong);
+		assertIsSequence(Views.permute((RandomAccessibleInterval<LongType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_f_<i8"), 0, 1), refLong);
+
+		/* BE int32 in C and F order */
+		final UnsignedIntType refUnsignedInt = new UnsignedIntType();
+
+		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_>u4"), refUnsignedInt);
+		assertIsSequence(Views.permute((RandomAccessibleInterval<UnsignedIntType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_f_>u4"), 0, 1), refUnsignedInt);
+
+		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_>u4"), refUnsignedInt);
+		assertIsSequence(Views.permute((RandomAccessibleInterval<UnsignedIntType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_f_>u4"), 0, 1), refUnsignedInt);
+
+		/* LE float64 in C and F order */
+		final DoubleType refDouble = new DoubleType();
+
+		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_<f8"), refDouble);
+		assertIsSequence(Views.permute((RandomAccessibleInterval<DoubleType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_f_<f8"), 0, 1), refDouble);
+
+		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_<f8"), refDouble);
+		assertIsSequence(Views.permute((RandomAccessibleInterval<DoubleType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_f_<f8"), 0, 1), refDouble);
+
+		/* BE float32 in C and F order */
+		final FloatType refFloat = new FloatType();
+
+		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_>f4"), refFloat);
+		assertIsSequence(Views.permute((RandomAccessibleInterval<FloatType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_f_>f4"), 0, 1), refFloat);
+
+		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_>f4"), refFloat);
+		assertIsSequence(Views.permute((RandomAccessibleInterval<FloatType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_f_>f4"), 0, 1), refFloat);
+
+		/* remove the container */
+		n5Zarr.remove();
 	}
 
 //	/**
