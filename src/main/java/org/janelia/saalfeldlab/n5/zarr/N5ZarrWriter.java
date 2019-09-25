@@ -286,8 +286,8 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 
 				attributes = new HashMap<>(attributes);
 				ZArrayAttributes zArrayAttributes = getZArraryAttributes(pathName);
-				final long[] shape;
-				final int[] chunks;
+				long[] shape;
+				int[] chunks;
 				final DType dtype;
 				final ZarrCompressor compressor;
 				final boolean isRowMajor = zArrayAttributes.getOrder() == 'C';
@@ -295,16 +295,20 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 				if (attributes.containsKey("dimensions")) {
 					shape = (long[])attributes.get("dimensions");
 					attributes.remove("dimensions");
-					if (isRowMajor)
+					if (isRowMajor) {
+						shape = shape.clone();
 						Utils.reorder(shape);
+					}
 				} else
 					 shape = zArrayAttributes.getShape();
 
 				if (attributes.containsKey("blockSize")) {
 					chunks = (int[])attributes.get("blockSize");
 					attributes.remove("blockSize");
-					if (isRowMajor)
+					if (isRowMajor) {
+						chunks = chunks.clone();
 						Utils.reorder(chunks);
+					}
 				} else
 					chunks = zArrayAttributes.getChunks();
 
