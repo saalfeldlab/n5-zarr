@@ -34,6 +34,7 @@ import static org.junit.Assert.fail;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Arrays;
 import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.AbstractN5Test;
@@ -48,6 +49,7 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
@@ -327,6 +329,46 @@ public class N5ZarrTest extends AbstractN5Test {
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_>u8_zlib"), refUnsignedLong);
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_>u8_gzip"), refUnsignedLong);
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_>u8_bz2"), refUnsignedLong);
+
+		/* fill value 1 */
+		String datasetName = testZarrDatasetName + "/3x2_c_>u4_f1";
+
+		final RandomAccessibleInterval<UnsignedIntType> a3x2_c_bu4_f1 = N5Utils.open(n5Zarr, datasetName);
+		assertIsSequence(a3x2_c_bu4_f1, refUnsignedInt);
+
+		DatasetAttributes attributes = n5Zarr.getDatasetAttributes(datasetName);
+		final long[] shape = attributes.getDimensions();
+		Arrays.setAll(shape, i -> shape[i] + 5);
+		n5Zarr.setAttribute(datasetName, "dimensions", shape);
+
+		final RandomAccessibleInterval<UnsignedIntType> a3x2_c_bu4_f1_after = N5Utils.open(n5Zarr, datasetName);
+		assertIsSequence(Views.interval(a3x2_c_bu4_f1_after,  a3x2_c_bu4_f1), refUnsignedInt);
+		final RandomAccess<UnsignedIntType> ra = a3x2_c_bu4_f1_after.randomAccess();
+		final int fill_value = Integer.parseInt(n5Zarr.getZArraryAttributes(datasetName).getFillValue());
+		ra.setPosition(shape[0] - 5, 0);
+		assertEquals(fill_value, ra.get().getInteger());
+		ra.setPosition(shape[1] - 5, 1);
+		assertEquals(fill_value, ra.get().getInteger());
+
+
+		/* fill value NaN */
+		datasetName = testZarrDatasetName + "/3x2_c_<f4_fnan";
+
+		final RandomAccessibleInterval<FloatType> a3x2_c_lf4_fnan = N5Utils.open(n5Zarr, datasetName);
+		assertIsSequence(a3x2_c_lf4_fnan, refFloat);
+
+		attributes = n5Zarr.getDatasetAttributes(datasetName);
+		final long[] shapef = attributes.getDimensions();
+		Arrays.setAll(shapef, i -> shapef[i] + 5);
+		n5Zarr.setAttribute(datasetName, "dimensions", shapef);
+
+		final RandomAccessibleInterval<FloatType> a3x2_c_lf4_fnan_after = N5Utils.open(n5Zarr, datasetName);
+		assertIsSequence(Views.interval(a3x2_c_lf4_fnan_after,  a3x2_c_lf4_fnan), refFloat);
+		final RandomAccess<FloatType> raf = a3x2_c_lf4_fnan_after.randomAccess();
+		raf.setPosition(shapef[0] - 5, 0);
+		assertTrue(Float.isNaN(raf.get().getRealFloat()));
+		raf.setPosition(shapef[1] - 5, 1);
+		assertTrue(Float.isNaN(raf.get().getRealFloat()));
 
 		/* remove the container */
 		n5Zarr.remove();

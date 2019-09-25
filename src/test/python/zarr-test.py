@@ -156,3 +156,18 @@ group.array(
   chunks=(7, 13),
   overwrite=True)
 
+group.array(
+  name='3x2_c_>u4_f1',
+  dtype='>u4',
+  data=array_3x2_c,
+  chunks=(3, 2),
+  fill_value="1",
+  overwrite=True)
+group.array(
+  name='3x2_c_<f4_fnan',
+  dtype='<f4',
+  data=array_3x2_c,
+  chunks=(3, 2),
+  fill_value="NaN",
+  overwrite=True)
+
