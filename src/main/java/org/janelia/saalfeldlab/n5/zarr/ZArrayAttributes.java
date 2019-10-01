@@ -69,7 +69,7 @@ public class ZArrayAttributes {
 		this.shape = shape;
 		this.chunks = chunks;
 		this.dtype = dtype;
-		this.compressor = compressor;
+		this.compressor = compressor == null ? new ZarrCompressor.Raw() : compressor;
 		this.fill_value = fill_value;
 		this.order = order;
 		if (filters != null)

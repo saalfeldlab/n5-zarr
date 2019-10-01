@@ -44,6 +44,7 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
+import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.junit.Assert;
@@ -90,7 +91,8 @@ public class N5ZarrTest extends AbstractN5Test {
 				new GzipCompression(),
 				new GzipCompression(5, true),
 				new BloscCompression(),
-				new BloscCompression("lz4", 6, BloscCompression.BITSHUFFLE, 0, 4)
+				new BloscCompression("lz4", 6, BloscCompression.BITSHUFFLE, 0, 4),
+				new RawCompression()
 			};
 	}
 

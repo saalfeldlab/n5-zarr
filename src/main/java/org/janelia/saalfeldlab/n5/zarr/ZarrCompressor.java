@@ -35,6 +35,7 @@ import java.util.stream.Stream;
 import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 
 import com.google.gson.JsonDeserializationContext;
@@ -219,6 +220,15 @@ public interface ZarrCompressor {
 		public Bzip2Compression getCompression() {
 
 			return new Bzip2Compression(level);
+		}
+	}
+
+	public static class Raw extends RawCompression implements ZarrCompressor {
+
+		@Override
+		public RawCompression getCompression() {
+
+			return this;
 		}
 	}
 
