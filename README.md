@@ -1,6 +1,13 @@
 # n5-zarr [![Build Status](https://travis-ci.com/saalfeldlab/n5-zarr.svg?branch=master)](https://travis-ci.com/saalfeldlab/n5-zarr)
 Zarr filesystem backend for N5 (experimental).
 
+This library provides best effort compatibility with existing [Zarr v2](https://zarr.readthedocs.io/en/stable/spec/v2.html) data stored in filesystem containers.  So far, I have tested
+
+* self-consistency, i.e. data writing and reading in this implementation works,
+* reading of some example zarr containers written with Python (check the [examples](https://github.com/saalfeldlab/n5-zarr/blob/master/src/test/python/zarr-test.py))
+
+## Build instructions
+
 Depends on `libblosc1`, on Ubuntu:
 ```
 sudo apt-get install -y libblosc1
@@ -11,10 +18,7 @@ Build and install:
 mvn clean install
 ```
 
-This library provides best effort compatibility with existing [Zarr v2](https://zarr.readthedocs.io/en/stable/spec/v2.html) data stored in filesystem containers.  So far, I have tested
-
-* self-consistency, i.e. data writing and reading in this implementation works,
-* reading of some example zarr containers written with Python (check the [examples](https://github.com/saalfeldlab/n5-zarr/blob/master/src/test/python/zarr-test.py))
+## Supported Zarr features
 
 This implementation currently supports the following Zarr features
 
@@ -35,4 +39,10 @@ This implementation currently supports the following Zarr features
 
 [Filters](https://zarr.readthedocs.io/en/stable/spec/v2.html#filters) are not currently supported because I feel ambiguous about them.  Please let me know of use cases that I am missing, it is not hard to add data filters of any kind.  I just cannot come up with a single thing that I would like to do here right now.  
 
+## N5 gimmicks
+
 Optionally, N5 dataset attributes ("dimensions", "blockSize", "compression", "dataType") can be virtually mapped such that N5-API based code that reads or writes them directly via general attribute access will see and modify the corresponding zarray (dataset) attributes.  Keep in mind that this will lead to name clashes if a Zarr dataset uses any of these attributes for other purposes, try switching the mapping off first if that is an issue.
+
+## Examples
+
+TODO add code examples.  For now, have a look at the [tests](https://github.com/saalfeldlab/n5-zarr/blob/master/src/test/java/org/janelia/saalfeldlab/n5/zarr/N5ZarrTest.java#L249).
