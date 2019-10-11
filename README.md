@@ -8,15 +8,18 @@ This library provides best effort compatibility with existing [Zarr v2](https://
 
 ## Build instructions
 
-Depends on `libblosc1`, on Ubuntu:
+Blosc compressors depend on `n5-blosc` which depends on `libblosc1`, On Ubuntu 18.04 or later, install with:
 ```
 sudo apt-get install -y libblosc1
 ```
+On other platforms, please check the [installation instructions](https://github.com/lasersonlab/JBlosc/blob/master/README.md) for [JBlosc](https://github.com/lasersonlab/jblosc).
 
 Build and install:
 ```
 mvn clean install
 ```
+
+This also works without Blosc compression if not available.
 
 ## Supported Zarr features
 
