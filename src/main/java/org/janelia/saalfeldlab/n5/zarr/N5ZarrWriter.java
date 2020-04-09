@@ -483,6 +483,35 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 	}
 
 	@Override
+	public boolean deleteBlock(final String pathName, final long[] gridPosition) throws IOException {
+
+		final DatasetAttributes datasetAttributes = getDatasetAttributes(pathName);
+
+		final ZarrDatasetAttributes zarrDatasetAttributes;
+		if (datasetAttributes instanceof ZarrDatasetAttributes)
+			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
+		else
+			zarrDatasetAttributes = getZArraryAttributes(pathName).getDatasetAttributes();
+
+		final Path path = Paths.get(
+				basePath,
+				removeLeadingSlash(pathName),
+				getZarrDataBlockPath(
+						gridPosition,
+						dimensionSeparator,
+						zarrDatasetAttributes.isRowMajor()).toString());
+
+		if (!Files.exists(path))
+			return true;
+
+		try (final LockedFileChannel lockedChannel = LockedFileChannel.openForWriting(path)) {
+			Files.delete(path);
+		}
+
+		return !Files.exists(path);
+	}
+
+	@Override
 	public boolean remove() throws IOException {
 
 		return remove("/");
