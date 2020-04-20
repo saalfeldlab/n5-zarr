@@ -62,7 +62,7 @@
 		<license.organizationName>Saalfeld Lab</license.organizationName>
 		<license.copyrightOwners>Stephan Saalfeld</license.copyrightOwners>
 
-		<scijava.jvm.build.version>[1.8.0-101,11]</scijava.jvm.build.version>
+		<scijava.jvm.build.version>[1.8.0-101,11.0.9999]</scijava.jvm.build.version>
 	</properties>
 
 	<developers>
