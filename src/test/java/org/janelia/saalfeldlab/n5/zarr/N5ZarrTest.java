@@ -121,6 +121,20 @@ public class N5ZarrTest extends AbstractN5Test {
 		}
 	}
 
+	@Test
+	public void testPadCrop() throws Exception {
+
+		byte[] src = new byte[] { 1, 1, 1, 1 };  // 2x2
+		int[] srcBlockSize = new int[] { 2, 2 };
+		int[] dstBlockSize = new int[] { 3, 3 };
+		int nBytes = 1;
+		int nBits = 0;
+		byte[] fillValue = new byte[] { 0 };
+
+		byte[] dst = N5ZarrWriter.padCrop(src, srcBlockSize, dstBlockSize, nBytes, nBits, fillValue);
+		Assert.assertArrayEquals(new byte[] { 1, 1, 0, 1, 1, 0, 0, 0, 0 }, dst);
+	}
+
 	@Override
 	@Test
 	public void testVersion() throws NumberFormatException, IOException {
