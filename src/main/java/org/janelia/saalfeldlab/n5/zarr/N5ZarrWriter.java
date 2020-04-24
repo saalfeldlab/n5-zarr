@@ -395,13 +395,13 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 					j = 0;
 			}
 			final ArrayImg<ByteType, ByteArray> srcImg = ArrayImgs.bytes(src, srcIntervalDimensions);
-			final ArrayImg<ByteType, ByteArray> dstImg = ArrayImgs.bytes(dst, srcIntervalDimensions);
+			final ArrayImg<ByteType, ByteArray> dstImg = ArrayImgs.bytes(dst, dstIntervalDimensions);
 
 			final FinalInterval intersection = Intervals.intersect(srcImg, dstImg);
 			final Cursor<ByteType> srcCursor = Views.interval(srcImg, intersection).cursor();
 			final Cursor<ByteType> dstCursor = Views.interval(dstImg, intersection).cursor();
 			while (srcCursor.hasNext())
-				dstCursor.next().set(dstCursor.next());
+				dstCursor.next().set(srcCursor.next());
 
 			return dst;
 		} else {
