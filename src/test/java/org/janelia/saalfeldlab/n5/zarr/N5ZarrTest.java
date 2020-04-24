@@ -48,6 +48,7 @@ import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import net.imglib2.RandomAccess;
@@ -199,9 +200,8 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Override
 	@Test
+	@Ignore("Zarr does not currently support mode 1 data blocks.")
 	public void testMode1WriteReadByteBlock() {
-
-		// Not supported by Zarr
 	}
 
 	private boolean runPythonTest() throws IOException, InterruptedException {
