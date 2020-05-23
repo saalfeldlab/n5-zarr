@@ -76,8 +76,6 @@
 	</ciManagement>
 
 	<properties>
-		<n5.version>2.2.0</n5.version>
-
 		<package-name>org.janelia.saalfeldlab</package-name>
 
 		<license.licenseName>bsd_2</license.licenseName>
@@ -89,6 +87,10 @@
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
+
+		<n5.version>2.2.0</n5.version>
+		<n5-blosc.version>1.0.1</n5-blosc.version>
+		<n5-imglib2.version>3.4.0</n5-imglib2.version>
 	</properties>
 
 	<dependencies>
@@ -104,7 +106,7 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-blosc</artifactId>
-			<version>1.0.1</version>
+			<version>${n5-blosc.version}</version>
 		</dependency>
 
 		<!-- Test dependencies -->
@@ -112,13 +114,13 @@
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5</artifactId>
 			<version>${n5.version}</version>
-			<type>test-jar</type>
+			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-imglib2</artifactId>
-			<version>3.4.0</version>
+			<version>${n5-imglib2.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
