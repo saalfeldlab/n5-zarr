@@ -84,6 +84,7 @@
 		<license.copyrightOwners>Stephan Saalfeld</license.copyrightOwners>
 
 		<scijava.jvm.build.version>[1.8.0-101,11.0.9999]</scijava.jvm.build.version>
+		<doclint>none</doclint>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
