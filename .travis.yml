@@ -6,7 +6,7 @@ before_install:
   - sudo apt install -y python3-pip
   - sudo pip3 install zarr
 language: java
-jdk: openjdk10
+jdk: openjdk8
 branches:
   only:
   - master
