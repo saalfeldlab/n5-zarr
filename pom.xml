@@ -11,7 +11,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>n5-zarr</artifactId>
-	<version>0.0.4-SNAPSHOT</version>
+	<version>0.0.5-SNAPSHOT</version>
 
 	<name>N5 Zarr</name>
 	<description>Zarr filesystem backend for N5</description>
