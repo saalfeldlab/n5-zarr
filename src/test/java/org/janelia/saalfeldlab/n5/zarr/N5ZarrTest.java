@@ -32,6 +32,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Arrays;
@@ -47,6 +49,9 @@ import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -389,6 +394,21 @@ public class N5ZarrTest extends AbstractN5Test {
 		/* remove the container */
 		n5Zarr.remove();
 	}
+
+	@Test
+	public void testRawCompressorNullInZarray() throws IOException, FileNotFoundException, ParseException {
+		N5ZarrWriter n5 = new N5ZarrWriter(testZarrDirPath);
+		n5.createDataset(testZarrDatasetName, new long[]{1, 2, 3}, new int[]{1, 2, 3}, DataType.UINT16, new RawCompression());
+		JSONParser jsonParser = new JSONParser();
+		try (FileReader freader = new FileReader(testZarrDirPath + testZarrDatasetName + "/.zarray")) {
+			JSONObject zarray = (JSONObject) jsonParser.parse(freader);
+			JSONObject compressor = (JSONObject) zarray.get("compressor");
+			assertTrue(compressor == null);
+		} finally {
+			n5.remove();
+		}
+	}
+
 
 //	/**
 //	 * @throws IOException

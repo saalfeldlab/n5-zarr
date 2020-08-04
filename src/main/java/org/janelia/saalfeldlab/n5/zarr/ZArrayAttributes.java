@@ -30,6 +30,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
+import org.janelia.saalfeldlab.n5.RawCompression;
+
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -144,7 +146,7 @@ public class ZArrayAttributes {
 		map.put(shapeKey, shape);
 		map.put(chunksKey, chunks);
 		map.put(dTypeKey, dtype.toString());
-		map.put(compressorKey, compressor);
+		map.put(compressorKey, compressor instanceof RawCompression ? null : compressor);
 		map.put(fillValueKey, fill_value);
 		map.put(orderKey, order);
 		map.put(filtersKey, filters);
