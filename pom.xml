@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>27.0.1</version>
+		<version>29.2.1</version>
 		<relativePath />
 	</parent>
 
@@ -88,17 +88,12 @@
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
-
-		<n5.version>2.2.0</n5.version>
-		<n5-blosc.version>1.0.1</n5-blosc.version>
-		<n5-imglib2.version>3.4.0</n5-imglib2.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5</artifactId>
-			<version>${n5.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -107,7 +102,6 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-blosc</artifactId>
-			<version>${n5-blosc.version}</version>
 		</dependency>
 
 		<!-- Test dependencies -->
@@ -121,7 +115,6 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-imglib2</artifactId>
-			<version>${n5-imglib2.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
