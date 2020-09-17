@@ -483,7 +483,7 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 	}
 
 	@Override
-	public boolean deleteBlock(final String pathName, final long[] gridPosition) throws IOException {
+	public boolean deleteBlock(final String pathName, final long... gridPosition) throws IOException {
 
 		final DatasetAttributes datasetAttributes = getDatasetAttributes(pathName);
 

@@ -337,7 +337,7 @@ public class N5ZarrReader extends N5FSReader {
 	public static DataBlock<?> readBlock(
 			final InputStream in,
 			final ZarrDatasetAttributes datasetAttributes,
-			final long[] gridPosition) throws IOException {
+			final long... gridPosition) throws IOException {
 
 		final int[] blockSize = datasetAttributes.getBlockSize();
 		final DType dType = datasetAttributes.getDType();
@@ -439,7 +439,7 @@ public class N5ZarrReader extends N5FSReader {
 	public DataBlock<?> readBlock(
 			final String pathName,
 			final DatasetAttributes datasetAttributes,
-			final long[] gridPosition) throws IOException {
+			final long... gridPosition) throws IOException {
 
 		final ZarrDatasetAttributes zarrDatasetAttributes;
 		if (datasetAttributes instanceof ZarrDatasetAttributes)

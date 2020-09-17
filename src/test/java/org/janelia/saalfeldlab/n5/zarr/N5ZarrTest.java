@@ -130,14 +130,14 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testPadCrop() throws Exception {
 
-		byte[] src = new byte[] { 1, 1, 1, 1 };  // 2x2
-		int[] srcBlockSize = new int[] { 2, 2 };
-		int[] dstBlockSize = new int[] { 3, 3 };
-		int nBytes = 1;
-		int nBits = 0;
-		byte[] fillValue = new byte[] { 0 };
+		final byte[] src = new byte[] { 1, 1, 1, 1 };  // 2x2
+		final int[] srcBlockSize = new int[] { 2, 2 };
+		final int[] dstBlockSize = new int[] { 3, 3 };
+		final int nBytes = 1;
+		final int nBits = 0;
+		final byte[] fillValue = new byte[] { 0 };
 
-		byte[] dst = N5ZarrWriter.padCrop(src, srcBlockSize, dstBlockSize, nBytes, nBits, fillValue);
+		final byte[] dst = N5ZarrWriter.padCrop(src, srcBlockSize, dstBlockSize, nBytes, nBits, fillValue);
 		Assert.assertArrayEquals(new byte[] { 1, 1, 0, 1, 1, 0, 0, 0, 0 }, dst);
 	}
 
@@ -221,6 +221,12 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	@Ignore("Zarr does not currently support mode 1 data blocks.")
 	public void testMode1WriteReadByteBlock() {
+	}
+
+	@Override
+	@Test
+	@Ignore("Zarr does not currently support mode 2 data blocks and serialized objects.")
+	public void testWriteReadSerializableBlock() {
 	}
 
 	private boolean runPythonTest() throws IOException, InterruptedException {
@@ -397,12 +403,12 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Test
 	public void testRawCompressorNullInZarray() throws IOException, FileNotFoundException, ParseException {
-		N5ZarrWriter n5 = new N5ZarrWriter(testZarrDirPath);
+		final N5ZarrWriter n5 = new N5ZarrWriter(testZarrDirPath);
 		n5.createDataset(testZarrDatasetName, new long[]{1, 2, 3}, new int[]{1, 2, 3}, DataType.UINT16, new RawCompression());
-		JSONParser jsonParser = new JSONParser();
+		final JSONParser jsonParser = new JSONParser();
 		try (FileReader freader = new FileReader(testZarrDirPath + testZarrDatasetName + "/.zarray")) {
-			JSONObject zarray = (JSONObject) jsonParser.parse(freader);
-			JSONObject compressor = (JSONObject) zarray.get("compressor");
+			final JSONObject zarray = (JSONObject) jsonParser.parse(freader);
+			final JSONObject compressor = (JSONObject) zarray.get("compressor");
 			assertTrue(compressor == null);
 		} finally {
 			n5.remove();
