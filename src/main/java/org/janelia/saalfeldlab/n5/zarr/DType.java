@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017, Stephan Saalfeld
+ * Copyright (c) 2019--2020, Stephan Saalfeld
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
