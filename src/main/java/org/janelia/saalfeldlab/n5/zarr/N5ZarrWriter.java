@@ -245,6 +245,7 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 				ZarrCompressor.fromCompression(datasetAttributes.getCompression()),
 				"0",
 				'C',
+				dimensionSeparator,
 				null);
 
 		setZArrayAttributes(pathName, zArrayAttributes);

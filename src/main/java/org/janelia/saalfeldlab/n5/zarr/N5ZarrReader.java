@@ -248,6 +248,7 @@ public class N5ZarrReader extends N5FSReader {
 			}
 		} else System.out.println(path.toString() + " does not exist.");
 
+		JsonElement sepElem = attributes.get("dimension_separator");
 		return new ZArrayAttributes(
 				attributes.get("zarr_format").getAsInt(),
 				gson.fromJson(attributes.get("shape"), long[].class),
@@ -256,6 +257,7 @@ public class N5ZarrReader extends N5FSReader {
 				gson.fromJson(attributes.get("compressor"), ZarrCompressor.class),
 				attributes.get("fill_value").getAsString(),
 				attributes.get("order").getAsCharacter(),
+				sepElem != null ? sepElem.getAsString() : dimensionSeparator,
 				gson.fromJson(attributes.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType()));
 	}
 
@@ -447,12 +449,19 @@ public class N5ZarrReader extends N5FSReader {
 		else
 			zarrDatasetAttributes = getZArraryAttributes(pathName).getDatasetAttributes();
 
+		final String dimSep;
+		final String attrDimensionSeparator = zarrDatasetAttributes.getDimensionSeparator();
+		if (attrDimensionSeparator != null && !attrDimensionSeparator.isEmpty())
+			dimSep = attrDimensionSeparator;
+		else
+			dimSep = dimensionSeparator;
+
 		final Path path = Paths.get(
 				basePath,
 				removeLeadingSlash(pathName),
 				getZarrDataBlockPath(
 						gridPosition,
-						dimensionSeparator,
+						dimSep,
 						zarrDatasetAttributes.isRowMajor()).toString());
 		if (!Files.exists(path))
 			return null;
