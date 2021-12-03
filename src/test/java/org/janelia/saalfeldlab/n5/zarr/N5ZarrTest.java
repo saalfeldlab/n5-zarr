@@ -77,6 +77,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	static private String testDirPath = System.getProperty("user.home") + "/tmp/n5-test.zarr";
 	static private String testZarrDirPath = System.getProperty("user.home") + "/tmp/zarr-test.zarr";
+	static private String testZarrNestedDirPath = System.getProperty("user.home") + "/tmp/zarr-test-nested.zarr";
 	static private String testZarrDatasetName = "/test/data";
 
 
@@ -124,6 +125,22 @@ public class N5ZarrTest extends AbstractN5Test {
 		} catch (final IOException e) {
 			fail("Dataset info cannot be opened");
 			e.printStackTrace();
+		}
+	}
+
+	@Test
+	public void testCreateNestedDataset() {
+
+		final String datasetName = "/test/nested/data";
+		try {
+			N5ZarrWriter n5Nested = new N5ZarrWriter(testDirPath, "/", true );
+			n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			assertEquals( "/", n5Nested.getZArraryAttributes(datasetName).getDimensionSeparator());
+
+			n5Nested.remove(datasetName);
+			n5Nested.close();
+		} catch (IOException e) {
+			fail(e.getMessage());
 		}
 	}
 
@@ -229,20 +246,20 @@ public class N5ZarrTest extends AbstractN5Test {
 	public void testWriteReadSerializableBlock() {
 	}
 
-	private boolean runPythonTest() throws IOException, InterruptedException {
+	private boolean runPythonTest(String script) throws IOException, InterruptedException {
 
 		final boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
 		Process process;
 		if (isWindows) {
-		    process = Runtime.getRuntime().exec("cmd.exe /c python3 src\\test\\python\\zarr-test.py");
+		    process = Runtime.getRuntime().exec("cmd.exe /c python3 src\\test\\python\\" + script);
 		} else {
-		    process = Runtime.getRuntime().exec("python3 src/test/python/zarr-test.py");
+		    process = Runtime.getRuntime().exec("python3 src/test/python/" + script );
 		}
 		final int exitCode = process.waitFor();
 		new BufferedReader(new InputStreamReader(process.getErrorStream())).lines().forEach(System.out::println);
 		process.destroy();
 
-		return (exitCode == 0);
+		return (exitCode == 0 );
 	}
 
 	private static <T extends IntegerType<T>> void assertIsSequence(
@@ -276,7 +293,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	public void testReadZarrPython() throws IOException, InterruptedException {
 
 		/* create test data with python */
-		if (!runPythonTest()) {
+		if (!runPythonTest("zarr-test.py")) {
 			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
 			return;
 		}
@@ -396,6 +413,36 @@ public class N5ZarrTest extends AbstractN5Test {
 		assertTrue(Float.isNaN(raf.get().getRealFloat()));
 		raf.setPosition(shapef[1] - 5, 1);
 		assertTrue(Float.isNaN(raf.get().getRealFloat()));
+
+		/* remove the container */
+		n5Zarr.remove();
+	}
+
+	@Test
+	public void testReadZarrNestedPython() throws IOException, InterruptedException {
+
+		/* create test data with python */
+		if (!runPythonTest("zarr-nested-test.py")) {
+			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
+			return;
+		}
+
+		final N5ZarrWriter n5Zarr = new N5ZarrWriter(testZarrNestedDirPath, ".", true);
+
+		/* groups */
+		System.out.println( n5Zarr.exists(testZarrDatasetName));
+		System.out.println( n5Zarr.datasetExists(testZarrDatasetName));
+		assertTrue(n5Zarr.exists(testZarrDatasetName) && !n5Zarr.datasetExists(testZarrDatasetName));
+
+		/* array parameters */
+		final DatasetAttributes datasetAttributesC = n5Zarr.getDatasetAttributes(testZarrDatasetName + "/3x2_c_|u1");
+		assertArrayEquals(datasetAttributesC.getDimensions(), new long[]{3, 2});
+		assertArrayEquals(datasetAttributesC.getBlockSize(), new int[]{3, 2});
+		assertEquals(datasetAttributesC.getDataType(), DataType.UINT8);
+		assertEquals( n5Zarr.getZArraryAttributes(testZarrDatasetName + "/3x2_c_|u1").getDimensionSeparator(), "/" );
+
+		final UnsignedByteType refUnsignedByte = new UnsignedByteType();
+		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_|u1"), refUnsignedByte);
 
 		/* remove the container */
 		n5Zarr.remove();

@@ -47,6 +47,7 @@ public class ZArrayAttributes {
 	protected static final String fillValueKey = "fill_value";
 	protected static final String orderKey = "order";
 	protected static final String filtersKey = "filters";
+	protected static final String dimensionSeparatorKey = "dimension_separator";
 
 	private final int zarr_format;
 	private final long[] shape;
@@ -55,7 +56,31 @@ public class ZArrayAttributes {
 	private final ZarrCompressor compressor;
 	private final String fill_value;
 	private final char order;
+	private final String dimensionSeparator;
 	private final List<Filter> filters = new ArrayList<>();
+
+	public ZArrayAttributes(
+			final int zarr_format,
+			final long[] shape,
+			final int[] chunks,
+			final DType dtype,
+			final ZarrCompressor compressor,
+			final String fill_value,
+			final char order,
+			final String dimensionSeparator,
+			final Collection<Filter> filters) {
+
+		this.zarr_format = zarr_format;
+		this.shape = shape;
+		this.chunks = chunks;
+		this.dtype = dtype;
+		this.compressor = compressor == null ? new ZarrCompressor.Raw() : compressor;
+		this.fill_value = fill_value;
+		this.order = order;
+		this.dimensionSeparator = dimensionSeparator;
+		if (filters != null)
+			this.filters.addAll(filters);
+	}
 
 	public ZArrayAttributes(
 			final int zarr_format,
@@ -67,15 +92,8 @@ public class ZArrayAttributes {
 			final char order,
 			final Collection<Filter> filters) {
 
-		this.zarr_format = zarr_format;
-		this.shape = shape;
-		this.chunks = chunks;
-		this.dtype = dtype;
-		this.compressor = compressor == null ? new ZarrCompressor.Raw() : compressor;
-		this.fill_value = fill_value;
-		this.order = order;
-		if (filters != null)
-			this.filters.addAll(filters);
+		// empty dimensionSeparator so that the reader's separator is used
+		this(zarr_format, shape, chunks, dtype, compressor, fill_value, order, "", filters);
 	}
 
 	public ZarrDatasetAttributes getDatasetAttributes() {
@@ -95,7 +113,8 @@ public class ZArrayAttributes {
 				dtype,
 				compressor.getCompression(),
 				isRowMajor,
-				fill_value);
+				fill_value,
+				dimensionSeparator);
 	}
 
 	public long[] getShape() {
@@ -131,6 +150,10 @@ public class ZArrayAttributes {
 	public char getOrder() {
 
 		return order;
+	}
+
+	public String getDimensionSeparator() {
+		return dimensionSeparator;
 	}
 
 	public String getFillValue() {

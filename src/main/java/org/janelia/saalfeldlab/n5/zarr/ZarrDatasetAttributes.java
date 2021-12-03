@@ -38,6 +38,23 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 	private final transient boolean isRowMajor;
 	private final transient DType dType;
 	private final transient byte[] fillBytes;
+	private final transient String dimensionSeparator;
+
+	public ZarrDatasetAttributes(
+			final long[] dimensions,
+			final int[] blockSize,
+			final DType dType,
+			final Compression compression,
+			final boolean isRowMajor,
+			final String fill_value,
+			final String dimensionSeparator ) {
+
+		super(dimensions, blockSize, dType.getDataType(), compression);
+		this.dType = dType;
+		this.isRowMajor = isRowMajor;
+		this.fillBytes = dType.createFillBytes(fill_value);
+		this.dimensionSeparator = dimensionSeparator;
+	}
 
 	public ZarrDatasetAttributes(
 			final long[] dimensions,
@@ -47,10 +64,7 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final boolean isRowMajor,
 			final String fill_value) {
 
-		super(dimensions, blockSize, dType.getDataType(), compression);
-		this.dType = dType;
-		this.isRowMajor = isRowMajor;
-		this.fillBytes = dType.createFillBytes(fill_value);
+		this( dimensions, blockSize, dType, compression, isRowMajor, fill_value, "");
 	}
 
 	public boolean isRowMajor() {
@@ -67,5 +81,9 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 
 		// TODO Auto-generated method stub
 		return fillBytes;
+	}
+
+	public String getDimensionSeparator() {
+		return dimensionSeparator;
 	}
 }
