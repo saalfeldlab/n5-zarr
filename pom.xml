@@ -87,7 +87,7 @@
 		<doclint>none</doclint>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
-		<releaseProfiles>deploy-to-scijava</releaseProfiles>
+		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
 
 		<!-- TODO remove when pom-scijava-base is updated -->
 		<scijava.jvm.version>8</scijava.jvm.version>
