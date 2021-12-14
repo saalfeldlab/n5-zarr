@@ -71,8 +71,8 @@
 		<url>https://github.com/saalfeldlab/n5-zarr/issues</url>
 	</issueManagement>
 	<ciManagement>
-		<system>Travis CI</system>
-		<url>https://travis-ci.com/saalfeldlab/n5-zarr</url>
+		<system>GitHub Actions</system>
+		<url>https://github.com/saalfeldlab/n5-zarr/actions</url>
 	</ciManagement>
 
 	<properties>
