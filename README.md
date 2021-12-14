@@ -1,4 +1,4 @@
-# n5-zarr [![Build Status](https://travis-ci.com/saalfeldlab/n5-zarr.svg?branch=master)](https://travis-ci.com/saalfeldlab/n5-zarr)
+# n5-zarr [![Build Status](https://github.com/saalfeldlab/n5-zarr/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/n5-zarr/actions/workflows/build-main.yml)
 Zarr filesystem backend for N5 (experimental).
 
 This library provides best effort compatibility with existing [Zarr v2](https://zarr.readthedocs.io/en/stable/spec/v2.html) data stored in filesystem containers.  So far, I have tested
