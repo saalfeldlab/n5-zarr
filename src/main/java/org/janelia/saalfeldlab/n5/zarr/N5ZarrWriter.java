@@ -256,8 +256,9 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 			final String pathName,
 			final DatasetAttributes datasetAttributes) throws IOException {
 
-		/* create parent groups */
-		final String parentGroup = pathName.substring(0, removeTrailingSlash(pathName).lastIndexOf('/'));
+        /* create parent groups */
+		int tailingIndex = removeTrailingSlash(pathName).lastIndexOf('/');
+		final String parentGroup = (tailingIndex >= 0) ? pathName.substring(0, removeTrailingSlash(pathName).lastIndexOf('/')) : pathName;
 		if (!parentGroup.equals(""))
 			createGroup(parentGroup);
 
