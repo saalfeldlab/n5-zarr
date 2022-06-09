@@ -145,32 +145,24 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
-	public void testCreateNestedDatasetNameNull() {
-
-		final String datasetName = "/test/nested/data";
+	public void testCreateDatasetNameNull() {
 		try {
-			N5ZarrWriter n5Nested = new N5ZarrWriter(testDirPath, "/", true );
-			n5Nested.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-			assertEquals( "/", n5Nested.getZArraryAttributes(datasetName).getDimensionSeparator());
-
-			n5Nested.remove(datasetName);
-			n5Nested.close();
+			N5ZarrWriter n5 = new N5ZarrWriter(testDirPath );
+			n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			n5.remove();
+			n5.close();
 		} catch (IOException e) {
 			fail(e.getMessage());
 		}
 	}
 
 	@Test
-	public void testCreateNestedDatasetNameSlash() {
-
-		final String datasetName = "/test/nested/data";
+	public void testCreateDatasetNameSlash() {
 		try {
-			N5ZarrWriter n5Nested = new N5ZarrWriter(testDirPath, "/", true );
-			n5Nested.createDataset("/", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-			assertEquals( "/", n5Nested.getZArraryAttributes(datasetName).getDimensionSeparator());
-
-			n5Nested.remove(datasetName);
-			n5Nested.close();
+			N5ZarrWriter n5 = new N5ZarrWriter(testDirPath );
+			n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			n5.remove();
+			n5.close();
 		} catch (IOException e) {
 			fail(e.getMessage());
 		}
