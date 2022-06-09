@@ -145,6 +145,37 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
+	public void testCreateNestedDatasetNameNull() {
+
+		final String datasetName = "/test/nested/data";
+		try {
+			N5ZarrWriter n5Nested = new N5ZarrWriter(testDirPath, "/", true );
+			n5Nested.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			assertEquals( "/", n5Nested.getZArraryAttributes(datasetName).getDimensionSeparator());
+
+			n5Nested.remove(datasetName);
+			n5Nested.close();
+		} catch (IOException e) {
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testCreateNestedDatasetNameSlash() {
+
+		final String datasetName = "/test/nested/data";
+		try {
+			N5ZarrWriter n5Nested = new N5ZarrWriter(testDirPath, "/", true );
+			n5Nested.createDataset("/", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			assertEquals( "/", n5Nested.getZArraryAttributes(datasetName).getDimensionSeparator());
+
+			n5Nested.remove(datasetName);
+			n5Nested.close();
+		} catch (IOException e) {
+			fail(e.getMessage());
+		}
+	}
+	@Test
 	public void testPadCrop() throws Exception {
 
 		final byte[] src = new byte[] { 1, 1, 1, 1 };  // 2x2
