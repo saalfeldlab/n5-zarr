@@ -145,6 +145,29 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
+	public void testCreateDatasetNameEmpty() {
+		try {
+			N5ZarrWriter n5 = new N5ZarrWriter(testDirPath );
+			n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			n5.remove();
+			n5.close();
+		} catch (IOException e) {
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testCreateDatasetNameSlash() {
+		try {
+			N5ZarrWriter n5 = new N5ZarrWriter(testDirPath );
+			n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			n5.remove();
+			n5.close();
+		} catch (IOException e) {
+			fail(e.getMessage());
+		}
+	}
+	@Test
 	public void testPadCrop() throws Exception {
 
 		final byte[] src = new byte[] { 1, 1, 1, 1 };  // 2x2
