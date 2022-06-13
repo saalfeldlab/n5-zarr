@@ -145,7 +145,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
-	public void testCreateDatasetNameNull() {
+	public void testCreateDatasetNameEmpty() {
 		try {
 			N5ZarrWriter n5 = new N5ZarrWriter(testDirPath );
 			n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
