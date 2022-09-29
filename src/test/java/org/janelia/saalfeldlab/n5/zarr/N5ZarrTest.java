@@ -219,24 +219,28 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.setAttribute(datasetName2, "attr2", new String[] {"a", "b", "c"});
 			n5.setAttribute(datasetName2, "attr3", 1.0);
 			n5.setAttribute(datasetName2, "attr4", "a");
+			n5.setAttribute(datasetName2, "attr5", 5.4);
 
 			Map<String, Class<?>> attributesMap = n5.listAttributes(datasetName2);
-			assertTrue(attributesMap.get("attr1") == double[].class);
+			assertTrue(attributesMap.get("attr1") == long[].class);
 			assertTrue(attributesMap.get("attr2") == String[].class);
-			assertTrue(attributesMap.get("attr3") == double.class);
+			assertTrue(attributesMap.get("attr3") == long.class);
 			assertTrue(attributesMap.get("attr4") == String.class);
+			assertTrue(attributesMap.get("attr5") == double.class);
 
 			n5.createGroup(groupName2);
 			n5.setAttribute(groupName2, "attr1", new double[] {1, 2, 3});
 			n5.setAttribute(groupName2, "attr2", new String[] {"a", "b", "c"});
 			n5.setAttribute(groupName2, "attr3", 1.0);
 			n5.setAttribute(groupName2, "attr4", "a");
+			n5.setAttribute(groupName2, "attr5", 5.4);
 
 			attributesMap = n5.listAttributes(datasetName2);
-			assertTrue(attributesMap.get("attr1") == double[].class);
+			assertTrue(attributesMap.get("attr1") == long[].class);
 			assertTrue(attributesMap.get("attr2") == String[].class);
-			assertTrue(attributesMap.get("attr3") == double.class);
+			assertTrue(attributesMap.get("attr3") == long.class);
 			assertTrue(attributesMap.get("attr4") == String.class);
+			assertTrue(attributesMap.get("attr5") == double.class);
 		} catch (final IOException e) {
 			throw new AssertionError(e.getMessage(), e);
 		}
