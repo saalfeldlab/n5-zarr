@@ -30,7 +30,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -106,15 +105,13 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Override
 	@Test
 	public void testCreateDataset() {
-
 		try {
 			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 		} catch (final IOException e) {
-			fail(e.getMessage());
+			throw new AssertionError(e.getMessage(), e);
 		}
 
-		if (!n5.exists(datasetName))
-			fail("Dataset does not exist");
+		assertTrue("Dataset does not exist", n5.exists(datasetName));
 
 		try {
 			final DatasetAttributes info = n5.getDatasetAttributes(datasetName);
@@ -123,53 +120,40 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertEquals(DataType.UINT64, info.getDataType());
 			assertEquals(getCompressions()[0].getClass(), info.getCompression().getClass());
 		} catch (final IOException e) {
-			fail("Dataset info cannot be opened");
-			e.printStackTrace();
+			throw new AssertionError("Dataset info cannot be opened", e);
 		}
 	}
 
 	@Test
-	public void testCreateNestedDataset() {
-
+	public void testCreateNestedDataset() throws IOException {
 		final String datasetName = "/test/nested/data";
-		try {
-			N5ZarrWriter n5Nested = new N5ZarrWriter(testDirPath, "/", true );
-			n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-			assertEquals( "/", n5Nested.getZArraryAttributes(datasetName).getDimensionSeparator());
 
-			n5Nested.remove(datasetName);
-			n5Nested.close();
-		} catch (IOException e) {
-			fail(e.getMessage());
-		}
+		N5ZarrWriter n5Nested = new N5ZarrWriter(testDirPath, "/", true );
+		n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+		assertEquals( "/", n5Nested.getZArraryAttributes(datasetName).getDimensionSeparator());
+
+		n5Nested.remove(datasetName);
+		n5Nested.close();
 	}
 
 	@Test
-	public void testCreateDatasetNameEmpty() {
-		try {
-			N5ZarrWriter n5 = new N5ZarrWriter(testDirPath );
-			n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-			n5.remove();
-			n5.close();
-		} catch (IOException e) {
-			fail(e.getMessage());
-		}
+	public void testCreateDatasetNameEmpty() throws IOException {
+		N5ZarrWriter n5 = new N5ZarrWriter(testDirPath );
+		n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+		n5.remove();
+		n5.close();
 	}
 
 	@Test
-	public void testCreateDatasetNameSlash() {
-		try {
-			N5ZarrWriter n5 = new N5ZarrWriter(testDirPath );
-			n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-			n5.remove();
-			n5.close();
-		} catch (IOException e) {
-			fail(e.getMessage());
-		}
+	public void testCreateDatasetNameSlash() throws IOException {
+		N5ZarrWriter n5 = new N5ZarrWriter(testDirPath );
+		n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+		n5.remove();
+		n5.close();
 	}
+
 	@Test
 	public void testPadCrop() throws Exception {
-
 		final byte[] src = new byte[] { 1, 1, 1, 1 };  // 2x2
 		final int[] srcBlockSize = new int[] { 2, 2 };
 		final int[] dstBlockSize = new int[] { 3, 3 };
@@ -199,7 +183,6 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Override
 	@Test
 	public void testExists() {
-
 		final String groupName2 = groupName + "-2";
 		final String datasetName2 = datasetName + "-2";
 		final String notExists = groupName + "-notexists";
@@ -218,14 +201,13 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertTrue(n5.remove(datasetName2));
 			assertTrue(n5.remove(groupName2));
 		} catch (final IOException e) {
-			fail(e.getMessage());
+			throw new AssertionError(e.getMessage(), e);
 		}
 	}
 
 	@Override
 	@Test
 	public void testListAttributes() {
-
 		final String groupName2 = groupName + "-2";
 		final String datasetName2 = datasetName + "-2";
 		try {
@@ -253,7 +235,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertTrue(attributesMap.get("attr3") == double.class);
 			assertTrue(attributesMap.get("attr4") == String.class);
 		} catch (final IOException e) {
-			fail(e.getMessage());
+			throw new AssertionError(e.getMessage(), e);
 		}
 	}
 
