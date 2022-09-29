@@ -27,6 +27,7 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -52,7 +53,6 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -118,10 +118,10 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		try {
 			final DatasetAttributes info = n5.getDatasetAttributes(datasetName);
-			Assert.assertArrayEquals(dimensions, info.getDimensions());
-			Assert.assertArrayEquals(blockSize, info.getBlockSize());
-			Assert.assertEquals(DataType.UINT64, info.getDataType());
-			Assert.assertEquals(getCompressions()[0].getClass(), info.getCompression().getClass());
+			assertArrayEquals(dimensions, info.getDimensions());
+			assertArrayEquals(blockSize, info.getBlockSize());
+			assertEquals(DataType.UINT64, info.getDataType());
+			assertEquals(getCompressions()[0].getClass(), info.getCompression().getClass());
 		} catch (final IOException e) {
 			fail("Dataset info cannot be opened");
 			e.printStackTrace();
@@ -178,7 +178,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		final byte[] fillValue = new byte[] { 0 };
 
 		final byte[] dst = N5ZarrWriter.padCrop(src, srcBlockSize, dstBlockSize, nBytes, nBits, fillValue);
-		Assert.assertArrayEquals(new byte[] { 1, 1, 0, 1, 1, 0, 0, 0, 0 }, dst);
+		assertArrayEquals(new byte[] { 1, 1, 0, 1, 1, 0, 0, 0, 0 }, dst);
 	}
 
 	@Override
@@ -191,9 +191,9 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		System.out.println(n5Version);
 
-		Assert.assertTrue(n5Version.equals(N5ZarrReader.VERSION));
+		assertTrue(n5Version.equals(N5ZarrReader.VERSION));
 
-		Assert.assertTrue(N5ZarrReader.VERSION.isCompatible(n5.getVersion()));
+		assertTrue(N5ZarrReader.VERSION.isCompatible(n5.getVersion()));
 	}
 
 	@Override
@@ -205,18 +205,18 @@ public class N5ZarrTest extends AbstractN5Test {
 		final String notExists = groupName + "-notexists";
 		try {
 			n5.createDataset(datasetName2, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-			Assert.assertTrue(n5.exists(datasetName2));
-			Assert.assertTrue(n5.datasetExists(datasetName2));
+			assertTrue(n5.exists(datasetName2));
+			assertTrue(n5.datasetExists(datasetName2));
 
 			n5.createGroup(groupName2);
-			Assert.assertTrue(n5.exists(groupName2));
-			Assert.assertFalse(n5.datasetExists(groupName2));
+			assertTrue(n5.exists(groupName2));
+			assertFalse(n5.datasetExists(groupName2));
 
-			Assert.assertFalse(n5.exists(notExists));
-			Assert.assertFalse(n5.datasetExists(notExists));
+			assertFalse(n5.exists(notExists));
+			assertFalse(n5.datasetExists(notExists));
 
-			Assert.assertTrue(n5.remove(datasetName2));
-			Assert.assertTrue(n5.remove(groupName2));
+			assertTrue(n5.remove(datasetName2));
+			assertTrue(n5.remove(groupName2));
 		} catch (final IOException e) {
 			fail(e.getMessage());
 		}
@@ -236,10 +236,10 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.setAttribute(datasetName2, "attr4", "a");
 
 			Map<String, Class<?>> attributesMap = n5.listAttributes(datasetName2);
-			Assert.assertTrue(attributesMap.get("attr1") == double[].class);
-			Assert.assertTrue(attributesMap.get("attr2") == String[].class);
-			Assert.assertTrue(attributesMap.get("attr3") == double.class);
-			Assert.assertTrue(attributesMap.get("attr4") == String.class);
+			assertTrue(attributesMap.get("attr1") == double[].class);
+			assertTrue(attributesMap.get("attr2") == String[].class);
+			assertTrue(attributesMap.get("attr3") == double.class);
+			assertTrue(attributesMap.get("attr4") == String.class);
 
 			n5.createGroup(groupName2);
 			n5.setAttribute(groupName2, "attr1", new double[] {1, 2, 3});
@@ -248,10 +248,10 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.setAttribute(groupName2, "attr4", "a");
 
 			attributesMap = n5.listAttributes(datasetName2);
-			Assert.assertTrue(attributesMap.get("attr1") == double[].class);
-			Assert.assertTrue(attributesMap.get("attr2") == String[].class);
-			Assert.assertTrue(attributesMap.get("attr3") == double.class);
-			Assert.assertTrue(attributesMap.get("attr4") == String.class);
+			assertTrue(attributesMap.get("attr1") == double[].class);
+			assertTrue(attributesMap.get("attr2") == String[].class);
+			assertTrue(attributesMap.get("attr3") == double.class);
+			assertTrue(attributesMap.get("attr4") == String.class);
 		} catch (final IOException e) {
 			fail(e.getMessage());
 		}
@@ -492,7 +492,7 @@ public class N5ZarrTest extends AbstractN5Test {
 //	@AfterClass
 //	public static void rampDownAfterClass() throws IOException {
 //
-////		Assert.assertTrue(n5.remove());
+////		assertTrue(n5.remove());
 ////		initialized = false;
 //		n5 = null;
 //	}
