@@ -11,7 +11,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>n5-zarr</artifactId>
-	<version>0.0.8-SNAPSHOT</version>
+	<version>0.0.8</version>
 
 	<name>N5 Zarr</name>
 	<description>Zarr filesystem backend for N5</description>
@@ -63,7 +63,7 @@
 	<scm>
 		<connection>scm:git:git://github.com/saalfeldlab/n5-zarr</connection>
 		<developerConnection>scm:git:git@github.com:saalfeldlab/n5-zarr</developerConnection>
-		<tag>HEAD</tag>
+		<tag>n5-zarr-0.0.8</tag>
 		<url>https://github.com/saalfeldlab/n5-zarr</url>
 	</scm>
 	<issueManagement>
