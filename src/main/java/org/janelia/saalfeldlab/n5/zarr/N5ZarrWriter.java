@@ -40,6 +40,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileAttribute;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -53,6 +54,7 @@ import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonAttributesParser;
+import org.janelia.saalfeldlab.n5.N5URL;
 import org.janelia.saalfeldlab.n5.N5Writer;
 
 import com.google.gson.GsonBuilder;
@@ -269,6 +271,48 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 		createDirectories(path);
 
 		setDatasetAttributes(pathName, datasetAttributes);
+	}
+
+	@Override
+	public < T > void setAttribute( final String pathName, final String key, final T attribute ) throws IOException
+	{
+		ArrayList<String> zarrKeywords = new ArrayList<>();
+		zarrKeywords.add("dimensions");
+		zarrKeywords.add("blockSize");
+		zarrKeywords.add("dataType");
+		zarrKeywords.add("compression");
+
+		String attributePath = N5URL.normalizeAttributePath( key );
+		final String[] splitPath = attributePath.split( "/" );
+		/* check if referencing root, and only care about a single value */
+		final ArrayList< N5URL.N5UrlAttributePathToken > tokens = N5URL.getAttributePathTokens( gson, attributePath, null );
+		if ( tokens.size() == 1) {
+			final N5URL.N5UrlAttributePathToken pathToken = tokens.get( 0 );
+			if ( pathToken instanceof N5URL.N5UrlAttributePathObject ) {
+				final N5URL.N5UrlAttributePathObject objectToken = ( N5URL.N5UrlAttributePathObject ) pathToken;
+				final String keyword = objectToken.getKey();
+				if (zarrKeywords.contains( keyword )) {
+					final HashMap< String, T > keywordAttribute = new HashMap<>();
+					keywordAttribute.put( keyword, attribute );
+					setAttributes( pathName, keywordAttribute);
+					return;
+				}
+			}
+		}
+		/* If we get here, it means we aren't a keyword */
+		final Path path = Paths.get(basePath, removeLeadingSlash(pathName), zattrsFile);
+		createDirectories(path.getParent());
+		final JsonElement attributesJson = getAttributesJson( pathName );
+		try (final LockedFileChannel lockedFileChannel = LockedFileChannel.openForWriting(path)) {
+
+			lockedFileChannel.getFileChannel().truncate(0);
+			GsonAttributesParser.writeAttribute(
+					Channels.newWriter(lockedFileChannel.getFileChannel(), StandardCharsets.UTF_8.name()),
+					attributesJson,
+					attributePath,
+					attribute,
+					gson);
+		}
 	}
 
 	@Override

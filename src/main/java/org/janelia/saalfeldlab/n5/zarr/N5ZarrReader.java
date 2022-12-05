@@ -294,6 +294,29 @@ public class N5ZarrReader extends N5FSReader {
 		}
 	}
 
+	@Override
+	public JsonElement getAttributesJson( final String pathName ) throws IOException
+	{
+		final Path path = Paths.get(basePath, removeLeadingSlash(pathName), zattrsFile);
+		if (exists(pathName) && !Files.exists(path))
+			return null;
+
+		JsonElement attributes;
+		try (final LockedFileChannel lockedFileChannel = LockedFileChannel.openForReading(path)) {
+			attributes = GsonAttributesParser.readAttributesJson(Channels.newReader(lockedFileChannel.getFileChannel(), StandardCharsets.UTF_8.name()), getGson());
+		}
+
+		if (mapN5DatasetAttributes && datasetExists(pathName)) {
+
+			final DatasetAttributes datasetAttributes = getZArraryAttributes(pathName).getDatasetAttributes();
+			attributes.getAsJsonObject().add("dimensions", gson.toJsonTree(datasetAttributes.getDimensions()));
+			attributes.getAsJsonObject().add("blockSize", gson.toJsonTree(datasetAttributes.getBlockSize()));
+			attributes.getAsJsonObject().add("dataType", gson.toJsonTree(datasetAttributes.getDataType()));
+			attributes.getAsJsonObject().add("compression", gson.toJsonTree(datasetAttributes.getCompression()));
+		}
+		return attributes;
+	}
+
 
 	/**
 	 * If {@link #mapN5DatasetAttributes} is set, dataset attributes will
