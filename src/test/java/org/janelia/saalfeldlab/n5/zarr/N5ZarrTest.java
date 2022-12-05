@@ -39,6 +39,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -77,10 +78,21 @@ import net.imglib2.view.Views;
  */
 public class N5ZarrTest extends AbstractN5Test {
 
-	static private String testDirPath = System.getProperty("user.home") + "/tmp/n5-test.zarr";
-	static private String testZarrDirPath = System.getProperty("user.home") + "/tmp/zarr-test.zarr";
-	static private String testZarrNestedDirPath = System.getProperty("user.home") + "/tmp/zarr-test-nested.zarr";
+	static private String testDirPath;
+	static private String testZarrDirPath;
+	static private String testZarrNestedDirPath;
 	static private String testZarrDatasetName = "/test/data";
+
+	static {
+		try {
+			testDirPath = Files.createTempDirectory("n5-zarr-test-").toFile().getCanonicalPath();
+			testZarrDirPath = Files.createTempDirectory("zarr-test-").toFile().getCanonicalPath();
+			testZarrNestedDirPath = Files.createTempDirectory("zarr-test-nested-").toFile().getCanonicalPath();
+			testZarrDatasetName = "/test/data";
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
 
 
 	/**
