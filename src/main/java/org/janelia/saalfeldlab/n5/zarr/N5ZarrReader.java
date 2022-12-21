@@ -298,7 +298,7 @@ public class N5ZarrReader extends N5FSReader {
 	public JsonElement getAttributesJson( final String pathName ) throws IOException
 	{
 		final Path path = Paths.get(basePath, removeLeadingSlash(pathName), zattrsFile);
-		if (exists(pathName) && !Files.exists(path))
+		if (!Files.exists(path))
 			return null;
 
 		JsonElement attributes;
