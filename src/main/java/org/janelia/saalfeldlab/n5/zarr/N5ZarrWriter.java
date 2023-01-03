@@ -95,8 +95,7 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 	 */
 	public N5ZarrWriter(final String basePath, final GsonBuilder gsonBuilder, final String dimensionSeparator, final boolean mapN5DatasetAttributes) throws IOException {
 
-		super(basePath, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes);
-		createDirectories(Paths.get(basePath));
+		super(createDirectories(Paths.get(basePath), true).toString(), gsonBuilder, dimensionSeparator, mapN5DatasetAttributes);
 	}
 
 	/**
@@ -614,6 +613,9 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
      *
      * @param   dir
      *          the directory to create
+	 *
+	 * @param   isGroup
+	 *          if true, a .zgroup file is added at {@code dir}
      *
      * @param   attrs
      *          an optional list of file attributes to set atomically when
@@ -641,12 +643,16 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
      *          SecurityManager#checkPropertyAccess(String) checkPropertyAccess}
      *          method to check access to the system property {@code user.dir}
      */
-    private static Path createDirectories(Path dir, final FileAttribute<?>... attrs)
+    private static Path createDirectories(Path dir, boolean isGroup, final FileAttribute<?>... attrs)
         throws IOException
     {
         // attempt to create the directory
         try {
             createAndCheckIsDirectory(dir, attrs);
+			if (isGroup) {
+				final Path path = dir.resolve(zgroupFile);
+				LockedFileChannel.openForWriting(path).close();
+			}
             return dir;
         } catch (final FileAlreadyExistsException x) {
             // file exists and is not a directory
@@ -688,8 +694,22 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
             child = child.resolve(name);
             createAndCheckIsDirectory(child, attrs);
         }
+
+		if (isGroup) {
+			final Path path = dir.resolve(zgroupFile);
+			LockedFileChannel.openForWriting(path).close();
+		}
         return dir;
     }
+
+	/**
+	 * Overload of {@link #createDirectories(Path, boolean, FileAttribute[])} with {@code isGroup} false by default.
+	 */
+	private static Path createDirectories(Path dir, final FileAttribute<?>... attrs)
+			throws IOException
+	{
+		return createDirectories(dir, false, attrs);
+	}
 
     /**
      * This is a copy of {@link Files#createAndCheckIsDirectory(Path, FileAttribute...)}
