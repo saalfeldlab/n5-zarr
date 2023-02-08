@@ -55,6 +55,7 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonAttributesParser;
 import org.janelia.saalfeldlab.n5.N5URL;
+import org.janelia.saalfeldlab.n5.LinkedAttributePathToken;
 import org.janelia.saalfeldlab.n5.N5Writer;
 
 import com.google.gson.GsonBuilder;
@@ -181,7 +182,6 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 	 * will be set to the current N5 version of this implementation.
 	 *
 	 * @param basePath n5 base path
-	 * @param gsonBuilder
 	 * @throws IOException
 	 *    if the base path cannot be written to or cannot be created,
 	 */
@@ -284,11 +284,10 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 		String attributePath = N5URL.normalizeAttributePath( key );
 		final String[] splitPath = attributePath.split( "/" );
 		/* check if referencing root, and only care about a single value */
-		final ArrayList< N5URL.N5UrlAttributePathToken > tokens = N5URL.getAttributePathTokens( gson, attributePath, null );
-		if ( tokens.size() == 1) {
-			final N5URL.N5UrlAttributePathToken pathToken = tokens.get( 0 );
-			if ( pathToken instanceof N5URL.N5UrlAttributePathObject ) {
-				final N5URL.N5UrlAttributePathObject objectToken = ( N5URL.N5UrlAttributePathObject ) pathToken;
+		final LinkedAttributePathToken firstToken = N5URL.getAttributePathTokens(attributePath);
+		if ( firstToken != null && !firstToken.hasNext()) {
+			if ( firstToken instanceof LinkedAttributePathToken.ObjectAttributeToken) {
+				final LinkedAttributePathToken.ObjectAttributeToken objectToken = (LinkedAttributePathToken.ObjectAttributeToken) firstToken;
 				final String keyword = objectToken.getKey();
 				if (zarrKeywords.contains( keyword )) {
 					final HashMap< String, T > keywordAttribute = new HashMap<>();
