@@ -290,7 +290,7 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 			if (mapN5DatasetAttributes && datasetExists(pathName)) {
 
 				attributes = new HashMap<>(attributes);
-				ZArrayAttributes zArrayAttributes = getZArraryAttributes(pathName);
+				ZArrayAttributes zArrayAttributes = getZArrayAttributes(pathName);
 				long[] shape;
 				int[] chunks;
 				final DType dtype;
@@ -467,7 +467,7 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 		if (datasetAttributes instanceof ZarrDatasetAttributes)
 			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
 		else
-			zarrDatasetAttributes = getZArraryAttributes(pathName).getDatasetAttributes();
+			zarrDatasetAttributes = getZArrayAttributes(pathName).getDatasetAttributes();
 
 		final Path path = Paths.get(
 				basePath,
@@ -496,7 +496,7 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 		if (datasetAttributes instanceof ZarrDatasetAttributes)
 			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
 		else
-			zarrDatasetAttributes = getZArraryAttributes(pathName).getDatasetAttributes();
+			zarrDatasetAttributes = getZArrayAttributes(pathName).getDatasetAttributes();
 
 		final Path path = Paths.get(
 				basePath,
