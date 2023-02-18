@@ -156,6 +156,18 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
+	public void testGetDatasetAttributesNull() throws IOException {
+		final N5ZarrWriter n5 = new N5ZarrWriter(testDirPath);
+		try {
+			final DatasetAttributes attributes = n5.getDatasetAttributes("");
+			assertNull(attributes);
+		} finally {
+			n5.remove();
+			n5.close();
+		}
+	}
+
+	@Test
 	public void testPadCrop() throws Exception {
 		final byte[] src = new byte[] { 1, 1, 1, 1 };  // 2x2
 		final int[] srcBlockSize = new int[] { 2, 2 };

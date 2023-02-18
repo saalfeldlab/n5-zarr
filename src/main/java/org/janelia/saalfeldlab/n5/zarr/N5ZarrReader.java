@@ -249,7 +249,10 @@ public class N5ZarrReader extends N5FSReader {
 										StandardCharsets.UTF_8.name()),
 								gson));
 			}
-		} else System.out.println(path.toString() + " does not exist.");
+		} else {
+			System.out.println(path.toString() + " does not exist.");
+			return null;
+		}
 
 		JsonElement sepElem = attributes.get("dimension_separator");
 		return new ZArrayAttributes(
