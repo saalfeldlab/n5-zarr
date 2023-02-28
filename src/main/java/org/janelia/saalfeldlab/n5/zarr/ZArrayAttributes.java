@@ -176,6 +176,7 @@ public class ZArrayAttributes {
 		map.put(fillValueKey, fill_value);
 		map.put(orderKey, order);
 		map.put(filtersKey, filters);
+		map.put(dimensionSeparatorKey, dimensionSeparator);
 
 		return map;
 	}
