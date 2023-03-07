@@ -133,7 +133,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		N5ZarrWriter n5Nested = new N5ZarrWriter(testDirPath, "/", true );
 		n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-		assertEquals( "/", n5Nested.getZArraryAttributes(datasetName).getDimensionSeparator());
+		assertEquals( "/", n5Nested.getZArrayAttributes(datasetName).getDimensionSeparator());
 
 		n5Nested.remove(datasetName);
 		n5Nested.close();
@@ -153,6 +153,18 @@ public class N5ZarrTest extends AbstractN5Test {
 		n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 		n5.remove();
 		n5.close();
+	}
+
+	@Test
+	public void testGetDatasetAttributesNull() throws IOException {
+		final N5ZarrWriter n5 = new N5ZarrWriter(testDirPath);
+		try {
+			final DatasetAttributes attributes = n5.getDatasetAttributes("");
+			assertNull(attributes);
+		} finally {
+			n5.remove();
+			n5.close();
+		}
 	}
 
 	@Test
@@ -400,7 +412,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		final RandomAccessibleInterval<UnsignedIntType> a3x2_c_bu4_f1_after = N5Utils.open(n5Zarr, datasetName);
 		assertIsSequence(Views.interval(a3x2_c_bu4_f1_after,  a3x2_c_bu4_f1), refUnsignedInt);
 		final RandomAccess<UnsignedIntType> ra = a3x2_c_bu4_f1_after.randomAccess();
-		final int fill_value = Integer.parseInt(n5Zarr.getZArraryAttributes(datasetName).getFillValue());
+		final int fill_value = Integer.parseInt(n5Zarr.getZArrayAttributes(datasetName).getFillValue());
 		ra.setPosition(shape[0] - 5, 0);
 		assertEquals(fill_value, ra.get().getInteger());
 		ra.setPosition(shape[1] - 5, 1);
@@ -451,7 +463,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		assertArrayEquals(datasetAttributesC.getDimensions(), new long[]{3, 2});
 		assertArrayEquals(datasetAttributesC.getBlockSize(), new int[]{3, 2});
 		assertEquals(datasetAttributesC.getDataType(), DataType.UINT8);
-		assertEquals( n5Zarr.getZArraryAttributes(testZarrDatasetName + "/3x2_c_|u1").getDimensionSeparator(), "/" );
+		assertEquals( n5Zarr.getZArrayAttributes(testZarrDatasetName + "/3x2_c_|u1").getDimensionSeparator(), "/" );
 
 		final UnsignedByteType refUnsignedByte = new UnsignedByteType();
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_|u1"), refUnsignedByte);
