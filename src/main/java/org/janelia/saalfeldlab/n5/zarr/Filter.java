@@ -36,5 +36,5 @@ package org.janelia.saalfeldlab.n5.zarr;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public interface Filter {
-
+    public String id = null;
 }

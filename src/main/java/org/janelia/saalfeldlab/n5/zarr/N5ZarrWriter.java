@@ -240,16 +240,17 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 		final int[] chunks = datasetAttributes.getBlockSize().clone();
 		Utils.reorder(chunks);
 
+		DType type = new DType(datasetAttributes.getDataType());
 		final ZArrayAttributes zArrayAttributes = new ZArrayAttributes(
 				N5ZarrReader.VERSION.getMajor(),
 				shape,
 				chunks,
-				new DType(datasetAttributes.getDataType()),
+				type,
 				ZarrCompressor.fromCompression(datasetAttributes.getCompression()),
 				"0",
 				'C',
 				dimensionSeparator,
-				null);
+				type.getFilters());
 
 		setZArrayAttributes(pathName, zArrayAttributes);
 	}

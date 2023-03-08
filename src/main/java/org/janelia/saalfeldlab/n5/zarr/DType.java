@@ -31,7 +31,9 @@ package org.janelia.saalfeldlab.n5.zarr;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DataBlock;
@@ -49,6 +51,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import org.janelia.saalfeldlab.n5.VLenStringDataBlock;
 
 /**
  * Enumerates available zarr data types as defined at
@@ -73,6 +76,7 @@ public class DType {
 		typestrs.put(DataType.UINT64, ">u8");
 		typestrs.put(DataType.FLOAT32, ">f4");
 		typestrs.put(DataType.FLOAT64, ">f8");
+		typestrs.put(DataType.VLENSTRING, "|O");
 	}
 
 	public static enum Primitive {
@@ -134,7 +138,7 @@ public class DType {
 
 		order = typestr.charAt(0) == '<' ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
 		final Primitive primitive = Primitive.fromCode(typestr.charAt(1));
-		final int nB = Integer.parseInt(typestr.substring(2));
+		final int nB = (primitive == Primitive.OBJECT) ? 0 : Integer.parseInt(typestr.substring(2));
 
 		switch (primitive) {
 		case BIT:
@@ -211,8 +215,15 @@ public class DType {
 			byteBlockFactory = (blockSize, gridPosition, numElements) ->
 					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			break;
+		case OBJECT:
+			nBytes = 1;
+			nBits = 0;
+			dataBlockFactory = (blockSize, gridPosition, numElements) ->
+					new VLenStringDataBlock(blockSize, gridPosition, new String[0]);
+			byteBlockFactory = (blockSize, gridPosition, numElements) ->
+					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
+			break;
 //		case BOOLEAN:
-//		case OBJECT:    // not sure about this
 //		case OTHER:     // not sure about this
 //		case STRING:    // not sure about this
 //		case UNICODE:   // not sure about this
@@ -333,6 +344,8 @@ public class DType {
 			default:
 				return DataType.UINT8; // fallback
 			}
+		case OBJECT: // todo: this should also depend on filters!
+			return DataType.VLENSTRING;
 		default:
 			return DataType.UINT8; // fallback
 		}
@@ -343,6 +356,21 @@ public class DType {
 	public String toString() {
 
 		return typestr;
+	}
+
+	/**
+	 * Returns a list of {@link Filter filters} for the corresponding {@link DType}.
+	 *
+	 * @return list of filters
+	 */
+	public List<Filter> getFilters() {
+		if (dataType == DataType.VLENSTRING) {
+			ArrayList<Filter> filterSet = new ArrayList<>();
+			filterSet.add(new Filter(){ public String id = "vlen-utf8"; });
+			return filterSet;
+		}
+		else
+			return null;
 	}
 
 	/**
