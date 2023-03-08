@@ -70,6 +70,7 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 				gsonBuilder
 					.registerTypeAdapter(DType.class, new DType.JsonAdapter())
 					.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter),
+				true,
 				cacheMeta);
 	}
 

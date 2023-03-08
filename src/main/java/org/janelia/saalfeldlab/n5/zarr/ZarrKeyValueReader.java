@@ -27,21 +27,13 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Reader;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
 
 import org.janelia.saalfeldlab.n5.BlockReader;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
-import org.janelia.saalfeldlab.n5.Compression;
-import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataBlock;
-import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonN5Reader;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
@@ -66,10 +58,13 @@ import com.google.gson.reflect.TypeToken;
  */
 public class ZarrKeyValueReader extends N5KeyValueReader {
 
+	protected static Version VERSION = new Version(2, 0, 0);
 
 	protected static final String zarrayFile = ".zarray";
 	protected static final String zattrsFile = ".zattrs";
 	protected static final String zgroupFile = ".zgroup";
+
+	final protected boolean mapN5DatasetAttributes;
 
 	/**
 	 * Opens an {@link ZarrKeyValueReader} at a given base path with a custom
@@ -94,17 +89,37 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 			final KeyValueAccess keyValueAccess,
 			final String basePath,
 			final GsonBuilder gsonBuilder,
+			final boolean mapN5DatasetAttributes,
 			final boolean cacheMeta) throws IOException {
 
-		super( keyValueAccess, basePath, gsonBuilder, cacheMeta );
-		gsonBuilder.registerTypeAdapter(DType.class, new DType.JsonAdapter());
-		gsonBuilder.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter);
-		gsonBuilder.disableHtmlEscaping();
+		super( keyValueAccess, basePath, addTypeAdapters( gsonBuilder ), cacheMeta );
+		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
+
 		if (exists("/")) {
 			final Version version = getVersion();
 			if (!VERSION.isCompatible(version))
 				throw new IOException("Incompatible version " + version + " (this is " + VERSION + ").");
 		}
+	}
+
+	@Override
+	public Version getVersion() throws IOException {
+		String path;
+		if (groupExists("/")) {
+			path = zGroupPath("/");
+		} else if (datasetExists("/")) {
+			path = zArrayPath("/");
+		} else {
+			return VERSION;
+		}
+		final JsonElement elem = getAttributesRelative( path );
+		if ( elem != null && elem.isJsonObject())
+		{
+			JsonElement fmt = elem.getAsJsonObject().get("zarr_format");
+			if( fmt.isJsonPrimitive() )
+				 return new Version( fmt.getAsInt(), 0, 0);
+		}
+		return VERSION;
 	}
 
 	@Override
@@ -114,13 +129,13 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 		if (zattrs == null)
 			return null;
 		else
-			return getZArrayAttributes(pathName).getDatasetAttributes();
+			return zattrs.getDatasetAttributes();
 	}
 
 	public ZArrayAttributes getZArrayAttributes(final String pathName) throws IOException {
 
-		final String normPath = normalize(pathName);
-		final String zarrayPath = zArrayPath(normPath);
+		final String normalPathName = N5URL.normalizePath(pathName);
+		final String zarrayPath = keyValueAccess.compose(basePath, zArrayPath(normalPathName));
 		final JsonElement elem = getAttributesAbsolute(zarrayPath);
 		if( elem == null )
 		{
@@ -135,6 +150,10 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 			return null;
 
 		final JsonElement sepElem = attributes.get("dimension_separator");
+
+		// TODO this should work but caused at least one test failure 
+		//gson.fromJson(attributes.get("dtype"), DType.class),
+		//new DType(gson.fromJson(attributes.get("dtype"), String.class)),
 		return new ZArrayAttributes(
 				attributes.get("zarr_format").getAsInt(),
 				gson.fromJson(attributes.get("shape"), long[].class),
@@ -202,9 +221,9 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 		final String zarrayPath = zArrayPath(normPath);
 
 		JsonElement output = null;
-		output = combineIfPossible(output, getAttributesAbsolute(zgroupPath));
-		output = combineIfPossible(output, getAttributesAbsolute(zattrPath));
-		output = combineIfPossible(output, getAttributesAbsolute(zarrayPath));
+		output = combineIfPossible(output, getAttributesRelative(zgroupPath));
+		output = combineIfPossible(output, getAttributesRelative(zattrPath));
+		output = combineIfPossible(output, getAttributesRelative(zarrayPath));
 
 		return output;
 	}
@@ -242,6 +261,24 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 	 */
 	public JsonElement getAttributesAbsolute(final String absolutePath ) throws IOException {
 
+		if (!keyValueAccess.exists(absolutePath))
+			return null;
+
+		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
+			return readAttributes(lockedChannel.newReader());
+		}
+	}
+
+	/**
+	 * Reads or creates the attributes map of a group or dataset.
+	 *
+	 * @param absolutePath path relative to container root
+	 * @return
+	 * @throws IOException
+	 */
+	public JsonElement getAttributesRelative(final String relativePath ) throws IOException {
+
+		final String absolutePath = keyValueAccess.compose(basePath, relativePath);
 		if (!keyValueAccess.exists(absolutePath))
 			return null;
 
@@ -405,7 +442,7 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 	}
 
 	/**
-	 * Constructs the absolute path (in terms of this store) to a .zarray
+	 * Constructs the relative path (in terms of this store) to a .zarray
 	 *
 	 *
 	 * @param normalPath normalized group path without leading slash
@@ -413,11 +450,11 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 	 */
 	protected String zArrayPath(final String normalPath) {
 
-		return keyValueAccess.compose(basePath, normalPath, zarrayFile);
+		return keyValueAccess.compose(normalPath, zarrayFile);
 	}
 
 	/**
-	 * Constructs the absolute path (in terms of this store) to a .zattrs
+	 * Constructs the relative path (in terms of this store) to a .zattrs
 	 *
 	 *
 	 * @param normalPath normalized group path without leading slash
@@ -425,11 +462,11 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 	 */
 	protected String zAttrsPath(final String normalPath) {
 
-		return keyValueAccess.compose(basePath, normalPath, zattrsFile);
+		return keyValueAccess.compose(normalPath, zattrsFile);
 	}
 
 	/**
-	 * Constructs the absolute path (in terms of this store) to a .zgroup
+	 * Constructs the relative path (in terms of this store) to a .zgroup
 	 *
 	 *
 	 * @param normalPath normalized group path without leading slash
@@ -437,7 +474,7 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 	 */
 	protected String zGroupPath(final String normalPath) {
 
-		return keyValueAccess.compose(basePath, normalPath, zgroupFile);
+		return keyValueAccess.compose(normalPath, zgroupFile);
 	}
 
 
@@ -445,6 +482,14 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 	public String toString() {
 
 		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, basePath);
+	}
+
+	public static GsonBuilder addTypeAdapters( GsonBuilder gsonBuilder )
+	{
+		gsonBuilder.registerTypeAdapter(DType.class, new DType.JsonAdapter());
+		gsonBuilder.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter);
+		gsonBuilder.disableHtmlEscaping();
+		return gsonBuilder;
 	}
 
 }

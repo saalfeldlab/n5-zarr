@@ -48,6 +48,7 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
@@ -57,6 +58,8 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import com.google.gson.GsonBuilder;
 
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
@@ -90,6 +93,18 @@ public class N5ZarrTest extends AbstractN5Test {
 	protected N5ZarrWriter createN5Writer() throws IOException {
 
 		return new N5ZarrWriter(testDirPath);
+	}
+
+	@Override
+	protected N5ZarrWriter createN5Writer( String location, GsonBuilder gson ) throws IOException {
+
+		return new N5ZarrWriter(location, gson);
+	}
+
+	@Override
+	protected N5Reader createN5Reader(String location, GsonBuilder gson) throws IOException {
+
+		return new N5ZarrReader(testDirPath, gson);
 	}
 
 	@Override
@@ -133,7 +148,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		N5ZarrWriter n5Nested = new N5ZarrWriter(testDirPath, "/", true );
 		n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-		assertEquals( "/", n5Nested.getZArraryAttributes(datasetName).getDimensionSeparator());
+		assertEquals( "/", n5Nested.getZArrayAttributes(datasetName).getDimensionSeparator());
 
 		n5Nested.remove(datasetName);
 		n5Nested.close();
@@ -310,8 +325,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			return;
 		}
 
-		final N5ZarrWriter n5Zarr = new N5ZarrWriter(testZarrDirPath, ".", true);
-		final N5ZarrWriter n5ZarrWithoutMapping = new N5ZarrWriter(testZarrDirPath, ".", false);
+		final N5ZarrWriter n5Zarr = new N5ZarrWriter(testZarrDirPath, true);
+		final N5ZarrWriter n5ZarrWithoutMapping = new N5ZarrWriter(testZarrDirPath, false);
 
 		/* groups */
 		assertTrue(n5Zarr.exists(testZarrDatasetName) && !n5Zarr.datasetExists(testZarrDatasetName));
@@ -400,7 +415,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		final RandomAccessibleInterval<UnsignedIntType> a3x2_c_bu4_f1_after = N5Utils.open(n5Zarr, datasetName);
 		assertIsSequence(Views.interval(a3x2_c_bu4_f1_after,  a3x2_c_bu4_f1), refUnsignedInt);
 		final RandomAccess<UnsignedIntType> ra = a3x2_c_bu4_f1_after.randomAccess();
-		final int fill_value = Integer.parseInt(n5Zarr.getZArraryAttributes(datasetName).getFillValue());
+		final int fill_value = Integer.parseInt(n5Zarr.getZArrayAttributes(datasetName).getFillValue());
 		ra.setPosition(shape[0] - 5, 0);
 		assertEquals(fill_value, ra.get().getInteger());
 		ra.setPosition(shape[1] - 5, 1);
@@ -428,6 +443,8 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		/* remove the container */
 		n5Zarr.remove();
+		n5Zarr.close();
+		n5ZarrWithoutMapping.close();
 	}
 
 	@Test
@@ -439,7 +456,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			return;
 		}
 
-		final N5ZarrWriter n5Zarr = new N5ZarrWriter(testZarrNestedDirPath, ".", true);
+		final N5ZarrWriter n5Zarr = new N5ZarrWriter(testZarrNestedDirPath, true);
 
 		/* groups */
 		System.out.println( n5Zarr.exists(testZarrDatasetName));
@@ -451,13 +468,14 @@ public class N5ZarrTest extends AbstractN5Test {
 		assertArrayEquals(datasetAttributesC.getDimensions(), new long[]{3, 2});
 		assertArrayEquals(datasetAttributesC.getBlockSize(), new int[]{3, 2});
 		assertEquals(datasetAttributesC.getDataType(), DataType.UINT8);
-		assertEquals( n5Zarr.getZArraryAttributes(testZarrDatasetName + "/3x2_c_|u1").getDimensionSeparator(), "/" );
+		assertEquals( n5Zarr.getZArrayAttributes(testZarrDatasetName + "/3x2_c_|u1").getDimensionSeparator(), "/" );
 
 		final UnsignedByteType refUnsignedByte = new UnsignedByteType();
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_|u1"), refUnsignedByte);
 
 		/* remove the container */
 		n5Zarr.remove();
+		n5Zarr.close();
 	}
 
 	@Test
@@ -471,9 +489,9 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertTrue(compressor == null);
 		} finally {
 			n5.remove();
+			n5.close();
 		}
 	}
-
 
 //	/**
 //	 * @throws IOException
