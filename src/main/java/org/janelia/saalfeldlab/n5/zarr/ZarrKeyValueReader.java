@@ -46,6 +46,7 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonN5Reader;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
+import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URL;
 
@@ -63,34 +64,12 @@ import com.google.gson.reflect.TypeToken;
  * @author Stephan Saalfeld
  * @author John Bogovic
  */
-public class ZarrKeyValueReader implements GsonN5Reader {
+public class ZarrKeyValueReader extends N5KeyValueReader {
 
-	/**
-	 * Data object for caching meta data.  Elements that are null are not yet
-	 * cached.
-	 */
-	protected static class N5GroupInfo {
-
-		public HashSet<String> children = null;
-		public JsonElement attributesCache = null;
-		public Boolean isDataset = null;
-	}
-
-	protected static final N5GroupInfo emptyGroupInfo = new N5GroupInfo();
-
-	protected final KeyValueAccess keyValueAccess;
-
-	protected final Gson gson;
-
-	protected final HashMap<String, N5GroupInfo> metaCache = new HashMap<>();
-
-	protected final boolean cacheMeta;
 
 	protected static final String zarrayFile = ".zarray";
 	protected static final String zattrsFile = ".zattrs";
 	protected static final String zgroupFile = ".zgroup";
-
-	protected final String basePath;
 
 	/**
 	 * Opens an {@link ZarrKeyValueReader} at a given base path with a custom
@@ -117,87 +96,15 @@ public class ZarrKeyValueReader implements GsonN5Reader {
 			final GsonBuilder gsonBuilder,
 			final boolean cacheMeta) throws IOException {
 
-		this.keyValueAccess = keyValueAccess;
-		this.basePath = keyValueAccess.normalize(basePath);
-		gsonBuilder.registerTypeAdapter(DataType.class, new DataType.JsonAdapter());
-		gsonBuilder.registerTypeHierarchyAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
+		super( keyValueAccess, basePath, gsonBuilder, cacheMeta );
+		gsonBuilder.registerTypeAdapter(DType.class, new DType.JsonAdapter());
+		gsonBuilder.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter);
 		gsonBuilder.disableHtmlEscaping();
-		this.gson = gsonBuilder.create();
-		this.cacheMeta = cacheMeta;
 		if (exists("/")) {
 			final Version version = getVersion();
 			if (!VERSION.isCompatible(version))
 				throw new IOException("Incompatible version " + version + " (this is " + VERSION + ").");
 		}
-	}
-
-	@Override public Gson getGson() {
-
-		return gson;
-	}
-
-	/**
-	 *
-	 * @return N5 base path
-	 */
-	public String getBasePath() {
-
-		return this.basePath;
-	}
-
-
-	/**
-	 * Parses an attribute from the given attributes map.
-	 *
-	 * @param map
-	 * @param key
-	 * @param clazz
-	 * @return
-	 * @throws IOException
-	 */
-	protected <T> T parseAttribute(
-			final HashMap<String, JsonElement> map,
-			final String key,
-			final Class<T> clazz) throws IOException {
-
-		final JsonElement attribute = map.get(key);
-		if (attribute != null)
-			return gson.fromJson(attribute, clazz);
-		else
-			return null;
-	}
-
-	/**
-	 * Parses an attribute from the given attributes map.
-	 *
-	 * @param map
-	 * @param key
-	 * @param type
-	 * @return
-	 * @throws IOException
-	 */
-	protected <T> T parseAttribute(
-			final HashMap<String, JsonElement> map,
-			final String key,
-			final Type type) throws IOException {
-
-		final JsonElement attribute = map.get(key);
-		if (attribute != null)
-			return gson.fromJson(attribute, type);
-		else
-			return null;
-	}
-
-	/**
-	 * Reads the attributes map from a given {@link Reader}.
-	 *
-	 * @param reader
-	 * @return
-	 * @throws IOException
-	 */
-	protected JsonElement readAttributes(final Reader reader) throws IOException {
-
-		return GsonN5Reader.readAttributes(reader, gson);
 	}
 
 	@Override
@@ -228,38 +135,6 @@ public class ZarrKeyValueReader implements GsonN5Reader {
 				attributes.get("order").getAsString().charAt(0),
 				sepElem != null ? sepElem.getAsString() : ".",
 				gson.fromJson(attributes.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType()));
-	}
-
-	/**
-	 * Get and cache attributes for a group identified by an info object and a
-	 * pathName.
-	 *
-	 * This helper method does not intelligently handle the case that the group
-	 * does not exist (as indicated by info == emptyGroupInfo) which should be
-	 * done in calling code.
-	 *
-	 * @param info
-	 * @param pathName normalized group path without leading slash
-	 * @return cached attributes
-	 * 		empty map if the group exists but not attributes are set
-	 * 		null if the group does not exist
-	 * @throws IOException
-	 */
-	protected JsonElement getCachedAttributes(
-			final N5GroupInfo info,
-			final String normalPath) throws IOException {
-
-		JsonElement metadataCache = info.attributesCache;
-		if (metadataCache == null) {
-			synchronized (info) {
-				metadataCache = info.attributesCache;
-				if (metadataCache == null) {
-					metadataCache = getAttributes(normalPath);
-					info.attributesCache = metadataCache;
-				}
-			}
-		}
-		return metadataCache;
 	}
 
 	@Override
@@ -300,71 +175,6 @@ public class ZarrKeyValueReader implements GsonN5Reader {
 		} else {
 			return GsonN5Reader.readAttribute(getAttributes(normalPathName), N5URL.normalizeAttributePath(key), type, gson);
 		}
-	}
-
-	protected boolean groupExists(final String absoluteNormalPath) {
-
-		return keyValueAccess.exists(absoluteNormalPath) && keyValueAccess.isDirectory(absoluteNormalPath);
-	}
-
-	/**
-	 * Get an existing cached N5 group info object or create it.
-	 *
-	 * @param normalPathName normalized group path without leading slash
-	 * @return
-	 */
-	protected N5GroupInfo getCachedN5GroupInfo(final String normalPathName) {
-
-		N5GroupInfo info = metaCache.get(normalPathName);
-		if (info == null) {
-
-			/* I do not have a better solution yet to allow parallel
-			 * exists checks for independent paths than to accept the
-			 * same exists check to potentially run multiple times.
-			 */
-			final boolean exists = groupExists(groupPath(normalPathName));
-
-			synchronized (metaCache) {
-				info = metaCache.get(normalPathName);
-				if (info == null) {
-					info = exists ? new N5GroupInfo() : emptyGroupInfo;
-					metaCache.put(normalPathName, info);
-				}
-			}
-		}
-		return info;
-	}
-
-	@Override
-	public boolean exists(final String pathName) {
-
-		final String normalPathName = N5URL.normalizePath(pathName);
-		if (cacheMeta)
-			return getCachedN5GroupInfo(normalPathName) != emptyGroupInfo;
-		else
-			return groupExists(groupPath(normalPathName));
-	}
-
-	@Override
-	public boolean datasetExists(final String pathName) throws IOException {
-
-		if (cacheMeta) {
-			final String normalPathName = N5URL.normalizePath(pathName);
-			final N5GroupInfo info = getCachedN5GroupInfo(normalPathName);
-			if (info == emptyGroupInfo)
-				return false;
-			if (info.isDataset == null) {
-				synchronized (info) {
-					if (info.isDataset == null ) {
-
-					}
-					else
-						return info.isDataset;
-				}
-			} else
-				return info.isDataset;
-		}
-		return exists(pathName) && getDatasetAttributes(pathName) != null;
 	}
 
 	/**
@@ -546,46 +356,6 @@ public class ZarrKeyValueReader implements GsonN5Reader {
 	}
 
 	/**
-	 *
-	 * @param normalPath normalized path name
-	 * @return
-	 * @throws IOException
-	 */
-	protected String[] normalList(final String normalPath) throws IOException {
-
-		return keyValueAccess.listDirectories(groupPath(normalPath));
-	}
-
-	@Override
-	public String[] list(final String pathName) throws IOException {
-
-		if (cacheMeta) {
-			final N5GroupInfo info = getCachedN5GroupInfo(N5URL.normalizePath(pathName));
-			if (info == emptyGroupInfo)
-				throw new IOException("Group '" + pathName +"' does not exist.");
-			else {
-				Set<String> children = info.children;
-				final String[] list;
-				if (children == null) {
-					synchronized (info) {
-						children = info.children;
-						if (children == null) {
-							list = normalList(N5URL.normalizePath(pathName));
-							info.children = new HashSet<>(Arrays.asList(list));
-						} else
-							list = children.toArray(new String[children.size()]);
-					}
-				} else
-					list = children.toArray(new String[children.size()]);
-
-				return list;
-			}
-		} else {
-			return normalList(N5URL.normalizePath(pathName));
-		}
-	}
-
-	/**
 	 * Constructs the path for a data block in a dataset at a given grid position.
 	 *
 	 * The returned path is
@@ -625,18 +395,6 @@ public class ZarrKeyValueReader implements GsonN5Reader {
 	}
 
 	/**
-	 * Constructs the absolute path (in terms of this store) for the group or
-	 * dataset.
-	 *
-	 * @param normalPath normalized group path without leading slash
-	 * @return
-	 */
-	protected String groupPath(final String normalPath) {
-
-		return keyValueAccess.compose(basePath, normalPath);
-	}
-
-	/**
 	 * Constructs the absolute path (in terms of this store) to a .zarray
 	 *
 	 *
@@ -672,22 +430,6 @@ public class ZarrKeyValueReader implements GsonN5Reader {
 		return keyValueAccess.compose(basePath, normalPath, zgroupFile);
 	}
 
-
-
-	/**
-	 * Removes the leading slash from a given path and returns the normalized
-	 * path.  It ensures correctness on both Unix and Windows, otherwise
-	 * {@code pathName} is treated as UNC path on Windows, and
-	 * {@code Paths.get(pathName, ...)} fails with
-	 * {@code InvalidPathException}.
-	 *
-	 * @param path
-	 * @return
-	 */
-	protected String normalize(final String path) {
-
-		return keyValueAccess.normalize(path.startsWith("/") || path.startsWith("\\") ? path.substring(1) : path);
-	}
 
 	@Override
 	public String toString() {
