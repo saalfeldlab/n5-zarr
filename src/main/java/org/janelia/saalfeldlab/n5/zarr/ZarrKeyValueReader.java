@@ -110,14 +110,24 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 	@Override
 	public ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws IOException {
 
-		return getZArraryAttributes(pathName).getDatasetAttributes();
+		final ZArrayAttributes zattrs = getZArrayAttributes(pathName);
+		if (zattrs == null)
+			return null;
+		else
+			return getZArrayAttributes(pathName).getDatasetAttributes();
 	}
 
-	public ZArrayAttributes getZArraryAttributes(final String pathName) throws IOException {
+	public ZArrayAttributes getZArrayAttributes(final String pathName) throws IOException {
 
 		final String normPath = normalize(pathName);
 		final String zarrayPath = zArrayPath(normPath);
 		final JsonElement elem = getAttributesAbsolute(zarrayPath);
+		if( elem == null )
+		{
+			System.err.println(zarrayPath + " does not exist.");
+			return null;
+		}
+
 		final JsonObject attributes;
 		if ( elem.isJsonObject() )
 			attributes = elem.getAsJsonObject();
