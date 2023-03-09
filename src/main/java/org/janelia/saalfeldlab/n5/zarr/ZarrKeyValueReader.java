@@ -41,6 +41,7 @@ import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URL;
+import org.janelia.saalfeldlab.n5.N5KeyValueReader.N5GroupInfo;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -56,7 +57,7 @@ import com.google.gson.reflect.TypeToken;
  * @author Stephan Saalfeld
  * @author John Bogovic
  */
-public class ZarrKeyValueReader extends N5KeyValueReader {
+public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrReader {
 
 	protected static Version VERSION = new Version(2, 0, 0);
 
@@ -112,7 +113,7 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 		} else {
 			return VERSION;
 		}
-		final JsonElement elem = getAttributesRelative( path );
+		final JsonElement elem = getAttributes( path );
 		if ( elem != null && elem.isJsonObject())
 		{
 			JsonElement fmt = elem.getAsJsonObject().get("zarr_format");
@@ -122,21 +123,12 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 		return VERSION;
 	}
 
-	@Override
-	public ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws IOException {
-
-		final ZArrayAttributes zattrs = getZArrayAttributes(pathName);
-		if (zattrs == null)
-			return null;
-		else
-			return zattrs.getDatasetAttributes();
-	}
-
 	public ZArrayAttributes getZArrayAttributes(final String pathName) throws IOException {
 
 		final String normalPathName = N5URL.normalizePath(pathName);
-		final String zarrayPath = keyValueAccess.compose(basePath, zArrayPath(normalPathName));
-		final JsonElement elem = getAttributesAbsolute(zarrayPath);
+//		final String zarrayPath = keyValueAccess.compose(basePath, zArrayPath(normalPathName));
+		final String zarrayPath = zArrayPath(normalPathName);
+		final JsonElement elem = getAttributes(zarrayPath);
 		if( elem == null )
 		{
 			System.err.println(zarrayPath + " does not exist.");
@@ -166,45 +158,39 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 				gson.fromJson(attributes.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType()));
 	}
 
-	@Override
-	public <T> T getAttribute(
-			final String pathName,
-			final String key,
-			final Class<T> clazz) throws IOException {
-
-		final String normalPathName = N5URL.normalizePath(pathName);
-		if (cacheMeta) {
-			final N5GroupInfo info = getCachedN5GroupInfo(normalPathName);
-			if (info == emptyGroupInfo)
-				return null;
-			final JsonElement metadataCache = getCachedAttributes(info, normalPathName);
-			if (metadataCache == null)
-				return null;
-			return GsonN5Reader.readAttribute(metadataCache, N5URL.normalizeAttributePath(key), clazz, gson);
-		} else {
-			return GsonN5Reader.readAttribute(getAttributes(normalPathName), N5URL.normalizeAttributePath(key), clazz, gson);
-		}
-	}
-
-	@Override
-	public <T> T getAttribute(
-			final String pathName,
-			final String key,
-			final Type type) throws IOException {
-
-		final String normalPathName = N5URL.normalizePath(pathName);
-		if (cacheMeta) {
-			final N5GroupInfo info = getCachedN5GroupInfo(normalPathName);
-			if (info == emptyGroupInfo)
-				return null;
-			final JsonElement metadataCache = getCachedAttributes(info, normalPathName);
-			if (metadataCache == null)
-				return null;
-			return GsonN5Reader.readAttribute(metadataCache, N5URL.normalizeAttributePath(key), type, gson);
-		} else {
-			return GsonN5Reader.readAttribute(getAttributes(normalPathName), N5URL.normalizeAttributePath(key), type, gson);
-		}
-	}
+//	@Override
+//	public <T> T getAttribute(
+//			final String pathName,
+//			final String key,
+//			final Class<T> clazz) throws IOException {
+//
+//		final String normalPathName = N5URL.normalizePath(pathName);
+//		if (cacheMeta) {
+//			final JsonElement metadataCache = getCachedAttributes(normalPathName);
+//			if (metadataCache == null)
+//				return null;
+//			return GsonN5Reader.readAttribute(metadataCache, N5URL.normalizeAttributePath(key), clazz, gson);
+//		} else {
+//			return GsonN5Reader.readAttribute(getAttributes(normalPathName), N5URL.normalizeAttributePath(key), clazz, gson);
+//		}
+//	}
+//
+//	@Override
+//	public <T> T getAttribute(
+//			final String pathName,
+//			final String key,
+//			final Type type) throws IOException {
+//
+//		final String normalPathName = N5URL.normalizePath(pathName);
+//		if (cacheMeta) {
+//			final JsonElement metadataCache = getCachedAttributes(normalPathName);
+//			if (metadataCache == null)
+//				return null;
+//			return GsonN5Reader.readAttribute(metadataCache, N5URL.normalizeAttributePath(key), type, gson);
+//		} else {
+//			return GsonN5Reader.readAttribute(getAttributes(normalPathName), N5URL.normalizeAttributePath(key), type, gson);
+//		}
+//	}
 
 	/**
 	 * Reads or creates the attributes map of a group or dataset.
@@ -215,17 +201,39 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 	 */
 	@Override public JsonElement getAttributes(final String pathName) throws IOException {
 
-		final String normPath = normalize(pathName);
-		final String zgroupPath = zArrayPath(normPath);
-		final String zattrPath = zAttrsPath(normPath);
-		final String zarrayPath = zArrayPath(normPath);
+//		final String normPath = normalize(pathName);
+////		final String zgroupPath = zArrayPath(normPath);
+//		final String zattrPath = zAttrsPath(normPath);
+////		final String zarrayPath = zArrayPath(normPath);
+//
+//		JsonElement output = null;
+////		output = combineIfPossible(output, getAttributesRelative(zgroupPath));
+////		output = combineIfPossible(output, getAttributesRelative(zattrPath));
+////		output = combineIfPossible(output, getAttributesRelative(zarrayPath));
+//		
+//
+//		return output;
 
-		JsonElement output = null;
-		output = combineIfPossible(output, getAttributesRelative(zgroupPath));
-		output = combineIfPossible(output, getAttributesRelative(zattrPath));
-		output = combineIfPossible(output, getAttributesRelative(zarrayPath));
 
-		return output;
+		final String groupPath = normalize(pathName);
+		final String attributesPath = zAttrsPath(groupPath);
+
+		/* If cached, return the cache*/
+		final N5GroupInfo groupInfo = getCachedN5GroupInfo(groupPath);
+		if (cacheMeta) {
+			if (groupInfo != null && groupInfo.attributesCache != null)
+				return groupInfo.attributesCache;
+		}
+
+		if (exists(pathName) && !keyValueAccess.exists(attributesPath))
+			return null;
+
+		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(attributesPath)) {
+			final JsonElement attributes = readAttributes(lockedChannel.newReader());
+			/* If we are reading from the access, update the cache*/
+			groupInfo.attributesCache = attributes;
+			return attributes;
+		}
 	}
 
 	protected JsonElement combineIfPossible( final JsonElement base, final JsonElement add )
@@ -252,40 +260,40 @@ public class ZarrKeyValueReader extends N5KeyValueReader {
 		return base;
 	}
 
-	/**
-	 * Reads or creates the attributes map of a group or dataset.
-	 *
-	 * @param absolutePath absolute path
-	 * @return
-	 * @throws IOException
-	 */
-	public JsonElement getAttributesAbsolute(final String absolutePath ) throws IOException {
-
-		if (!keyValueAccess.exists(absolutePath))
-			return null;
-
-		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
-			return readAttributes(lockedChannel.newReader());
-		}
-	}
-
-	/**
-	 * Reads or creates the attributes map of a group or dataset.
-	 *
-	 * @param absolutePath path relative to container root
-	 * @return
-	 * @throws IOException
-	 */
-	public JsonElement getAttributesRelative(final String relativePath ) throws IOException {
-
-		final String absolutePath = keyValueAccess.compose(basePath, relativePath);
-		if (!keyValueAccess.exists(absolutePath))
-			return null;
-
-		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
-			return readAttributes(lockedChannel.newReader());
-		}
-	}
+//	/**
+//	 * Reads or creates the attributes map of a group or dataset.
+//	 *
+//	 * @param absolutePath absolute path
+//	 * @return
+//	 * @throws IOException
+//	 */
+//	public JsonElement getAttributesAbsolute(final String absolutePath ) throws IOException {
+//
+//		if (!keyValueAccess.exists(absolutePath))
+//			return null;
+//
+//		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
+//			return readAttributes(lockedChannel.newReader());
+//		}
+//	}
+//
+//	/**
+//	 * Reads or creates the attributes map of a group or dataset.
+//	 *
+//	 * @param absolutePath path relative to container root
+//	 * @return
+//	 * @throws IOException
+//	 */
+//	public JsonElement getAttributesRelative(final String relativePath ) throws IOException {
+//
+//		final String absolutePath = keyValueAccess.compose(basePath, relativePath);
+//		if (!keyValueAccess.exists(absolutePath))
+//			return null;
+//
+//		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
+//			return readAttributes(lockedChannel.newReader());
+//		}
+//	}
 
 	@Override
 	public DataBlock<?> readBlock(

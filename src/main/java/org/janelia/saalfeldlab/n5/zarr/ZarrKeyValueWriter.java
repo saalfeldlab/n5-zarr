@@ -326,7 +326,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements GsonN5Writ
 					throw new IOException("N5 group '" + normalPath + "' does not exist. Cannot set attributes.");
 			}
 		}
-		final JsonElement metadataCache = getCachedAttributes(info, normalPath);
+		final JsonElement metadataCache = getCachedAttributes(normalPath);
 		synchronized (info) {
 			/* Necessary ensure `nulls` are treated consistently regardless of reading from the cache or not */
 			info.attributesCache = gson.toJsonTree(GsonN5Writer.insertAttributes(metadataCache, attributes, gson));
@@ -362,7 +362,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements GsonN5Writ
 					throw new IOException("N5 group '" + normalPath + "' does not exist. Cannot set attributes.");
 				}
 			}
-			final JsonElement metadataCache = getCachedAttributes(info, normalPath);
+			final JsonElement metadataCache = getCachedAttributes(normalPath);
 			if (GsonN5Writer.removeAttribute(metadataCache, normalKey) != null) {
 				writeAttributes(normalPath, metadataCache);
 				return true;
@@ -389,7 +389,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements GsonN5Writ
 					throw new IOException("N5 group '" + normalPath + "' does not exist. Cannot set attributes.");
 				}
 			}
-			final JsonElement metadataCache = getCachedAttributes(info, normalPath);
+			final JsonElement metadataCache = getCachedAttributes(normalPath);
 			final T obj = GsonN5Writer.removeAttribute(metadataCache, normalKey, cls, gson);
 			if (obj != null) {
 				writeAttributes(normalPath, metadataCache);
