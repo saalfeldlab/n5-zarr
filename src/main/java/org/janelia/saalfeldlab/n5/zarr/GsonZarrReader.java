@@ -27,16 +27,27 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
+import java.util.Collection;
 
 import org.janelia.saalfeldlab.n5.GsonN5Reader;
+import org.janelia.saalfeldlab.n5.KeyValueAccess;
+import org.janelia.saalfeldlab.n5.LockedChannel;
+import org.janelia.saalfeldlab.n5.N5KeyValueReader.N5GroupInfo;
 
 /**
  * A Zarr {@link GsonN5Reader} for JSON attributes parsed by {@link Gson}.
  *
  */
 public interface GsonZarrReader extends GsonN5Reader {
+	
+	public static final String zarrayFile = ".zarray";
+	public static final String zattrsFile = ".zattrs";
+	public static final String zgroupFile = ".zgroup";
 
 	@Override
 	default ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws IOException {
@@ -48,7 +59,7 @@ public interface GsonZarrReader extends GsonN5Reader {
 			return zattrs.getDatasetAttributes();
 	}
 
-	public abstract ZArrayAttributes getZArrayAttributes(final String pathName) throws IOException;
+//	public abstract ZArrayAttributes getZArrayAttributes(final String pathName) throws IOException;
 
 	public static Gson registerGson(final GsonBuilder gsonBuilder) {
 		return addTypeAdapters( gsonBuilder ).create();
@@ -61,5 +72,82 @@ public interface GsonZarrReader extends GsonN5Reader {
 		gsonBuilder.disableHtmlEscaping();
 		return gsonBuilder;
 	}
+	
+	public abstract KeyValueAccess getKeyValueAccess();
+	
+	/**
+	 * Constructs the relative path (in terms of this store) to a .zarray
+	 *
+	 *
+	 * @param normalPath normalized group path without leading slash
+	 * @return
+	 */
+	public default String zArrayPath(final String normalPath) {
+
+		return getKeyValueAccess().compose(normalPath, zarrayFile);
+	}
+
+	/**
+	 * Constructs the relative path (in terms of this store) to a .zattrs
+	 *
+	 *
+	 * @param normalPath normalized group path without leading slash
+	 * @return
+	 */
+	public default String zAttrsPath(final String normalPath) {
+
+		return getKeyValueAccess().compose(normalPath, zattrsFile);
+	}
+
+	/**
+	 * Constructs the relative path (in terms of this store) to a .zgroup
+	 *
+	 *
+	 * @param normalPath normalized group path without leading slash
+	 * @return
+	 */
+	public default String zGroupPath(final String normalPath) {
+
+		return getKeyValueAccess().compose(normalPath, zgroupFile);
+	}
+	
+	/**
+	 * Constructs the path for a data block in a dataset at a given grid position.
+	 *
+	 * The returned path is
+	 * <pre>
+	 * $gridPosition[n]$dimensionSeparator$gridPosition[n-1]$dimensionSeparator[...]$dimensionSeparator$gridPosition[0]
+	 * </pre>
+	 *
+	 * This is the file into which the data block will be stored.
+	 *
+	 * @param gridPosition
+	 * @param dimensionSeparator
+	 * @param isRowMajor
+	 *
+	 * @return
+	 */
+	public static String getZarrDataBlockPath(
+			final long[] gridPosition,
+			final String dimensionSeparator,
+			final boolean isRowMajor) {
+
+		final StringBuilder pathStringBuilder = new StringBuilder();
+		if (isRowMajor) {
+			pathStringBuilder.append(gridPosition[gridPosition.length - 1]);
+			for (int i = gridPosition.length - 2; i >= 0 ; --i) {
+				pathStringBuilder.append(dimensionSeparator);
+				pathStringBuilder.append(gridPosition[i]);
+			}
+		} else {
+			pathStringBuilder.append(gridPosition[0]);
+			for (int i = 1; i < gridPosition.length; ++i) {
+				pathStringBuilder.append(dimensionSeparator);
+				pathStringBuilder.append(gridPosition[i]);
+			}
+		}
+
+		return pathStringBuilder.toString();
+	}	
 
 }

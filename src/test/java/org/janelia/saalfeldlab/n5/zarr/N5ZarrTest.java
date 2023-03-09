@@ -39,6 +39,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -79,12 +80,12 @@ import net.imglib2.view.Views;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public class N5ZarrTest extends AbstractN5Test {
-
-	static private String testDirPath = System.getProperty("user.home") + "/tmp/n5-test.zarr";
-	static private String testZarrDirPath = System.getProperty("user.home") + "/tmp/zarr-test.zarr";
-	static private String testZarrNestedDirPath = System.getProperty("user.home") + "/tmp/zarr-test-nested.zarr";
 	static private String testZarrDatasetName = "/test/data";
 
+	private static String createTestDirPath(String prefix) throws IOException {
+
+		return Files.createTempDirectory(prefix).toFile().getCanonicalPath();
+	}
 
 	/**
 	 * @throws IOException
@@ -92,6 +93,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Override
 	protected N5ZarrWriter createN5Writer() throws IOException {
 
+		final String testDirPath = createTestDirPath("n5-zarr-test-");
 		return new N5ZarrWriter(testDirPath);
 	}
 
@@ -104,7 +106,12 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Override
 	protected N5Reader createN5Reader(String location, GsonBuilder gson) throws IOException {
 
-		return new N5ZarrReader(testDirPath, gson);
+		return new N5ZarrReader(location, gson);
+	}
+
+	protected N5ZarrWriter createN5Writer(String location) throws IOException {
+
+		return new N5ZarrWriter(location);
 	}
 
 	@Override
@@ -146,6 +153,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	public void testCreateNestedDataset() throws IOException {
 		final String datasetName = "/test/nested/data";
 
+		final String testDirPath = createTestDirPath("n5-zarr-test-");
 		N5ZarrWriter n5Nested = new N5ZarrWriter(testDirPath, "/", true );
 		n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 		assertEquals( "/", n5Nested.getZArrayAttributes(datasetName).getDimensionSeparator());
@@ -156,6 +164,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Test
 	public void testCreateDatasetNameEmpty() throws IOException {
+		final String testDirPath = createTestDirPath("n5-zarr-test-");
 		N5ZarrWriter n5 = new N5ZarrWriter(testDirPath );
 		n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 		n5.remove();
@@ -164,6 +173,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Test
 	public void testCreateDatasetNameSlash() throws IOException {
+		final String testDirPath = createTestDirPath("n5-zarr-test-");
 		N5ZarrWriter n5 = new N5ZarrWriter(testDirPath );
 		n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 		n5.remove();
@@ -325,8 +335,9 @@ public class N5ZarrTest extends AbstractN5Test {
 			return;
 		}
 
-		final N5ZarrWriter n5Zarr = new N5ZarrWriter(testZarrDirPath, true);
-		final N5ZarrWriter n5ZarrWithoutMapping = new N5ZarrWriter(testZarrDirPath, false);
+		final String testZarrDirPath = createTestDirPath( "zarr-test-" );
+		final N5ZarrWriter n5Zarr = new N5ZarrWriter(testZarrDirPath, ".", true);
+		final N5ZarrWriter n5ZarrWithoutMapping = new N5ZarrWriter(testZarrDirPath, ".", false);
 
 		/* groups */
 		assertTrue(n5Zarr.exists(testZarrDatasetName) && !n5Zarr.datasetExists(testZarrDatasetName));
@@ -456,7 +467,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			return;
 		}
 
-		final N5ZarrWriter n5Zarr = new N5ZarrWriter(testZarrNestedDirPath, true);
+		final String testZarrNestedDirPath = createTestDirPath( "zarr-test-nested-" );
+		final N5ZarrWriter n5Zarr = new N5ZarrWriter(testZarrNestedDirPath, ".", true);
 
 		/* groups */
 		System.out.println( n5Zarr.exists(testZarrDatasetName));
@@ -480,6 +492,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Test
 	public void testRawCompressorNullInZarray() throws IOException, FileNotFoundException, ParseException {
+		final String testZarrDirPath = createTestDirPath( "zarr-test-" );
 		final N5ZarrWriter n5 = new N5ZarrWriter(testZarrDirPath);
 		n5.createDataset(testZarrDatasetName, new long[]{1, 2, 3}, new int[]{1, 2, 3}, DataType.UINT16, new RawCompression());
 		final JSONParser jsonParser = new JSONParser();

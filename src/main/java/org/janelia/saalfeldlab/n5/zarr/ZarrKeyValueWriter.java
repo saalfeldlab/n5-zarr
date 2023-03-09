@@ -53,6 +53,7 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonN5Writer;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
+import org.janelia.saalfeldlab.n5.N5KeyValueWriter;
 import org.janelia.saalfeldlab.n5.N5URL;
 
 /**
@@ -62,6 +63,7 @@ import org.janelia.saalfeldlab.n5.N5URL;
  * @author John Bogovic
  */
 public class ZarrKeyValueWriter extends ZarrKeyValueReader implements GsonN5Writer {
+//public class ZarrKeyValueWriter extends N5KeyValueWriter implements GsonZarrReader {
 
 	protected String dimensionSeparator;
 
@@ -78,12 +80,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements GsonN5Writ
 	 * @param keyValueAccess
 	 * @param basePath n5 base path
 	 * @param gsonBuilder
-	 * @param mapN5DatasetAttributes
-	 *	  Virtually create N5 dataset attributes (dimensions, blockSize,
-	 * 	  compression, dataType) for datasets such that N5 code that
-	 * 	  reads or modifies these attributes directly works as expected.
-	 * 	  This can lead to name collisions if a zarr container uses these
-	 * 	  attribute keys for other purposes.
 	 * @param cacheAttributes cache attributes
 	 *    Setting this to true avoids frequent reading and parsing of JSON
 	 *    encoded attributes, this is most interesting for high latency file
@@ -97,13 +93,16 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements GsonN5Writ
 			final KeyValueAccess keyValueAccess,
 			final String basePath,
 			final GsonBuilder gsonBuilder,
-			final String dimensionSeparator,
 			final boolean mapN5DatasetAttributes,
+			final String dimensionSeparator,
 			final boolean cacheAttributes) throws IOException {
+		
+//		super( keyValueAccess, basePath, gsonBuilder, cacheAttributes );
+//		this.dimensionSeparator = dimensionSeparator;
 
 		super(keyValueAccess, basePath, gsonBuilder, mapN5DatasetAttributes, cacheAttributes);
 		this.dimensionSeparator = dimensionSeparator;
-//		keyValueAccess.createDirectories(groupPath(basePath));
+		keyValueAccess.createDirectories(groupPath(basePath));
 	}
 
 	/**
@@ -283,7 +282,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements GsonN5Writ
 	 */
 	@Override
 	protected String attributesPath(final String normalPath) {
-
 
 		return keyValueAccess.compose(basePath, normalPath, jsonFile);
 	}
@@ -474,7 +472,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements GsonN5Writ
 		final String path = keyValueAccess.compose(
 				basePath,
 				normalPath,
-				getZarrDataBlockPath(
+				GsonZarrReader.getZarrDataBlockPath(
 						dataBlock.getGridPosition(),
 						zarrDatasetAttributes.getDimensionSeparator(),
 						zarrDatasetAttributes.isRowMajor()).toString());
@@ -600,5 +598,16 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements GsonN5Writ
 			/* TODO deal with bit streams */
 			return null;
 		}
+	}
+	
+    /**
+	 * Removes the trailing slash from a given path and returns the corrected path.
+	 *
+	 * @param pathName
+	 * @return
+	 */
+	protected static String removeTrailingSlash(final String pathName) {
+
+		return pathName.endsWith("/") || pathName.endsWith("\\") ? pathName.substring(0, pathName.length() - 1) : pathName;
 	}
 }

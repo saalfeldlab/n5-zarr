@@ -27,7 +27,6 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 
@@ -35,13 +34,10 @@ import org.janelia.saalfeldlab.n5.BlockReader;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.GsonN5Reader;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5URL;
-import org.janelia.saalfeldlab.n5.N5KeyValueReader.N5GroupInfo;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -61,9 +57,6 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 
 	protected static Version VERSION = new Version(2, 0, 0);
 
-	protected static final String zarrayFile = ".zarray";
-	protected static final String zattrsFile = ".zattrs";
-	protected static final String zgroupFile = ".zgroup";
 
 	final protected boolean mapN5DatasetAttributes;
 
@@ -105,15 +98,15 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 
 	@Override
 	public Version getVersion() throws IOException {
-		String path;
+		final JsonElement elem;
 		if (groupExists("/")) {
-			path = zGroupPath("/");
+			elem = getAttributesZGroup( "/" );
 		} else if (datasetExists("/")) {
-			path = zArrayPath("/");
+			elem = getAttributesZArray( "/" );
 		} else {
 			return VERSION;
 		}
-		final JsonElement elem = getAttributes( path );
+
 		if ( elem != null && elem.isJsonObject())
 		{
 			JsonElement fmt = elem.getAsJsonObject().get("zarr_format");
@@ -123,17 +116,17 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 		return VERSION;
 	}
 
+	@Override
+	protected boolean groupExists(final String pathName) {
+
+		return keyValueAccess.isFile( zGroupPath( pathName ));
+	}
+
 	public ZArrayAttributes getZArrayAttributes(final String pathName) throws IOException {
 
-		final String normalPathName = N5URL.normalizePath(pathName);
-//		final String zarrayPath = keyValueAccess.compose(basePath, zArrayPath(normalPathName));
-		final String zarrayPath = zArrayPath(normalPathName);
-		final JsonElement elem = getAttributes(zarrayPath);
+		final JsonElement elem = getAttributesZArray(pathName);
 		if( elem == null )
-		{
-			System.err.println(zarrayPath + " does not exist.");
 			return null;
-		}
 
 		final JsonObject attributes;
 		if ( elem.isJsonObject() )
@@ -156,6 +149,11 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 				attributes.get("order").getAsString().charAt(0),
 				sepElem != null ? sepElem.getAsString() : ".",
 				gson.fromJson(attributes.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType()));
+	}
+	
+	@Override
+	public ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws IOException {
+		return GsonZarrReader.super.getDatasetAttributes( pathName );
 	}
 
 //	@Override
@@ -207,31 +205,71 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 ////		final String zarrayPath = zArrayPath(normPath);
 //
 //		JsonElement output = null;
-////		output = combineIfPossible(output, getAttributesRelative(zgroupPath));
-////		output = combineIfPossible(output, getAttributesRelative(zattrPath));
-////		output = combineIfPossible(output, getAttributesRelative(zarrayPath));
+//		output = combineIfPossible(output, getAttributesRelative(zgroupPath));
+//		output = combineIfPossible(output, getAttributesRelative(zattrPath));
+//		output = combineIfPossible(output, getAttributesRelative(zarrayPath));
 //		
 //
 //		return output;
+//
+//		final String groupPath = normalize(pathName);
+//		final String attributesPath = zAttrsPath(groupPath);
+//
+//		/* If cached, return the cache*/
+//		final N5GroupInfo groupInfo = getCachedN5GroupInfo(attributesPath);
+//		if (cacheMeta) {
+//			if (groupInfo != null && groupInfo.attributesCache != null)
+//				return groupInfo.attributesCache;
+//		}
+//
+//		return getAttributesCache( attributesPath );
 
+		return getAttributesZAttrs( pathName );
+		
+	}
 
-		final String groupPath = normalize(pathName);
-		final String attributesPath = zAttrsPath(groupPath);
+	protected JsonElement getAttributesZAttrs( final String pathName ) throws IOException {
 
-		/* If cached, return the cache*/
-		final N5GroupInfo groupInfo = getCachedN5GroupInfo(groupPath);
-		if (cacheMeta) {
-			if (groupInfo != null && groupInfo.attributesCache != null)
+		return getAttributesCache( zAttrsPath( normalize( pathName ) ) );
+	}
+
+	protected JsonElement getAttributesZArray( final String pathName ) throws IOException {
+
+		return getAttributesCache( zArrayPath( normalize( pathName ) ) );
+	}
+
+	protected JsonElement getAttributesZGroup( final String pathName ) throws IOException {
+
+		return getAttributesCache( zGroupPath( normalize( pathName ) ) );
+	}
+
+	/**
+	 * 
+	 * @param resourcePath path of file / resource relative to root
+	 * @return
+	 * @throws IOException
+	 */
+	protected JsonElement getAttributesCache(final String resourcePath) throws IOException {
+		/* If cached, return the cache */
+		N5GroupInfo groupInfo = null;
+		if ( cacheMeta )
+		{
+			groupInfo = getCachedN5GroupInfo( resourcePath );
+			if ( groupInfo != null && groupInfo.attributesCache != null )
 				return groupInfo.attributesCache;
 		}
 
-		if (exists(pathName) && !keyValueAccess.exists(attributesPath))
+		final String absolutePath = keyValueAccess.compose( basePath, resourcePath );
+		if ( !keyValueAccess.exists( absolutePath ) )
 			return null;
 
-		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(attributesPath)) {
-			final JsonElement attributes = readAttributes(lockedChannel.newReader());
-			/* If we are reading from the access, update the cache*/
-			groupInfo.attributesCache = attributes;
+		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading( absolutePath ))
+		{
+			final JsonElement attributes = readAttributes( lockedChannel.newReader() );
+			/* If we are reading from the access, update the cache */
+			if( cacheMeta )
+				groupInfo.attributesCache = attributes;
+
 			return attributes;
 		}
 	}
@@ -449,47 +487,15 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 		return pathStringBuilder.toString();
 	}
 
-	/**
-	 * Constructs the relative path (in terms of this store) to a .zarray
-	 *
-	 *
-	 * @param normalPath normalized group path without leading slash
-	 * @return
-	 */
-	protected String zArrayPath(final String normalPath) {
-
-		return keyValueAccess.compose(normalPath, zarrayFile);
-	}
-
-	/**
-	 * Constructs the relative path (in terms of this store) to a .zattrs
-	 *
-	 *
-	 * @param normalPath normalized group path without leading slash
-	 * @return
-	 */
-	protected String zAttrsPath(final String normalPath) {
-
-		return keyValueAccess.compose(normalPath, zattrsFile);
-	}
-
-	/**
-	 * Constructs the relative path (in terms of this store) to a .zgroup
-	 *
-	 *
-	 * @param normalPath normalized group path without leading slash
-	 * @return
-	 */
-	protected String zGroupPath(final String normalPath) {
-
-		return keyValueAccess.compose(normalPath, zgroupFile);
-	}
-
-
 	@Override
 	public String toString() {
 
 		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, basePath);
+	}
+	
+	public KeyValueAccess getKeyValueAccess()
+	{
+		return keyValueAccess;
 	}
 
 	public static GsonBuilder addTypeAdapters( GsonBuilder gsonBuilder )

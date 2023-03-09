@@ -90,7 +90,6 @@
 
 		<json-simple.version>1.1.1</json-simple.version>
 		<n5.version>3.0.0-SNAPSHOT</n5.version>
-
 	</properties>
 
 	<dependencies>
