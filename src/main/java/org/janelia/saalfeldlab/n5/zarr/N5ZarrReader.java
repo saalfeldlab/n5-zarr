@@ -28,6 +28,8 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -41,10 +43,13 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.stream.Stream;
 
+import org.apache.commons.compress.utils.IOUtils;
 import org.janelia.saalfeldlab.n5.BlockReader;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DataBlock;
+import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.DefaultBlockReader;
 import org.janelia.saalfeldlab.n5.GsonAttributesParser;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 
@@ -57,6 +62,8 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.n5.VLenStringDataBlock;
+import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 
 
 /**
@@ -347,9 +354,12 @@ public class N5ZarrReader extends N5FSReader {
 		final int[] blockSize = datasetAttributes.getBlockSize();
 		final DType dType = datasetAttributes.getDType();
 
+		final BlockReader reader = datasetAttributes.getCompression().getReader();
 		final ByteArrayDataBlock byteBlock = dType.createByteBlock(blockSize, gridPosition);
 
-		final BlockReader reader = datasetAttributes.getCompression().getReader();
+		if (dType.getDataType() == DataType.VLENSTRING) {
+			return readVLenStringBlock(in, reader, byteBlock);
+		}
 		reader.read(byteBlock, in);
 
 		switch (dType.getDataType()) {
@@ -420,6 +430,26 @@ public class N5ZarrReader extends N5FSReader {
 //			}
 //		}
 
+		return dataBlock;
+	}
+
+	protected static VLenStringDataBlock readVLenStringBlock(InputStream in, BlockReader reader, ByteArrayDataBlock byteBlock) throws IOException {
+		// read whole chunk and deserialize; this should be improved
+		VLenStringDataBlock dataBlock = new ZarrCompatibleVlenStringDataBlock(byteBlock.getSize(), byteBlock.getGridPosition(), new byte[0]);
+		if (reader instanceof BloscCompression) {
+			// Blosc reader reads actual data and doesn't care about buffer size (but needs special treatment in data block)
+			reader.read(dataBlock, in);
+		} else if (reader instanceof DefaultBlockReader) {
+			try (final InputStream inflater = ((DefaultBlockReader) reader).getInputStream(in)) {
+				final DataInputStream dis = new DataInputStream(inflater);
+				final ByteArrayOutputStream out = new ByteArrayOutputStream();
+				IOUtils.copy(dis, out);
+				dataBlock.readData(ByteBuffer.wrap(out.toByteArray()));
+			}
+		}
+		else {
+			throw new UnsupportedOperationException("Only Blosc compression or algorithms that use DefaultBlockReader are supported.")
+		}
 		return dataBlock;
 	}
 
