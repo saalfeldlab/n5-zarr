@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.n5.zarr;
 import org.janelia.saalfeldlab.n5.VLenStringDataBlock;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Arrays;
 
 public class ZarrCompatibleVLenStringDataBlock extends VLenStringDataBlock {
@@ -33,6 +34,7 @@ public class ZarrCompatibleVLenStringDataBlock extends VLenStringDataBlock {
         final int[] lengths = Arrays.stream(encodedStrings).mapToInt((arr) -> arr.length).toArray();
         final int totalLength = Arrays.stream(lengths).sum();
         final ByteBuffer buf = ByteBuffer.wrap(new byte[totalLength + 4*N + 4]);
+        buf.order(ByteOrder.LITTLE_ENDIAN);
 
         buf.putInt(N);
         for (int i = 0; i < N; ++i) {
@@ -45,6 +47,7 @@ public class ZarrCompatibleVLenStringDataBlock extends VLenStringDataBlock {
 
     protected String[] deserialize(byte[] rawBytes) {
         ByteBuffer buf = ByteBuffer.wrap(rawBytes);
+        buf.order(ByteOrder.LITTLE_ENDIAN);
 
         // sanity check to avoid out of memory errors
         if (rawBytes.length < 4)
