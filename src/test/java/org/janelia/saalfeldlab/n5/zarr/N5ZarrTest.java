@@ -45,16 +45,19 @@ import java.util.Map;
 import org.janelia.saalfeldlab.n5.AbstractN5Test;
 import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
+import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.n5.VLenStringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -256,6 +259,33 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	@Ignore("Zarr does not currently support mode 2 data blocks and serialized objects.")
 	public void testWriteReadSerializableBlock() {
+	}
+
+	@Override
+	@Test
+	public void testWriteReadStringBlock() {
+		DataType dataType = DataType.VLENSTRING;
+		int[] blockSize = new int[]{3, 2, 1};
+		String[] stringBlock = new String[]{"", "a", "bc", "de", "fgh", ":-þ"};
+		Compression[] compressions = this.getCompressions();
+
+		for (Compression compression : compressions) {
+			System.out.println("Testing " + compression.getType() + " " + dataType);
+
+			try {
+				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
+				DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
+				VLenStringDataBlock dataBlock = new ZarrCompatibleVLenStringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
+				n5.writeBlock("/test/group/dataset", attributes, dataBlock);
+				DataBlock<?> loadedDataBlock = n5.readBlock("/test/group/dataset", attributes, new long[]{0L, 0L, 0L});
+				Assert.assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());
+				Assert.assertTrue(n5.remove("/test/group/dataset"));
+			} catch (IOException e) {
+				e.printStackTrace();
+				Assert.fail("Block cannot be written.");
+			}
+		}
+
 	}
 
 	private boolean runPythonTest(String script) throws IOException, InterruptedException {

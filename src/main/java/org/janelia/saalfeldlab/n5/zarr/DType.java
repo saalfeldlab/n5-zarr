@@ -51,7 +51,6 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
-import org.janelia.saalfeldlab.n5.VLenStringDataBlock;
 
 /**
  * Enumerates available zarr data types as defined at
@@ -219,7 +218,7 @@ public class DType {
 			nBytes = 1;
 			nBits = 0;
 			dataBlockFactory = (blockSize, gridPosition, numElements) ->
-					new VLenStringDataBlock(blockSize, gridPosition, new String[0]);
+					new ZarrCompatibleVLenStringDataBlock(blockSize, gridPosition, new String[0]);
 			byteBlockFactory = (blockSize, gridPosition, numElements) ->
 					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			break;

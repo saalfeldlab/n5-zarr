@@ -67,6 +67,7 @@ import net.imglib2.img.basictypeaccess.array.ByteArray;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.n5.VLenStringDataBlock;
 
 /**
  * @author Stephan Saalfeld

@@ -62,7 +62,6 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.n5.VLenStringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 
 
@@ -433,9 +432,9 @@ public class N5ZarrReader extends N5FSReader {
 		return dataBlock;
 	}
 
-	protected static VLenStringDataBlock readVLenStringBlock(InputStream in, BlockReader reader, ByteArrayDataBlock byteBlock) throws IOException {
+	protected static ZarrCompatibleVLenStringDataBlock readVLenStringBlock(InputStream in, BlockReader reader, ByteArrayDataBlock byteBlock) throws IOException {
 		// read whole chunk and deserialize; this should be improved
-		VLenStringDataBlock dataBlock = new ZarrCompatibleVlenStringDataBlock(byteBlock.getSize(), byteBlock.getGridPosition(), new byte[0]);
+		ZarrCompatibleVLenStringDataBlock dataBlock = new ZarrCompatibleVLenStringDataBlock(byteBlock.getSize(), byteBlock.getGridPosition(), new String[0]);
 		if (reader instanceof BloscCompression) {
 			// Blosc reader reads actual data and doesn't care about buffer size (but needs special treatment in data block)
 			reader.read(dataBlock, in);
@@ -448,7 +447,7 @@ public class N5ZarrReader extends N5FSReader {
 			}
 		}
 		else {
-			throw new UnsupportedOperationException("Only Blosc compression or algorithms that use DefaultBlockReader are supported.")
+			throw new UnsupportedOperationException("Only Blosc compression or algorithms that use DefaultBlockReader are supported.");
 		}
 		return dataBlock;
 	}
