@@ -36,8 +36,6 @@ import java.util.Collection;
 
 import org.janelia.saalfeldlab.n5.GsonN5Reader;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
-import org.janelia.saalfeldlab.n5.LockedChannel;
-import org.janelia.saalfeldlab.n5.N5KeyValueReader.N5GroupInfo;
 
 /**
  * A Zarr {@link GsonN5Reader} for JSON attributes parsed by {@link Gson}.
@@ -50,6 +48,11 @@ public interface GsonZarrReader extends GsonN5Reader {
 	public static final String zgroupFile = ".zgroup";
 
 	@Override
+	default JsonElement getAttributes(final String pathName) throws IOException {
+		return getAttributesZAttrs(pathName);
+	}
+
+	@Override
 	default ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws IOException {
 
 		final ZArrayAttributes zattrs = getZArrayAttributes(pathName);
@@ -59,20 +62,43 @@ public interface GsonZarrReader extends GsonN5Reader {
 			return zattrs.getDatasetAttributes();
 	}
 
-//	public abstract ZArrayAttributes getZArrayAttributes(final String pathName) throws IOException;
+	public default ZArrayAttributes getZArrayAttributes(final String pathName) throws IOException {
+
+		final Gson gson = getGson();
+		final JsonElement elem = getAttributesZArray(pathName);
+		if (elem == null)
+			return null;
+
+		final JsonObject attributes;
+		if (elem.isJsonObject())
+			attributes = elem.getAsJsonObject();
+		else
+			return null;
+
+		final JsonElement sepElem = attributes.get("dimension_separator");
+		return new ZArrayAttributes(
+				attributes.get("zarr_format").getAsInt(),
+				gson.fromJson(attributes.get("shape"), long[].class),
+				gson.fromJson(attributes.get("chunks"), int[].class),
+				gson.fromJson(attributes.get("dtype"), DType.class),
+				gson.fromJson(attributes.get("compressor"), ZarrCompressor.class),
+				attributes.get("fill_value").getAsString(),
+				attributes.get("order").getAsString().charAt(0),
+				sepElem != null ? sepElem.getAsString() : ".",
+				gson.fromJson(attributes.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType()));
+	}
 
 	public static Gson registerGson(final GsonBuilder gsonBuilder) {
 		return addTypeAdapters( gsonBuilder ).create();
 	}
 
-	public static GsonBuilder addTypeAdapters( GsonBuilder gsonBuilder )
-	{
+	public static GsonBuilder addTypeAdapters(GsonBuilder gsonBuilder) {
 		gsonBuilder.registerTypeAdapter(DType.class, new DType.JsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter);
 		gsonBuilder.disableHtmlEscaping();
 		return gsonBuilder;
 	}
-	
+
 	public abstract KeyValueAccess getKeyValueAccess();
 	
 	/**
@@ -100,6 +126,14 @@ public interface GsonZarrReader extends GsonN5Reader {
 	}
 
 	/**
+	 * 
+	 * @param resourcePath path of file / resource relative to root
+	 * @return
+	 * @throws IOException
+	 */
+	public abstract JsonElement getAttributesCache(final String resourcePath) throws IOException;
+
+	/**
 	 * Constructs the relative path (in terms of this store) to a .zgroup
 	 *
 	 *
@@ -111,6 +145,21 @@ public interface GsonZarrReader extends GsonN5Reader {
 		return getKeyValueAccess().compose(normalPath, zgroupFile);
 	}
 	
+	public default JsonElement getAttributesZAttrs( final String pathName ) throws IOException {
+
+		return getAttributesCache( zAttrsPath( normalize( pathName ) ) );
+	}
+
+	public default JsonElement getAttributesZArray( final String pathName ) throws IOException {
+
+		return getAttributesCache( zArrayPath( normalize( pathName ) ) );
+	}
+
+	public default JsonElement getAttributesZGroup( final String pathName ) throws IOException {
+
+		return getAttributesCache( zGroupPath( normalize( pathName ) ) );
+	}
+
 	/**
 	 * Constructs the path for a data block in a dataset at a given grid position.
 	 *
@@ -148,6 +197,40 @@ public interface GsonZarrReader extends GsonN5Reader {
 		}
 
 		return pathStringBuilder.toString();
-	}	
+	}
+
+	/**
+	 * Removes the leading slash from a given path and returns the normalized
+	 * path.  It ensures correctness on both Unix and Windows, otherwise
+	 * {@code pathName} is treated as UNC path on Windows, and
+	 * {@code Paths.get(pathName, ...)} fails with
+	 * {@code InvalidPathException}.
+	 *
+	 *
+	 * @param keyValueAccess
+	 * @param path
+	 * @return the normalized path, without leading slash
+	 */
+	public default String normalize(final String path) {
+
+		return normalize(getKeyValueAccess(), path);
+	}
+
+	/**
+	 * Removes the leading slash from a given path and returns the normalized
+	 * path.  It ensures correctness on both Unix and Windows, otherwise
+	 * {@code pathName} is treated as UNC path on Windows, and
+	 * {@code Paths.get(pathName, ...)} fails with
+	 * {@code InvalidPathException}.
+	 *
+	 *
+	 * @param keyValueAccess
+	 * @param path
+	 * @return the normalized path, without leading slash
+	 */
+	public static String normalize(final KeyValueAccess keyValueAccess, final String path) {
+
+		return keyValueAccess.normalize(path.startsWith("/") || path.startsWith("\\") ? path.substring(1) : path);
+	}
 
 }

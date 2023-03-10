@@ -31,10 +31,13 @@ package org.janelia.saalfeldlab.n5.zarr;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -50,6 +53,7 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
@@ -206,6 +210,53 @@ public class N5ZarrTest extends AbstractN5Test {
 		assertTrue(n5Version.equals(N5ZarrReader.VERSION));
 
 		assertTrue(N5ZarrReader.VERSION.isCompatible(n5.getVersion()));
+	}
+
+	@Test
+	@Override
+	public void testReaderCreation() throws IOException {
+
+		final File tmpFile = Files.createTempDirectory("reader-create-test-").toFile();
+		tmpFile.delete();
+		final String canonicalPath = tmpFile.getCanonicalPath();
+		try (N5Writer writer = createN5Writer(canonicalPath)) {
+
+			final N5Reader n5r = createN5Reader(canonicalPath);
+			assertNotNull(n5r);
+
+			// existing directory without attributes is okay;
+			// Remove and create to remove attributes store
+			writer.remove("/");
+			writer.createGroup("/");
+			final N5Reader na = createN5Reader(canonicalPath);
+			assertNotNull(na);
+
+			// existing location with attributes, but no version
+			writer.remove("/");
+			writer.createGroup("/");
+			writer.setAttribute("/", "mystring", "ms");
+			final N5Reader wa = createN5Reader(canonicalPath);
+			assertNotNull(wa);
+
+			// TODO How do we use the api to write into a zgroup file?  is this even allowed?
+//			// existing directory with incompatible version should fail
+//			writer.remove("/");
+//			writer.createGroup("/");
+//			writer.setAttribute("/", N5Reader.VERSION_KEY,
+//					new Version(N5ZarrReader.VERSION.getMajor() + 1, N5ZarrReader.VERSION.getMinor(), N5ZarrReader.VERSION.getPatch()).toString());
+//			assertThrows("Incompatible version throws error", IOException.class,
+//					() -> {
+//						createN5Reader(canonicalPath);
+//					});
+
+			// non-existent directory should fail
+			writer.remove("/");
+			assertThrows("Non-existant location throws error", IOException.class,
+					() -> {
+						final N5Reader test = createN5Reader(canonicalPath);
+						test.list("/");
+					});
+		}
 	}
 
 	@Override
