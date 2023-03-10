@@ -64,4 +64,8 @@ public class ZarrCompatibleVLenStringDataBlock extends VLenStringDataBlock {
 
         return strings;
     }
+
+    public static class VLenStringFilter implements Filter {
+        public final String id = "vlen-utf8";
+    }
 }

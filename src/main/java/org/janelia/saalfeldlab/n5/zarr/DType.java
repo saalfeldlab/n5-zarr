@@ -365,7 +365,7 @@ public class DType {
 	public List<Filter> getFilters() {
 		if (dataType == DataType.VLENSTRING) {
 			ArrayList<Filter> filterSet = new ArrayList<>();
-			filterSet.add(new Filter(){ public String id = "vlen-utf8"; });
+			filterSet.add(new ZarrCompatibleVLenStringDataBlock.VLenStringFilter());
 			return filterSet;
 		}
 		else

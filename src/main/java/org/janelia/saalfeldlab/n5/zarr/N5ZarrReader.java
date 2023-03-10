@@ -81,6 +81,7 @@ public class N5ZarrReader extends N5FSReader {
 
 		gsonBuilder.registerTypeAdapter(DType.class, new DType.JsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter);
+		gsonBuilder.registerTypeAdapter(Filter.class, new Filter.JsonAdapter());
 		gsonBuilder.serializeNulls();
 
 		return gsonBuilder;

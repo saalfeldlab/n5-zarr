@@ -28,6 +28,17 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
+
+import java.lang.reflect.Type;
+
 /**
  * Place holder interface for filters
  *
@@ -36,5 +47,26 @@ package org.janelia.saalfeldlab.n5.zarr;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public interface Filter {
-    public String id = null;
+
+    static public class JsonAdapter implements JsonDeserializer<Filter> {
+
+        @Override
+        public Filter deserialize(
+                final JsonElement json,
+                final Type typeOfT,
+                final JsonDeserializationContext context) throws JsonParseException {
+
+            final JsonObject jsonObject = json.getAsJsonObject();
+            final JsonElement jsonId = jsonObject.get("id");
+            if (jsonId == null)
+                return null;
+            final String id = jsonId.getAsString();
+            switch (id) {
+            case "vlen-utf8":
+                return new ZarrCompatibleVLenStringDataBlock.VLenStringFilter();
+            default:
+                return null;
+            }
+        }
+    }
 }
