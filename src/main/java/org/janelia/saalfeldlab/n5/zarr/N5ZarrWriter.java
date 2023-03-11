@@ -67,7 +67,6 @@ import net.imglib2.img.basictypeaccess.array.ByteArray;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.n5.VLenStringDataBlock;
 
 /**
  * @author Stephan Saalfeld
@@ -292,7 +291,7 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 			if (mapN5DatasetAttributes && datasetExists(pathName)) {
 
 				attributes = new HashMap<>(attributes);
-				ZArrayAttributes zArrayAttributes = getZArraryAttributes(pathName);
+				ZArrayAttributes zArrayAttributes = getZArrayAttributes(pathName);
 				long[] shape;
 				int[] chunks;
 				final DType dtype;
@@ -469,7 +468,7 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 		if (datasetAttributes instanceof ZarrDatasetAttributes)
 			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
 		else
-			zarrDatasetAttributes = getZArraryAttributes(pathName).getDatasetAttributes();
+			zarrDatasetAttributes = getZArrayAttributes(pathName).getDatasetAttributes();
 
 		final Path path = Paths.get(
 				basePath,
@@ -498,7 +497,7 @@ public class N5ZarrWriter extends N5ZarrReader implements N5Writer {
 		if (datasetAttributes instanceof ZarrDatasetAttributes)
 			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
 		else
-			zarrDatasetAttributes = getZArraryAttributes(pathName).getDatasetAttributes();
+			zarrDatasetAttributes = getZArrayAttributes(pathName).getDatasetAttributes();
 
 		final Path path = Paths.get(
 				basePath,

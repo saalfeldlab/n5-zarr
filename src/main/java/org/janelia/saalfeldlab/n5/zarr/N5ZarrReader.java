@@ -241,7 +241,7 @@ public class N5ZarrReader extends N5FSReader {
 		return Files.exists(path) && Files.isRegularFile(path);
 	}
 
-	public ZArrayAttributes getZArraryAttributes(final String pathName) throws IOException {
+	public ZArrayAttributes getZArrayAttributes(final String pathName) throws IOException {
 
 		final Path path = Paths.get(basePath, removeLeadingSlash(pathName), zarrayFile);
 		final HashMap<String, JsonElement> attributes = new HashMap<>();
@@ -274,7 +274,7 @@ public class N5ZarrReader extends N5FSReader {
 	@Override
 	public DatasetAttributes getDatasetAttributes(final String pathName) throws IOException {
 
-		final ZArrayAttributes zArrayAttributes = getZArraryAttributes(pathName);
+		final ZArrayAttributes zArrayAttributes = getZArrayAttributes(pathName);
 		return zArrayAttributes == null ? null : zArrayAttributes.getDatasetAttributes();
 	}
 
@@ -326,7 +326,7 @@ public class N5ZarrReader extends N5FSReader {
 
 		if (mapN5DatasetAttributes && datasetExists(pathName)) {
 
-			final DatasetAttributes datasetAttributes = getZArraryAttributes(pathName).getDatasetAttributes();
+			final DatasetAttributes datasetAttributes = getZArrayAttributes(pathName).getDatasetAttributes();
 			attributes.put("dimensions", gson.toJsonTree(datasetAttributes.getDimensions()));
 			attributes.put("blockSize", gson.toJsonTree(datasetAttributes.getBlockSize()));
 			attributes.put("dataType", gson.toJsonTree(datasetAttributes.getDataType()));
@@ -480,7 +480,7 @@ public class N5ZarrReader extends N5FSReader {
 		if (datasetAttributes instanceof ZarrDatasetAttributes)
 			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
 		else
-			zarrDatasetAttributes = getZArraryAttributes(pathName).getDatasetAttributes();
+			zarrDatasetAttributes = getZArrayAttributes(pathName).getDatasetAttributes();
 
 		final String dimSep;
 		final String attrDimensionSeparator = zarrDatasetAttributes.getDimensionSeparator();
