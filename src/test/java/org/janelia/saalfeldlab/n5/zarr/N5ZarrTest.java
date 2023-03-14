@@ -205,8 +205,6 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		final Version n5Version = n5.getVersion();
 
-		System.out.println(n5Version);
-
 		assertTrue(n5Version.equals(N5ZarrReader.VERSION));
 
 		assertTrue(N5ZarrReader.VERSION.isCompatible(n5.getVersion()));

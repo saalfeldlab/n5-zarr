@@ -92,23 +92,9 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 	}
 
 	@Override
-	public Version getVersion() throws IOException {
-		final JsonElement elem;
-		if (groupExists("/")) {
-			elem = getAttributesZGroup( "/" );
-		} else if (datasetExists("/")) {
-			elem = getAttributesZArray( "/" );
-		} else {
-			return VERSION;
-		}
-
-		if ( elem != null && elem.isJsonObject())
-		{
-			JsonElement fmt = elem.getAsJsonObject().get("zarr_format");
-			if( fmt.isJsonPrimitive() )
-				 return new Version( fmt.getAsInt(), 0, 0);
-		}
-		return VERSION;
+	public boolean groupExists(final String pathName) {
+		// TODO use cacheMeta
+		return GsonZarrReader.super.groupExists(pathName);
 	}
 
 	/**
@@ -142,12 +128,6 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 
 			return attributes;
 		}
-	}
-
-	@Override
-	protected boolean groupExists(final String pathName) {
-
-		return keyValueAccess.isFile( zGroupPath( pathName ));
 	}
 
 	@Override

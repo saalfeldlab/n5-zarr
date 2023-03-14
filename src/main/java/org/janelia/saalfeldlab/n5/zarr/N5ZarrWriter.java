@@ -32,33 +32,6 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
-import org.janelia.saalfeldlab.n5.GsonAttributesParser;
-
-import java.io.OutputStream;
-import java.nio.channels.Channels;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.FileSystemException;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.attribute.FileAttribute;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.stream.Stream;
-
-import org.janelia.saalfeldlab.n5.BlockWriter;
-import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
-import org.janelia.saalfeldlab.n5.Compression;
-import org.janelia.saalfeldlab.n5.DataBlock;
-import org.janelia.saalfeldlab.n5.DataType;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.N5URL;
-import org.janelia.saalfeldlab.n5.LinkedAttributePathToken;
 import org.janelia.saalfeldlab.n5.N5Writer;
 
 import com.google.gson.GsonBuilder;
@@ -93,9 +66,8 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
 	 */
-	public N5ZarrWriter(final String basePath, final GsonBuilder gsonBuilder, final String dimensionSeparator, 
-			final boolean mapN5DatasetAttributes,
-			final boolean cacheAttributes) throws IOException {
+	public N5ZarrWriter(final String basePath, final GsonBuilder gsonBuilder, final String dimensionSeparator,
+			final boolean mapN5DatasetAttributes, final boolean cacheAttributes) throws IOException {
 
 		super(
 				new FileSystemKeyValueAccess(FileSystems.getDefault()),
@@ -131,7 +103,8 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
 	 */
-	public N5ZarrWriter(final String basePath, final String dimensionSeparator, final boolean cacheAttributes) throws IOException {
+	public N5ZarrWriter(final String basePath, final String dimensionSeparator, final boolean cacheAttributes)
+			throws IOException {
 
 		this(basePath, new GsonBuilder(), dimensionSeparator, true, cacheAttributes);
 	}

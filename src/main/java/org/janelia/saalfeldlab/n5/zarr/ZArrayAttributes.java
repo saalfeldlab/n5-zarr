@@ -42,15 +42,15 @@ import org.janelia.saalfeldlab.n5.RawCompression;
  */
 public class ZArrayAttributes {
 
-	protected static final String zarrFormatKey = "zarr_format";
-	protected static final String shapeKey = "shape";
-	protected static final String chunksKey = "chunks";
-	protected static final String dTypeKey = "dtype";
-	protected static final String compressorKey = "compressor";
-	protected static final String fillValueKey = "fill_value";
-	protected static final String orderKey = "order";
-	protected static final String filtersKey = "filters";
-	protected static final String dimensionSeparatorKey = "dimension_separator";
+	public static final String zarrFormatKey = "zarr_format";
+	public static final String shapeKey = "shape";
+	public static final String chunksKey = "chunks";
+	public static final String dTypeKey = "dtype";
+	public static final String compressorKey = "compressor";
+	public static final String fillValueKey = "fill_value";
+	public static final String orderKey = "order";
+	public static final String filtersKey = "filters";
+	public static final String dimensionSeparatorKey = "dimension_separator";
 
 	private final int zarr_format;
 	private final long[] shape;

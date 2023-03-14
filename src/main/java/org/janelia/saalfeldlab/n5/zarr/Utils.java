@@ -28,6 +28,8 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -56,6 +58,18 @@ public interface Utils {
 			a = array[i];
 			array[i] = array[j];
 			array[j] = a;
+		}
+	}
+
+	public static void reorder(final JsonArray array) {
+
+		JsonElement a;
+		final int max = array.size() - 1;
+		for (int i = (max - 1) / 2; i >= 0; --i) {
+			final int j = max - i;
+			a = array.get(i);
+			array.set(i, array.get(j));
+			array.set(j, a );
 		}
 	}
 }

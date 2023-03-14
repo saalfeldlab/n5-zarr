@@ -43,8 +43,8 @@ import org.janelia.saalfeldlab.n5.GsonN5Writer;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5KeyValueWriter;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URL;
-import org.janelia.saalfeldlab.n5.N5Reader.Version;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -68,7 +68,11 @@ import net.imglib2.view.Views;
 //public class ZarrKeyValueWriter extends ZarrKeyValueReader implements GsonN5Writer {
 public class ZarrKeyValueWriter extends N5KeyValueWriter implements GsonZarrReader {
 
+	protected static Version VERSION = new Version(2, 0, 0);
+
 	protected String dimensionSeparator;
+
+	protected boolean mapN5DatasetAttributes;
 
 	/**
 	 * Opens an {@link ZarrKeyValueWriter} at a given base path with a custom
@@ -102,6 +106,7 @@ public class ZarrKeyValueWriter extends N5KeyValueWriter implements GsonZarrRead
 		
 		super(keyValueAccess, basePath, GsonZarrReader.addTypeAdapters(gsonBuilder), cacheAttributes);
 		this.dimensionSeparator = dimensionSeparator;
+		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
 
 		if (exists("/")) {
 			final Version version = getVersion();
@@ -111,40 +116,51 @@ public class ZarrKeyValueWriter extends N5KeyValueWriter implements GsonZarrRead
 	}
 
 	@Override
-	public Version getVersion() throws IOException {
-		// TODO currently copied from ZarrKeyValueReader
-		final JsonElement elem;
-		if (groupExists("/")) {
-			elem = getAttributesZGroup("/");
-		} else if (datasetExists("/")) {
-			elem = getAttributesZArray("/");
-		} else {
-			return VERSION;
-		}
+	public boolean groupExists(final String pathName) {
+		// TODO use cacheMeta
+		return GsonZarrReader.super.groupExists(pathName);
+	}
 
-		if (elem != null && elem.isJsonObject()) {
-			JsonElement fmt = elem.getAsJsonObject().get("zarr_format");
-			if (fmt.isJsonPrimitive())
-				return new Version(fmt.getAsInt(), 0, 0);
-		}
-		return VERSION;
+	@Override
+	public boolean datasetExists(final String pathName) throws IOException {
+		// TODO use cacheMeta
+		return GsonZarrReader.super.datasetExists(pathName);
+	}
+
+	@Override
+	public boolean exists(final String pathName)	{
+		// TODO use cacheMeta
+		return GsonZarrReader.super.exists(pathName);
 	}
 
 	@Override
 	public ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws IOException {
-
+		// TODO use cacheMeta
 		return GsonZarrReader.super.getDatasetAttributes(pathName);
 	}
 
 	@Override
 	public JsonElement getAttributes(final String pathName) throws IOException {
 
+		// TODO use cacheMeta
 		return GsonZarrReader.super.getAttributes(pathName);
 	}
 
 	@Override
 	public void createGroup(final String path) throws IOException {
 
+		// make every parent a group
+		final String[] comps = keyValueAccess.components(path);
+		String parentPath = "";
+		for( int i = 0; i < comps.length; i++ )
+		{
+			parentPath = keyValueAccess.compose(parentPath, comps[i] );
+			if( !groupExists(parentPath))
+				createGroupHelper( parentPath );
+		}
+	}
+
+	protected void createGroupHelper(final String path) throws IOException {
 		final String normalPath = N5URL.normalizePath(path);
 		if (cacheMeta) {
 			final N5GroupInfo info = createCachedGroup(normalPath);
@@ -152,20 +168,11 @@ public class ZarrKeyValueWriter extends N5KeyValueWriter implements GsonZarrRead
 				if (info.isDataset == null)
 					info.isDataset = false;
 			}
-		} else
-		{
+		} else {
 			final String absPath = groupPath(normalPath);
 			keyValueAccess.createDirectories(absPath);
 			setGroupVersion(normalPath);
 		}
-
-		// TODO fix
-//		final String root = basePath;
-//		for ( setGroupVersion(parent); !parent.equals(root);) {
-//			final String[] comps = keyValueAccess.components(parent);
-//			parent = keyValueAccess.compose( Arrays.stream(comps).limit( comps.length - 1 ).toArray( String[]::new ));
-//			setGroupVersion(parent);
-//		}
 	}
 
 	protected void setGroupVersion(final String groupPath) throws IOException {
@@ -193,7 +200,7 @@ public class ZarrKeyValueWriter extends N5KeyValueWriter implements GsonZarrRead
 			setDatasetAttributes(normalPath, datasetAttributes);
 		}
 	}
-	
+
 	@Override
 	public void setDatasetAttributes(
 			final String pathName,
@@ -627,6 +634,90 @@ public class ZarrKeyValueWriter extends N5KeyValueWriter implements GsonZarrRead
 				groupInfo.attributesCache = attributes;
 
 			return attributes;
+		}
+	}
+
+	/**
+	 *
+	 * @param elem input json element
+	 * @return the modified json elements
+	 */
+	protected ZarrJsonElements toZarrAttributes( final JsonElement elem, DatasetAttributes dsetAttrs )
+	{
+		final ZarrJsonElements zarrElems = new ZarrJsonElements();
+		if (mapN5DatasetAttributes) {
+			if (elem.isJsonObject()) {
+				final JsonObject obj = elem.getAsJsonObject();
+
+				// TODO use static final DatasetAttributes if/when they are made public
+				redirectDatasetAttribute(obj, "dimensions", zarrElems, ZArrayAttributes.shapeKey, dsetAttrs);
+				redirectDatasetAttribute(obj, "blockSize", zarrElems, ZArrayAttributes.chunksKey, dsetAttrs);
+				redirectDatasetAttribute(obj, "dataType", zarrElems, ZArrayAttributes.dTypeKey, dsetAttrs);
+				redirectDatasetAttribute(obj, "compression", zarrElems, ZArrayAttributes.compressorKey, dsetAttrs);
+
+				redirectGroupDatasetAttribute( obj, N5Reader.VERSION_KEY, zarrElems, "FACE", dsetAttrs );
+			}
+
+		}
+		return zarrElems;
+	}
+
+	protected void redirectDatasetAttribute(JsonObject src, String key, ZarrJsonElements zarrElems, DatasetAttributes dsetAttrs ) {
+		redirectDatasetAttribute( src, key, zarrElems, key, dsetAttrs );
+	}
+
+	protected void redirectDatasetAttribute(JsonObject src, String srcKey, ZarrJsonElements zarrElems, String destKey, DatasetAttributes dsetAttrs ) {
+		if (src.has(srcKey)) {
+			if (dsetAttrs != null ) {
+				JsonElement e = src.get(srcKey);
+				if( e.isJsonArray())
+					Utils.reorder(e.getAsJsonArray());
+
+				zarrElems.getOrMakeZarray().add(destKey, e );
+				src.remove(srcKey);
+			}
+		}
+	}
+
+	protected void redirectGroupDatasetAttribute(JsonObject src, String srcKey, ZarrJsonElements zarrElems, String destKey, DatasetAttributes dsetAttrs ) {
+		if (src.has(srcKey)) {
+			if (dsetAttrs != null ) {
+				JsonElement e = src.get(srcKey);
+				if( e.isJsonArray())
+					Utils.reorder(e.getAsJsonArray());
+
+				zarrElems.getOrMakeZarray().add(destKey, e );
+				src.remove(srcKey);
+			}
+		}
+	}
+
+	protected static class ZarrJsonElements {
+		public JsonObject zattrs;
+		public JsonObject zgroup;
+		public JsonObject zarray;
+
+		public ZarrJsonElements() { }
+
+		public JsonObject getOrMakeZarray() {
+			if (zarray == null)
+				zarray = new JsonObject();
+
+			return zarray;
+		}
+
+		public JsonObject getOrMakeZattrs() {
+			if (zattrs == null)
+				zattrs = new JsonObject();
+
+			return zattrs;
+		}
+
+		public JsonObject getOrMakeZgroup() {
+			if (zgroup == null)
+				zgroup = new JsonObject();
+
+			return zgroup;
 		}
 	}
 }

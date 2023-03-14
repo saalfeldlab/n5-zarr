@@ -48,6 +48,45 @@ public interface GsonZarrReader extends GsonN5Reader {
 	public static final String zgroupFile = ".zgroup";
 
 	@Override
+	public default Version getVersion() throws IOException {
+		final JsonElement elem;
+		if (groupExists("/")) {
+			elem = getAttributesZGroup("/");
+		} else if (datasetExists("/")) {
+			elem = getAttributesZArray("/");
+		} else {
+			return VERSION;
+		}
+
+		if (elem != null && elem.isJsonObject()) {
+			JsonElement fmt = elem.getAsJsonObject().get("zarr_format");
+			if (fmt.isJsonPrimitive())
+				return new Version(fmt.getAsInt(), 0, 0);
+		}
+		return VERSION;
+	}
+
+	public default boolean groupExists(final String pathName) {
+
+		return getKeyValueAccess().isFile(zGroupAbsolutePath(pathName));
+	}
+
+	@Override
+	public default boolean datasetExists(final String pathName) throws IOException {
+
+		return getKeyValueAccess().isFile(zArrayAbsolutePath(pathName));
+	}
+
+	@Override
+	public default boolean exists(final String pathName) {
+		try {
+			return groupExists(pathName) || datasetExists(pathName);
+		} catch (IOException e) {
+		}
+		return false;
+	}
+
+	@Override
 	default JsonElement getAttributes(final String pathName) throws IOException {
 		return getAttributesZAttrs(pathName);
 	}
@@ -100,7 +139,7 @@ public interface GsonZarrReader extends GsonN5Reader {
 	}
 
 	public abstract KeyValueAccess getKeyValueAccess();
-	
+
 	/**
 	 * Constructs the relative path (in terms of this store) to a .zarray
 	 *
@@ -114,8 +153,18 @@ public interface GsonZarrReader extends GsonN5Reader {
 	}
 
 	/**
-	 * Constructs the relative path (in terms of this store) to a .zattrs
+	 * Constructs the absolute path (in terms of this store) to a .zarray
 	 *
+	 * @param normalPath normalized group path without leading slash
+	 * @return
+	 */
+	public default String zArrayAbsolutePath(final String normalPath) {
+
+		return getKeyValueAccess().compose(getBasePath(), normalPath, zarrayFile);
+	}
+
+	/**
+	 * Constructs the relative path (in terms of this store) to a .zattrs
 	 *
 	 * @param normalPath normalized group path without leading slash
 	 * @return
@@ -123,6 +172,17 @@ public interface GsonZarrReader extends GsonN5Reader {
 	public default String zAttrsPath(final String normalPath) {
 
 		return getKeyValueAccess().compose(normalPath, zattrsFile);
+	}
+
+	/**
+	 * Constructs the absolute path (in terms of this store) to a .zattrs
+	 *
+	 * @param normalPath normalized group path without leading slash
+	 * @return
+	 */
+	public default String zAttrsAbsolutePath(final String normalPath) {
+
+		return getKeyValueAccess().compose(getBasePath(), normalPath, zattrsFile);
 	}
 
 	/**
@@ -145,6 +205,18 @@ public interface GsonZarrReader extends GsonN5Reader {
 		return getKeyValueAccess().compose(normalPath, zgroupFile);
 	}
 	
+	/**
+	 * Constructs the absolute path (in terms of this store) to a .zgroup
+	 *
+	 *
+	 * @param normalPath normalized group path without leading slash
+	 * @return
+	 */
+	public default String zGroupAbsolutePath(final String normalPath) {
+
+		return getKeyValueAccess().compose(getBasePath(), normalPath, zgroupFile);
+	}
+
 	public default JsonElement getAttributesZAttrs( final String pathName ) throws IOException {
 
 		return getAttributesCache( zAttrsPath( normalize( pathName ) ) );
