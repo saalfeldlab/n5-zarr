@@ -54,6 +54,14 @@ public class ZArrayAttributes {
 	public static final String filtersKey = "filters";
 	public static final String dimensionSeparatorKey = "dimension_separator";
 
+	public static final String[] requiredKeys = new String[]{
+		zarrFormatKey, shapeKey, chunksKey, dTypeKey, compressorKey, fillValueKey, filtersKey
+	};
+
+	public static final String[] allKeys = new String[] { zarrFormatKey, shapeKey, chunksKey, dTypeKey, compressorKey,
+			fillValueKey, filtersKey, orderKey, dimensionSeparatorKey
+	};
+
 	private final int zarr_format;
 	private final long[] shape;
 	private final int[] chunks;
