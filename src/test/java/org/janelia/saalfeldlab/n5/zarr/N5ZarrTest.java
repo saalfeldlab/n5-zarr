@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.AbstractN5Test;
@@ -61,10 +62,12 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
@@ -105,6 +108,11 @@ public class N5ZarrTest extends AbstractN5Test {
 	protected N5ZarrWriter createN5Writer( String location, GsonBuilder gson ) throws IOException {
 
 		return new N5ZarrWriter(location, gson);
+	}
+
+	protected N5ZarrWriter createN5Writer( String location, String dimensionSeparator ) throws IOException {
+
+		return new N5ZarrWriter(location, new GsonBuilder(), dimensionSeparator, true, false);
 	}
 
 	@Override
@@ -158,7 +166,8 @@ public class N5ZarrTest extends AbstractN5Test {
 		final String datasetName = "/test/nested/data";
 
 		final String testDirPath = createTestDirPath("n5-zarr-test-");
-		N5ZarrWriter n5Nested = new N5ZarrWriter(testDirPath, "/", true );
+		final N5ZarrWriter n5Nested = createN5Writer( testDirPath, "/" );
+
 		n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 		assertEquals( "/", n5Nested.getZArrayAttributes(datasetName).getDimensionSeparator());
 
@@ -201,13 +210,22 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testVersion() throws NumberFormatException, IOException {
 
-		n5.createGroup("/");
+		// TODO double check
+		try (final N5Writer writer = createN5Writer()) {
 
-		final Version n5Version = n5.getVersion();
+			final Version n5Version = writer.getVersion();
+			Assert.assertTrue(n5Version.equals(N5ZarrReader.VERSION));
 
-		assertTrue(n5Version.equals(N5ZarrReader.VERSION));
+			writer.setAttribute("/", GsonZarrReader.ZARR_FORMAT_KEY, N5ZarrReader.VERSION.getMajor() + 1);
+			final Version version = writer.getVersion();
+			assertFalse(N5ZarrReader.VERSION.isCompatible(version));
 
-		assertTrue(N5ZarrReader.VERSION.isCompatible(n5.getVersion()));
+			// check that writer creation fails for incompatible version
+			assertThrows(IOException.class, () -> createN5Writer( writer.getBasePath() ));
+
+			final Version compatibleVersion = new Version(N5ZarrReader.VERSION.getMajor(), N5ZarrReader.VERSION.getMinor(), N5Reader.VERSION.getPatch());
+			writer.setAttribute("/", GsonZarrReader.ZARR_FORMAT_KEY, compatibleVersion.toString());
+		}
 	}
 
 	@Test
@@ -235,17 +253,6 @@ public class N5ZarrTest extends AbstractN5Test {
 			writer.setAttribute("/", "mystring", "ms");
 			final N5Reader wa = createN5Reader(canonicalPath);
 			assertNotNull(wa);
-
-			// TODO How do we use the api to write into a zgroup file?  is this even allowed?
-//			// existing directory with incompatible version should fail
-//			writer.remove("/");
-//			writer.createGroup("/");
-//			writer.setAttribute("/", N5Reader.VERSION_KEY,
-//					new Version(N5ZarrReader.VERSION.getMajor() + 1, N5ZarrReader.VERSION.getMinor(), N5ZarrReader.VERSION.getPatch()).toString());
-//			assertThrows("Incompatible version throws error", IOException.class,
-//					() -> {
-//						createN5Reader(canonicalPath);
-//					});
 
 			// non-existent directory should fail
 			writer.remove("/");
@@ -554,6 +561,94 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.close();
 		}
 	}
+
+	@Test
+	@Override
+	public void testAttributes() throws IOException {
+
+		try (final N5Writer n5 = createN5Writer()) {
+			n5.createGroup(groupName);
+
+			n5.setAttribute(groupName, "key1", "value1");
+			n5.listAttributes(groupName).forEach( (k,v) -> { System.out.println( k + " : " + v ); });
+			Assert.assertEquals(2, n5.listAttributes(groupName).size()); // length 2 because it includes "zarr_version"
+
+			/* class interface */
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
+			/* type interface */
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {
+
+			}.getType()));
+
+			final Map<String, String> newAttributes = new HashMap<>();
+			newAttributes.put("key2", "value2");
+			newAttributes.put("key3", "value3");
+			n5.setAttributes(groupName, newAttributes);
+
+			Assert.assertEquals(4, n5.listAttributes(groupName).size());
+			/* class interface */
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
+			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", String.class));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", String.class));
+			/* type interface */
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {
+
+			}.getType()));
+			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", new TypeToken<String>() {
+
+			}.getType()));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {
+
+			}.getType()));
+
+			// test the case where the resulting file becomes shorter
+			n5.setAttribute(groupName, "key1", new Integer(1));
+			n5.setAttribute(groupName, "key2", new Integer(2));
+
+			Assert.assertEquals(4, n5.listAttributes(groupName).size());
+			/* class interface */
+			Assert.assertEquals(new Integer(1), n5.getAttribute(groupName, "key1", Integer.class));
+			Assert.assertEquals(new Integer(2), n5.getAttribute(groupName, "key2", Integer.class));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", String.class));
+			/* type interface */
+			Assert.assertEquals(new Integer(1), n5.getAttribute(groupName, "key1", new TypeToken<Integer>() {
+
+			}.getType()));
+			Assert.assertEquals(new Integer(2), n5.getAttribute(groupName, "key2", new TypeToken<Integer>() {
+
+			}.getType()));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {
+
+			}.getType()));
+
+			n5.removeAttribute(groupName, "key1");
+			n5.removeAttribute(groupName, "key2");
+			n5.removeAttribute(groupName, "key3");
+
+			Map<String, Class<?>> attrs = n5.listAttributes(groupName);
+			attrs.forEach( (k,v) -> {
+				System.out.println( k + "  >  " + v);
+			});
+
+			Assert.assertEquals(1, n5.listAttributes(groupName).size());
+		}
+	}
+
+	@Test
+	@Override
+	@Ignore
+	public void testNullAttributes() throws IOException {
+		// TODO rework this test given that gson's serialize nulls must be turned on
+	}
+
+	@Test
+	@Override
+	@Ignore
+	public void
+	testRootLeaves() throws IOException {
+		// probably not feasible if mergeAttributes are turned on.
+	}
+
 
 //	/**
 //	 * @throws IOException

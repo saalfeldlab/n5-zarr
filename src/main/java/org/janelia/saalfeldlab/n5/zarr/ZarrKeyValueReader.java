@@ -83,18 +83,29 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 
 		super( keyValueAccess, basePath, GsonZarrReader.addTypeAdapters( gsonBuilder ), cacheMeta );
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
-
-		if (exists("/")) {
-			final Version version = getVersion();
-			if (!VERSION.isCompatible(version))
-				throw new IOException("Incompatible version " + version + " (this is " + VERSION + ").");
-		}
 	}
 
 	@Override
-	public boolean groupExists(final String pathName) {
-		// TODO use cacheMeta
-		return GsonZarrReader.super.groupExists(pathName);
+	public boolean groupExists(final String absoluteNormalPath) {
+
+		return GsonZarrReader.super.groupExists(absoluteNormalPath);
+	}
+
+	@Override
+	public JsonElement getAttributes( final String pathName ) throws IOException {
+
+		final String groupPath = normalize(pathName);
+		/* If cached, return the cache*/
+		final N5GroupInfo groupInfo = getCachedN5GroupInfo(groupPath);
+		if (cacheMeta) {
+			if (groupInfo != null && groupInfo.attributesCache != null)
+				return groupInfo.attributesCache;
+		}
+
+		final JsonElement attrs = GsonZarrReader.super.getAttributes(pathName);
+		/* If we are reading from the access, update the cache*/
+		groupInfo.attributesCache = attrs;
+		return attrs;
 	}
 
 	/**
@@ -104,15 +115,7 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 	 * @throws IOException
 	 */
 	@Override
-	public JsonElement getAttributesCache(final String resourcePath) throws IOException {
-		/* If cached, return the cache */
-		N5GroupInfo groupInfo = null;
-		if ( cacheMeta )
-		{
-			groupInfo = getCachedN5GroupInfo( resourcePath );
-			if ( groupInfo != null && groupInfo.attributesCache != null )
-				return groupInfo.attributesCache;
-		}
+	public JsonElement getAttributeFromResource(final String resourcePath) throws IOException {
 
 		final KeyValueAccess keyValueAccess = getKeyValueAccess();
 		final String absolutePath = keyValueAccess.compose( basePath, resourcePath );
@@ -122,38 +125,15 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading( absolutePath ))
 		{
 			final JsonElement attributes = readAttributes( lockedChannel.newReader() );
-			/* If we are reading from the access, update the cache */
-			if( cacheMeta )
-				groupInfo.attributesCache = attributes;
-
 			return attributes;
 		}
 	}
 
 	@Override
 	public ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws IOException {
+
 		return GsonZarrReader.super.getDatasetAttributes( pathName );
 	}
-
-//	protected JsonElement combineIfPossible(final JsonElement base, final JsonElement add) {
-//		if (base == null)
-//			return add;
-//		else if (add == null)
-//			return base;
-//
-//		if (base.isJsonObject() && add.isJsonObject()) {
-//			final JsonObject baseObj = base.getAsJsonObject();
-//			final JsonObject addObj = base.getAsJsonObject();
-//			for (String k : addObj.keySet())
-//				baseObj.add(k, addObj.get(k));
-//		} else if (base.isJsonArray() && add.isJsonArray()) {
-//			final JsonArray baseArr = base.getAsJsonArray();
-//			final JsonArray addArr = base.getAsJsonArray();
-//			for (int i = 0; i < addArr.size(); i++)
-//				baseArr.add(addArr.get(i));
-//		}
-//		return base;
-//	}
 
 	@Override
 	public DataBlock<?> readBlock(
@@ -318,8 +298,8 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, basePath);
 	}
 	
-	public KeyValueAccess getKeyValueAccess()
-	{
+	public KeyValueAccess getKeyValueAccess() {
+
 		return keyValueAccess;
 	}
 

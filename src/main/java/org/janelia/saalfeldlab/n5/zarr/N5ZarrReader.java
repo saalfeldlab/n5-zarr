@@ -72,6 +72,9 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 					.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter),
 				true,
 				cacheMeta);
+
+		if( !exists("/"))
+			throw new IOException("No container exists at " + basePath );
 	}
 
 	/**

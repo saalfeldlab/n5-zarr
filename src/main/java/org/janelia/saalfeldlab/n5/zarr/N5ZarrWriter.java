@@ -76,10 +76,8 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 				mapN5DatasetAttributes,
 				dimensionSeparator,
 				cacheAttributes);
-
-//		super(createDirectories(Paths.get(basePath), true).toString(), gsonBuilder, dimensionSeparator, mapN5DatasetAttributes);
 	}
-	
+
 	/**
 	 * Opens an {@link N5ZarrWriter} at a given base path.
 	 *
@@ -134,6 +132,31 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 	public N5ZarrWriter(final String basePath, final boolean cacheAttributes) throws IOException {
 
 		this(basePath, new GsonBuilder(), ".", true, cacheAttributes);
+	}
+
+	/**
+	 * Opens an {@link N5ZarrWriter} at a given base path with a custom
+	 * {@link GsonBuilder} to support custom attributes.
+	 * <p>
+	 * If the base path does not exist, it will be created.
+	 * </p>
+	 * <p>
+	 * If the base path exists and if the N5 version of the container is
+	 * compatible with this implementation, the N5 version of this container
+	 * will be set to the current N5 version of this implementation.
+	 * </p>
+	 *
+	 * @param basePath n5 base path
+	 * @param gsonBuilder
+	 *
+	 * @throws IOException
+	 *    if the base path cannot be written to or cannot be created,
+	 *    if the N5 version of the container is not compatible with this
+	 *    implementation.
+	 */
+	public N5ZarrWriter(final String basePath, final GsonBuilder gsonBuilder, final boolean cacheAttributes ) throws IOException {
+
+		this(basePath, gsonBuilder, ".", true, cacheAttributes);
 	}
 
 	/**
