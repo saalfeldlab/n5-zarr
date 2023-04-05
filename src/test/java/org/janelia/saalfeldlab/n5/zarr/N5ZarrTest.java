@@ -216,7 +216,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			final Version n5Version = writer.getVersion();
 			Assert.assertTrue(n5Version.equals(N5ZarrReader.VERSION));
 
-			writer.setAttribute("/", GsonZarrReader.ZARR_FORMAT_KEY, N5ZarrReader.VERSION.getMajor() + 1);
+			writer.setAttribute("/", ZarrUtils.ZARR_FORMAT_KEY, N5ZarrReader.VERSION.getMajor() + 1);
 			final Version version = writer.getVersion();
 			assertFalse(N5ZarrReader.VERSION.isCompatible(version));
 
@@ -224,7 +224,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertThrows(IOException.class, () -> createN5Writer( writer.getBasePath() ));
 
 			final Version compatibleVersion = new Version(N5ZarrReader.VERSION.getMajor(), N5ZarrReader.VERSION.getMinor(), N5Reader.VERSION.getPatch());
-			writer.setAttribute("/", GsonZarrReader.ZARR_FORMAT_KEY, compatibleVersion.toString());
+			writer.setAttribute("/", ZarrUtils.ZARR_FORMAT_KEY, compatibleVersion.toString());
 		}
 	}
 

@@ -49,7 +49,7 @@ import com.google.gson.JsonElement;
  * @author Stephan Saalfeld
  * @author John Bogovic
  */
-public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrReader {
+public class ZarrKeyValueReader extends N5KeyValueReader implements ZarrUtils {
 
 	protected static Version VERSION = new Version(2, 0, 0);
 
@@ -81,20 +81,26 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 			final boolean mapN5DatasetAttributes,
 			final boolean cacheMeta) throws IOException {
 
-		super( keyValueAccess, basePath, GsonZarrReader.addTypeAdapters( gsonBuilder ), cacheMeta );
+		super( keyValueAccess, basePath, ZarrUtils.addTypeAdapters( gsonBuilder ), cacheMeta );
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
+	}
+
+	@Override
+	public Version getVersion() throws IOException {
+
+		return ZarrUtils.getVersion(keyValueAccess, gson, "");
 	}
 
 	@Override
 	public boolean groupExists(final String absoluteNormalPath) {
 
-		return GsonZarrReader.super.groupExists(absoluteNormalPath);
+		return ZarrUtils.groupExists(keyValueAccess, absoluteNormalPath);
 	}
 
 	@Override
 	public JsonElement getAttributes( final String pathName ) throws IOException {
 
-		final String groupPath = normalize(pathName);
+		final String groupPath = keyValueAccess.normalize(pathName);
 		/* If cached, return the cache*/
 		final N5GroupInfo groupInfo = getCachedN5GroupInfo(groupPath);
 		if (cacheMeta) {
@@ -102,37 +108,53 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 				return groupInfo.attributesCache;
 		}
 
-		final JsonElement attrs = GsonZarrReader.super.getAttributes(pathName);
+		final JsonElement attrs = ZarrUtils.getMergedAttributes(keyValueAccess, gson, basePath, pathName);
 		/* If we are reading from the access, update the cache*/
 		groupInfo.attributesCache = attrs;
 		return attrs;
 	}
 
-	/**
-	 *
-	 * @param resourcePath path of file / resource relative to root
-	 * @return
-	 * @throws IOException
-	 */
-	@Override
-	public JsonElement getAttributeFromResource(final String resourcePath) throws IOException {
+	public String zArrayAbsolutePath(final String pathName) {
 
-		final KeyValueAccess keyValueAccess = getKeyValueAccess();
-		final String absolutePath = keyValueAccess.compose( basePath, resourcePath );
-		if ( !keyValueAccess.exists( absolutePath ) )
-			return null;
+		return ZarrUtils.zArrayAbsolutePath(keyValueAccess, basePath, pathName);
+	}
 
-		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading( absolutePath ))
-		{
-			final JsonElement attributes = readAttributes( lockedChannel.newReader() );
-			return attributes;
-		}
+	public String zAttrsAbsolutePath(final String pathName) {
+
+		return ZarrUtils.zAttrsAbsolutePath(keyValueAccess, basePath, pathName);
+	}
+
+	public String zGroupAbsolutePath(final String pathName) {
+
+		return ZarrUtils.zGroupAbsolutePath(keyValueAccess, basePath, pathName);
+	}
+
+	public ZArrayAttributes getZArrayAttributes(final String pathName) throws IOException {
+
+		return ZarrUtils.getZArrayAttributes(keyValueAccess, gson, pathName, pathName);
+	}
+
+	public JsonElement getZAttr( final String pathName ) throws IOException {
+
+		return ZarrUtils.getAttributesZAttrs(keyValueAccess, gson, basePath, pathName );
+	}
+
+	public JsonElement getZArray( final String pathName ) throws IOException {
+
+		return ZarrUtils.getAttributesZArray(keyValueAccess, gson, basePath, pathName );
+	}
+
+	public JsonElement getZGroup( final String pathName ) throws IOException {
+
+		return ZarrUtils.getAttributesZGroup(keyValueAccess, gson, basePath, pathName );
 	}
 
 	@Override
 	public ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws IOException {
 
-		return GsonZarrReader.super.getDatasetAttributes( pathName );
+		// TODO read from cache 
+		final ZArrayAttributes zArrayAttrs = ZarrUtils.getZArrayAttributes(keyValueAccess, gson, basePath, pathName);
+		return zArrayAttrs.getDatasetAttributes();
 	}
 
 	@Override
@@ -296,11 +318,6 @@ public class ZarrKeyValueReader extends N5KeyValueReader implements GsonZarrRead
 	public String toString() {
 
 		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, basePath);
-	}
-	
-	public KeyValueAccess getKeyValueAccess() {
-
-		return keyValueAccess;
 	}
 
 }
