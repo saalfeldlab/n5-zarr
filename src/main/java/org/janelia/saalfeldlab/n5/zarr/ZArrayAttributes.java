@@ -28,14 +28,22 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.n5.zarr.ZArrayAttributes.JsonAdapter;
 
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.reflect.TypeToken;
 
 
 /**
@@ -196,5 +204,28 @@ public class ZArrayAttributes {
 	public Collection<Filter> getFilters() {
 
 		return filters;
+	}
+
+	public static JsonAdapter jsonAdapter = new JsonAdapter();
+
+	public static class JsonAdapter implements JsonDeserializer<ZArrayAttributes> {
+
+		@Override
+		public ZArrayAttributes deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+
+			final JsonObject obj = json.getAsJsonObject();
+			final JsonElement sepElem = obj.get("dimension_separator");
+			return new ZArrayAttributes(
+					obj.get("zarr_format").getAsInt(),
+					context.deserialize( obj.get("shape"), long[].class),
+					context.deserialize( obj.get("chunks"), int[].class),
+					context.deserialize( obj.get("dtype"), DType.class),// fix
+					context.deserialize( obj.get("compressor"), ZarrCompressor.class), // fix
+					obj.get("fill_value").getAsString(),
+					obj.get("order").getAsCharacter(),
+					sepElem != null ? sepElem.getAsString() : ".",
+					context.deserialize( obj.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType()));
+		}
+
 	}
 }

@@ -67,6 +67,8 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.google.gson.reflect.TypeToken;
 
 import net.imglib2.RandomAccess;
@@ -171,6 +173,8 @@ public class N5ZarrTest extends AbstractN5Test {
 		n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 		assertEquals( "/", n5Nested.getZArrayAttributes(datasetName).getDimensionSeparator());
 
+		// TODO test that parents of nested dataset are groups
+
 		n5Nested.remove(datasetName);
 		n5Nested.close();
 	}
@@ -210,21 +214,24 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testVersion() throws NumberFormatException, IOException {
 
-		// TODO double check
 		try (final N5Writer writer = createN5Writer()) {
 
+			final N5ZarrWriter zarr = (N5ZarrWriter)writer;
 			final Version n5Version = writer.getVersion();
 			Assert.assertTrue(n5Version.equals(N5ZarrReader.VERSION));
 
-			writer.setAttribute("/", ZarrUtils.ZARR_FORMAT_KEY, N5ZarrReader.VERSION.getMajor() + 1);
+			final JsonObject bumpVersion = new JsonObject();
+			bumpVersion.add( ZarrUtils.ZARR_FORMAT_KEY, new JsonPrimitive( N5ZarrReader.VERSION.getMajor() + 1));
+			zarr.writeZGroup("/", bumpVersion);
+
 			final Version version = writer.getVersion();
 			assertFalse(N5ZarrReader.VERSION.isCompatible(version));
 
 			// check that writer creation fails for incompatible version
 			assertThrows(IOException.class, () -> createN5Writer( writer.getBasePath() ));
 
-			final Version compatibleVersion = new Version(N5ZarrReader.VERSION.getMajor(), N5ZarrReader.VERSION.getMinor(), N5Reader.VERSION.getPatch());
-			writer.setAttribute("/", ZarrUtils.ZARR_FORMAT_KEY, compatibleVersion.toString());
+//			final Version compatibleVersion = new Version(N5ZarrReader.VERSION.getMajor(), N5ZarrReader.VERSION.getMinor(), N5Reader.VERSION.getPatch());
+//			writer.setAttribute("/", ZarrUtils.ZARR_FORMAT_KEY, compatibleVersion.toString());
 		}
 	}
 
@@ -570,8 +577,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.createGroup(groupName);
 
 			n5.setAttribute(groupName, "key1", "value1");
-			n5.listAttributes(groupName).forEach( (k,v) -> { System.out.println( k + " : " + v ); });
-			Assert.assertEquals(2, n5.listAttributes(groupName).size()); // length 2 because it includes "zarr_version"
+//			n5.listAttributes(groupName).forEach( (k,v) -> { System.out.println( k + " : " + v ); });
+			Assert.assertEquals(1, n5.listAttributes(groupName).size()); // length 2 because it includes "zarr_version"
 
 			/* class interface */
 			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
@@ -585,7 +592,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			newAttributes.put("key3", "value3");
 			n5.setAttributes(groupName, newAttributes);
 
-			Assert.assertEquals(4, n5.listAttributes(groupName).size());
+//			Assert.assertEquals(4, n5.listAttributes(groupName).size());
+			Assert.assertEquals(3, n5.listAttributes(groupName).size());
 			/* class interface */
 			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
 			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", String.class));
@@ -605,7 +613,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.setAttribute(groupName, "key1", new Integer(1));
 			n5.setAttribute(groupName, "key2", new Integer(2));
 
-			Assert.assertEquals(4, n5.listAttributes(groupName).size());
+//			Assert.assertEquals(4, n5.listAttributes(groupName).size());
+			Assert.assertEquals(3, n5.listAttributes(groupName).size());
 			/* class interface */
 			Assert.assertEquals(new Integer(1), n5.getAttribute(groupName, "key1", Integer.class));
 			Assert.assertEquals(new Integer(2), n5.getAttribute(groupName, "key2", Integer.class));
@@ -625,12 +634,12 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.removeAttribute(groupName, "key2");
 			n5.removeAttribute(groupName, "key3");
 
-			Map<String, Class<?>> attrs = n5.listAttributes(groupName);
-			attrs.forEach( (k,v) -> {
-				System.out.println( k + "  >  " + v);
-			});
+//			Map<String, Class<?>> attrs = n5.listAttributes(groupName);
+//			attrs.forEach( (k,v) -> {
+//				System.out.println( k + "  >  " + v);
+//			});
 
-			Assert.assertEquals(1, n5.listAttributes(groupName).size());
+			Assert.assertEquals(0, n5.listAttributes(groupName).size());
 		}
 	}
 
@@ -644,11 +653,9 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	@Override
 	@Ignore
-	public void
-	testRootLeaves() throws IOException {
+	public void testRootLeaves() throws IOException {
 		// probably not feasible if mergeAttributes are turned on.
 	}
-
 
 //	/**
 //	 * @throws IOException

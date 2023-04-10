@@ -8,6 +8,7 @@ import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Reader.Version;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -17,6 +18,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
 public interface ZarrUtils extends N5Reader {
+
+	public static Version VERSION = new Version(2, 0, 0);
 
 	public static final String zarrayFile = ".zarray";
 	public static final String zattrsFile = ".zattrs";
@@ -149,6 +152,7 @@ public interface ZarrUtils extends N5Reader {
 
 		gsonBuilder.registerTypeAdapter(DType.class, new DType.JsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter);
+		gsonBuilder.registerTypeAdapter(ZArrayAttributes.class, ZArrayAttributes.jsonAdapter);
 		gsonBuilder.disableHtmlEscaping();
 		return gsonBuilder;
 	}
@@ -187,6 +191,40 @@ public interface ZarrUtils extends N5Reader {
 		return keyValueAccess.compose(basePath, normalPath, zgroupFile);
 	}
 
+	/**
+	 * Constructs the absolute path (in terms of this store) to a .zarray
+	 *
+	 * @param normalPath normalized group path without leading slash
+	 * @return
+	 */
+	static String zArrayPath(final KeyValueAccess keyValueAccess, final String normalPath) {
+
+		return keyValueAccess.compose(normalPath, zarrayFile);
+	}
+
+	/**
+	 * Constructs the absolute path (in terms of this store) to a .zattrs
+	 *
+	 * @param normalPath normalized group path without leading slash
+	 * @return
+	 */
+	static String zAttrsPath(final KeyValueAccess keyValueAccess, final String normalPath) {
+
+		return keyValueAccess.compose(normalPath, zattrsFile);
+	}
+
+	/**
+	 * Constructs the absolute path (in terms of this store) to a .zgroup
+	 *
+	 *
+	 * @param normalPath normalized group path without leading slash
+	 * @return
+	 */
+	static String zGroupPath(final KeyValueAccess keyValueAccess, final String normalPath) {
+
+		return keyValueAccess.compose(normalPath, zgroupFile);
+	}
+
 	static JsonElement getAttributeFromResource(final KeyValueAccess keyValueAccess, final Gson gson, final String absolutePath ) throws IOException {
 
 		if ( !keyValueAccess.exists( absolutePath ) )
@@ -204,12 +242,12 @@ public interface ZarrUtils extends N5Reader {
 		return getAttributeFromResource( keyValueAccess, gson, zAttrsAbsolutePath(keyValueAccess, basePath, normalPathName));
 	}
 
-	static JsonElement getAttributesZArray(final KeyValueAccess keyValueAccess,final Gson gson,  final String basePath, final String normalPathName ) throws IOException {
+	static JsonElement getAttributesZArray(final KeyValueAccess keyValueAccess,final Gson gson, final String basePath, final String normalPathName ) throws IOException {
 
 		return getAttributeFromResource( keyValueAccess, gson, zArrayAbsolutePath( keyValueAccess, basePath, normalPathName));
 	}
 
-	static JsonElement getAttributesZGroup( final KeyValueAccess keyValueAccess,final Gson gson,  final String basePath, final String normalPathName ) throws IOException {
+	static JsonElement getAttributesZGroup( final KeyValueAccess keyValueAccess,final Gson gson, final String basePath, final String normalPathName ) throws IOException {
 
 		return getAttributeFromResource( keyValueAccess, gson,  zGroupAbsolutePath(keyValueAccess, basePath, normalPathName ));
 	}

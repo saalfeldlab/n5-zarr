@@ -31,6 +31,7 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -42,12 +43,16 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
-import org.janelia.saalfeldlab.n5.N5KeyValueWriter;
+import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5URL;
+import org.janelia.saalfeldlab.n5.N5Writer;
 
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -64,9 +69,7 @@ import net.imglib2.view.Views;
  * @author Stephan Saalfeld
  * @author John Bogovic
  */
-public class ZarrKeyValueWriter extends N5KeyValueWriter implements ZarrUtils {
-
-	protected static Version VERSION = new Version(2, 0, 0);
+public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 	protected String dimensionSeparator;
 
@@ -102,114 +105,67 @@ public class ZarrKeyValueWriter extends N5KeyValueWriter implements ZarrUtils {
 			final String dimensionSeparator,
 			final boolean cacheAttributes) throws IOException {
 
-		super(keyValueAccess, basePath, ZarrUtils.addTypeAdapters(gsonBuilder).serializeNulls(), cacheAttributes);
+		super( keyValueAccess, initializeContainer(keyValueAccess, basePath), gsonBuilder, mapN5DatasetAttributes, cacheAttributes );
 		this.dimensionSeparator = dimensionSeparator;
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
-
 		if (exists("/")) {
 			final Version version = getVersion();
-			if (!VERSION.isCompatible(version))
-				throw new IOException("Incompatible version " + version + " (this is " + VERSION + ").");
+			if (!ZarrUtils.VERSION.isCompatible(version))
+				throw new IOException("Incompatible version " + version + " (this is " + ZarrUtils.VERSION + ").");
 		}
 	}
 
-	@Override
-	public Version getVersion() throws IOException {
+	protected static String initializeContainer(
+			final KeyValueAccess keyValueAccess,
+			final String basePath) throws IOException {
 
-		return ZarrUtils.getVersion(keyValueAccess, gson, basePath);
+		final String normBasePath = keyValueAccess.normalize(basePath);
+		final String absolutePath = ZarrUtils.zGroupAbsolutePath(keyValueAccess, basePath, "");
+
+		// Exit if .zgroup already exists
+		if( keyValueAccess.isFile(absolutePath))
+			return basePath;
+
+		// otherwise create the folder
+		keyValueAccess.createDirectories(normBasePath);
+
+		// set version
+		final JsonObject versionObject = new JsonObject();
+		versionObject.add(ZarrUtils.ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
+
+		final Gson gson = new Gson();
+		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
+			GsonUtils.writeAttributes(lock.newWriter(), versionObject, gson);
+		}
+
+		return normBasePath;
 	}
 
-	@Override
 	protected void setVersion(final String path) throws IOException {
+		setVersion( path, false );
+	}
 
-		final HashMap<String,Integer> map = new HashMap<>();
-		map.put(ZarrUtils.ZARR_FORMAT_KEY, N5ZarrReader.VERSION.getMajor());
+	protected void setVersion(final String path, final boolean create) throws IOException {
+
+		final JsonObject versionObject = new JsonObject();
+		versionObject.add(ZarrUtils.ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
 
 		final String normalPath = keyValueAccess.normalize(path);
-		if (cacheMeta)
-			setCachedAttributes(normalPath, map);
-		else
-			writeAttributes(normalPath, map);
-	}
+		// TODO cache
 
-	@Override
-	public boolean groupExists(final String absoluteNormalPath) {
+//		if (cacheMeta)
+//			setCachedAttributes(normalPath, map);
+//		else
 
-		return ZarrUtils.groupExists(keyValueAccess, absoluteNormalPath);
-	}
+		if( create || groupExists(normalPath))
+			writeZGroup(normalPath, versionObject);
+		else if( datasetExists(normalPath))
+		{
+			final HashMap<String, Object> zarrayMap = getZArrayAttributes(normalPath).asMap();
+			zarrayMap.put(ZARR_FORMAT_KEY, N5ZarrReader.VERSION.getMajor() );
 
-	@Override
-	public boolean datasetExists(final String pathName) throws IOException {
-		if (cacheMeta) {
-			final String normalPathName = keyValueAccess.normalize(pathName);
-			final N5GroupInfo info = getCachedN5GroupInfo(normalPathName);
-			if (info == emptyGroupInfo)
-				return false;
-			synchronized (info) {
-				if (info.isDataset != null)
-					return info.isDataset;
-			}
+			// TODO finish
 		}
-		return ZarrUtils.datasetExists(keyValueAccess, basePath, pathName);
-	}
-
-	@Override
-	public ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws IOException {
-
-		final ZArrayAttributes zArrayAttrs = ZarrUtils.getZArrayAttributes(keyValueAccess, gson, basePath, pathName);
-		return zArrayAttrs.getDatasetAttributes();
-	}
-
-	@Override
-	public JsonElement getAttributes(final String pathName) throws IOException {
-
-		final String groupPath = keyValueAccess.normalize(pathName);
-		/* If cached, return the cache*/
-		final N5GroupInfo groupInfo = getCachedN5GroupInfo(groupPath);
-		if (cacheMeta) {
-			if (groupInfo != null && groupInfo.attributesCache != null)
-				return groupInfo.attributesCache;
-		}
-
-		final JsonElement attrs = ZarrUtils.getMergedAttributes(keyValueAccess, gson, basePath, pathName);
-		/* If we are reading from the access, update the cache*/
-		groupInfo.attributesCache = attrs;
-		return attrs;
-	}
-
-	public String zArrayAbsolutePath(final String pathName) {
-
-		return ZarrUtils.zArrayAbsolutePath(keyValueAccess, basePath, pathName);
-	}
-
-	public String zAttrsAbsolutePath(final String pathName) {
-
-		return ZarrUtils.zAttrsAbsolutePath(keyValueAccess, basePath, pathName);
-	}
-
-	public String zGroupAbsolutePath(final String pathName) {
-
-		return ZarrUtils.zGroupAbsolutePath(keyValueAccess, basePath, pathName);
-	}
-
-	public ZArrayAttributes getZArrayAttributes(final String pathName) throws IOException {
-
-		return ZarrUtils.getZArrayAttributes(keyValueAccess, gson, basePath, pathName);
-	}
-
-	public JsonElement getZAttr( final String pathName ) throws IOException {
-
-		return ZarrUtils.getAttributesZAttrs(keyValueAccess, gson, basePath, pathName );
-	}
-
-	public JsonElement getZArray( final String pathName ) throws IOException {
-
-		return ZarrUtils.getAttributesZArray(keyValueAccess, gson, basePath, pathName );
-	}
-
-	public JsonElement getZGroup( final String pathName ) throws IOException {
-
-		return ZarrUtils.getAttributesZGroup(keyValueAccess, gson, basePath, pathName );
 	}
 
 	/**
@@ -225,10 +181,101 @@ public class ZarrKeyValueWriter extends N5KeyValueWriter implements ZarrUtils {
 		try {
 			for (int i = 0; i < components.length; i++) {
 				path = keyValueAccess.compose(path, components[i]);
-				setVersion(path);
+				setVersion(path, true);
 			}
 		} catch (IOException e) { }
 	}
+
+	@Override
+	public void createGroup(final String path) throws IOException {
+
+		final String normalPath = keyValueAccess.normalize(path);
+//		if (cacheMeta) {
+			// TODO
+//			final N5GroupInfo info = createCachedGroup(normalPath);
+//			synchronized (info) {
+//				if (info.isDataset == null)
+//					info.isDataset = false;
+//			}
+//		} else {
+			keyValueAccess.createDirectories(groupPath(normalPath));
+			initializeGroup(normalPath);
+//		}
+	}
+
+//	/**
+//	 * Helper method to create and cache a group.
+//	 *
+//	 * @param normalPath
+//	 *            normalized group path without leading slash
+//	 * @return
+//	 * @throws IOException
+//	 */
+//	protected N5GroupInfo createCachedGroup(final String normalPath) throws IOException {
+//
+//		N5GroupInfo info = getCachedN5GroupInfo(normalPath);
+//		if (info == emptyGroupInfo) {
+//
+//			/*
+//			 * The directories may be created multiple times concurrently, but a
+//			 * new cache entry is inserted only if none has been inserted in the
+//			 * meantime (because that may already include more cached data).
+//			 *
+//			 * This avoids synchronizing on the cache for independent group
+//			 * creation.
+//			 */
+//			keyValueAccess.createDirectories(groupPath(normalPath));
+//			synchronized (metaCache) {
+//				info = getCachedN5GroupInfo(normalPath);
+//				if (info == emptyGroupInfo) {
+//					info = new N5GroupInfo();
+//					metaCache.put(normalPath, info);
+//				}
+//				for (String childPathName = normalPath; !(childPathName == null || childPathName.equals(""));) {
+//					final String parentPathName = keyValueAccess.parent(childPathName);
+//					if (parentPathName == null)
+//						break;
+//					N5GroupInfo parentInfo = getCachedN5GroupInfo(parentPathName);
+//					if (parentInfo == emptyGroupInfo) {
+//						parentInfo = new N5GroupInfo();
+//						parentInfo.isDataset = false;
+//						metaCache.put(parentPathName, parentInfo);
+//					}
+//					HashSet<String> children = parentInfo.children;
+//					if (children == null) {
+//						children = new HashSet<>();
+//					}
+//					synchronized (children) {
+//						children
+//								.add(
+//										keyValueAccess.relativize(childPathName, parentPathName));
+//						parentInfo.children = children;
+//					}
+//					childPathName = parentPathName;
+//				}
+//			}
+//
+//			/*
+//			 * initialize after updating the cache so that the correct
+//			 * N5GroupInfo instance can be updated if necessary.
+//			 */
+//			initializeGroup(normalPath);
+//		}
+//		return info;
+//	}
+
+//	private N5GroupInfo getN5GroupInfo(final String normalPath) throws IOException {
+//
+//		N5GroupInfo info = getCachedN5GroupInfo(normalPath);
+//		if (info == emptyGroupInfo) {
+//			synchronized (metaCache) {
+//				info = getCachedN5GroupInfo(normalPath);
+//				if (info == emptyGroupInfo)
+//					throw new IOException("N5 group '" + normalPath + "' does not exist. Cannot set attributes.");
+//			}
+//		}
+//		return info;
+//	}
 
 	@Override
 	public void createDataset(
@@ -241,18 +288,119 @@ public class ZarrKeyValueWriter extends N5KeyValueWriter implements ZarrUtils {
 		 * also be a dataset.
 		 */
 		final String normalPath = keyValueAccess.normalize(path);
-		if (cacheMeta) {
-			final N5GroupInfo info = createCachedGroup(normalPath);
-			synchronized (info) {
-				setDatasetAttributes(normalPath, datasetAttributes);
-				info.isDataset = true;
-			}
-		} else {
+//		if (cacheMeta) {
+//			final N5GroupInfo info = createCachedGroup(normalPath);
+//			synchronized (info) {
+//				setDatasetAttributes(normalPath, datasetAttributes);
+//				info.isDataset = true;
+//			}
+//		} else {
 			final String absPath = groupPath(normalPath);
 			keyValueAccess.createDirectories(absPath);
 			setDatasetAttributes(normalPath, datasetAttributes);
-		}
+//		}
 	}
+
+	@Override
+	public void setAttributes(
+			final String path,
+			final Map<String, ?> attributes) throws IOException {
+
+		final String normalPath = keyValueAccess.normalize(path);
+		if (!exists(normalPath))
+			throw new N5Exception.N5IOException("" + normalPath + " is not a group or dataset.");
+
+//		if (cacheMeta)
+//			setCachedAttributes(normalPath, attributes);
+//		else
+			writeAttributes(ZarrUtils.zAttrsPath(keyValueAccess, normalPath), attributes);
+	}
+
+	protected void setAttributesZarray(
+			final String path,
+			final Map<String, ?> attributes) throws IOException {
+
+		final String normalPath = keyValueAccess.normalize(path);
+		if (!datasetExists(normalPath))
+			throw new IOException("" + normalPath + " is not a group or dataset.");
+
+		writeAttributes( ZarrUtils.zArrayAbsolutePath(keyValueAccess, basePath, normalPath), attributes);
+	}
+
+	@Override
+	public boolean removeAttribute(final String pathName, final String key) throws IOException {
+
+		final String normalAttrPathName = ZarrUtils.zAttrsPath(keyValueAccess, N5URL.normalizeGroupPath(pathName));
+		final String absoluteNormalPath = keyValueAccess.compose(basePath, normalAttrPathName);
+		final String normalKey = N5URL.normalizeAttributePath(key);
+		if (!keyValueAccess.exists(absoluteNormalPath))
+			return false;
+
+		if (key.equals("/")) {
+			writeAttributes(normalAttrPathName, JsonNull.INSTANCE);
+			return true;
+		}
+
+		final JsonElement attributes = getAttributes(normalAttrPathName);
+		if (GsonUtils.removeAttribute(attributes, normalKey) != null) {
+			writeAttributes(absoluteNormalPath, attributes);
+			return true;
+		}
+		return false;
+	}
+
+	@Override
+	public <T> T removeAttribute(final String pathName, final String key, final Class<T> cls) throws IOException {
+
+		final String normalAttrPathName = ZarrUtils.zAttrsPath(keyValueAccess, N5URL.normalizeGroupPath(pathName));
+		final String absoluteNormalPath = keyValueAccess.compose(basePath, normalAttrPathName);
+		final String normalKey = N5URL.normalizeAttributePath(key);
+
+		final JsonElement attributes = getAttributes(normalAttrPathName);
+		final T obj = GsonUtils.removeAttribute(attributes, normalKey, cls, gson);
+		if (obj != null) {
+			writeAttributes(absoluteNormalPath, attributes);
+		}
+		return obj;
+	}
+
+	@Override
+	public boolean removeAttributes(final String pathName, final List<String> attributes) throws IOException {
+
+		final String normalPath = N5URL.normalizeGroupPath(pathName);
+		boolean removed = false;
+		for (final String attribute : attributes) {
+			removed |= removeAttribute(normalPath, N5URL.normalizeAttributePath(attribute));
+		}
+		return removed;
+	}
+
+//	/**
+//	 * Helper method to cache and write attributes.
+//	 *
+//	 * @param normalPath
+//	 *            normalized group path without leading slash
+//	 * @param attributes
+//	 * @return
+//	 * @throws IOException
+//	 */
+//	protected N5GroupInfo setCachedAttributes(
+//			final String normalPath,
+//			final Map<String, ?> attributes) throws IOException {
+//
+//		final N5GroupInfo info = getN5GroupInfo(normalPath);
+//		final JsonElement metadata = getAttributes(normalPath);
+//		synchronized (info) {
+//			/*
+//			 * Necessary ensure `nulls` are treated consistently regardless of
+//			 * reading from the cache or not
+//			 */
+//			info.attributesCache = gson.toJsonTree(GsonUtils.insertAttributes(metadata, attributes, gson));
+//			writeAttributes(normalPath, info.attributesCache);
+//			info.isDataset = hasDatasetAttributes(info.attributesCache);
+//		}
+//		return info;
+//	}
 
 	@Override
 	public void setDatasetAttributes(
@@ -278,11 +426,15 @@ public class ZarrKeyValueWriter extends N5KeyValueWriter implements ZarrUtils {
 		setZArrayAttributes(pathName, zArrayAttributes);
 	}
 
-	public void setZArrayAttributes(
-			final String pathName,
-			final ZArrayAttributes attributes) throws IOException {
+	public void setZArrayAttributes( final String pathName, final ZArrayAttributes attributes) throws IOException {
 
-		writeZArrayAttributes(pathName, gson.toJsonTree(attributes.asMap()));
+		writeZArray(pathName, gson.toJsonTree(attributes.asMap()));
+	}
+
+	public void setZGroup( final String pathName, final Version version ) throws IOException {
+
+		// TODO probably shouldn't be public, but leave it for now for testVersion 
+		writeZGroup(pathName, gson.toJsonTree(version));
 	}
 
 	/**
@@ -300,20 +452,21 @@ public class ZarrKeyValueWriter extends N5KeyValueWriter implements ZarrUtils {
 
 		if( attributes == null )
 			return;
-		else if ( attributes.isJsonArray() && attributes.getAsJsonArray().size() < 1 )
-		{
-			try {
-				keyValueAccess.delete(absolutePath);
-			} catch (IOException e) { }
-			return;
-		}
-		else if ( attributes.isJsonObject() && attributes.getAsJsonObject().entrySet().size() < 1 )
-		{
-			try {
-				keyValueAccess.delete(absolutePath);
-			} catch (IOException e) { }
-			return;
-		}
+
+//		else if ( attributes.isJsonArray() && attributes.getAsJsonArray().size() < 1 )
+//		{
+//			try {
+//				keyValueAccess.delete(absolutePath);
+//			} catch (IOException e) { }
+//			return;
+//		}
+//		else if ( attributes.isJsonObject() && attributes.getAsJsonObject().entrySet().size() < 1 )
+//		{
+//			try {
+//				keyValueAccess.delete(absolutePath);
+//			} catch (IOException e) { }
+//			return;
+//		}
 
 		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
 			final JsonElement root = GsonUtils.insertAttribute( GsonUtils.readAttributes(lock.newReader(), gson),
@@ -331,21 +484,23 @@ public class ZarrKeyValueWriter extends N5KeyValueWriter implements ZarrUtils {
 	 * @param attributes to write
 	 * @throws IOException if unable to read the attributes at {@code normalGroupPath}
 	 */
-	@Override
-	protected void writeAttributes( final String normalGroupPath, final JsonElement attributes) throws IOException {
+	protected void writeAttributes( final String absoluteNormalPath, final JsonElement attributes) throws IOException {
 
 		if( attributes == null )
 			return;
 
-		if (attributes.isJsonObject()) {
-			final ZarrJsonElements za = build(attributes.getAsJsonObject().deepCopy());
-			writeAttributesAbsolute(ZarrUtils.zArrayAbsolutePath(keyValueAccess, basePath, normalGroupPath), za.zarray);
-			writeAttributesAbsolute(ZarrUtils.zAttrsAbsolutePath(keyValueAccess, basePath, normalGroupPath), za.zattrs);
-			writeAttributesAbsolute(ZarrUtils.zGroupAbsolutePath(keyValueAccess, basePath, normalGroupPath), za.zgroup);
-		} else {
-			writeAttributesAbsolute(ZarrUtils.zAttrsAbsolutePath(keyValueAccess, basePath, normalGroupPath),
-					attributes);
-		}
+		writeAttributesAbsolute(absoluteNormalPath, attributes );
+
+		// TODO refactor
+//		if (attributes.isJsonObject()) {
+//			final ZarrJsonElements za = build(attributes.getAsJsonObject().deepCopy());
+//			writeAttributesAbsolute(ZarrUtils.zArrayAbsolutePath(keyValueAccess, basePath, normalGroupPath), za.zarray);
+//			writeAttributesAbsolute(ZarrUtils.zAttrsAbsolutePath(keyValueAccess, basePath, normalGroupPath), za.zattrs);
+//			writeAttributesAbsolute(ZarrUtils.zGroupAbsolutePath(keyValueAccess, basePath, normalGroupPath), za.zgroup);
+//		} else {
+//			writeAttributesAbsolute(ZarrUtils.zAttrsAbsolutePath(keyValueAccess, basePath, normalGroupPath),
+//					attributes);
+//		}
 	}
 
 	/**
@@ -358,51 +513,40 @@ public class ZarrKeyValueWriter extends N5KeyValueWriter implements ZarrUtils {
 	 * @throws IOException if unable to read the attributes at {@code normalGroupPath}
 	 */
 	protected void writeAttributes(
-			final String normalGroupPath,
+			final String normalResourcePath,
 			final Map<String, ?> attributes) throws IOException {
 
 		if (!attributes.isEmpty()) {
 
-			final JsonElement existingAttributes = getAttributes(normalGroupPath);
-			JsonElement newAttributes =
-					existingAttributes != null && existingAttributes.isJsonObject() ? existingAttributes.getAsJsonObject() : new JsonObject();
+			final JsonElement existingAttributes = getAttributes(normalResourcePath);
+			JsonElement newAttributes = existingAttributes != null && existingAttributes.isJsonObject() ? existingAttributes.getAsJsonObject() : new JsonObject();
 
 			newAttributes = GsonUtils.insertAttributes(newAttributes, attributes, gson);
-			writeAttributes(normalGroupPath, newAttributes);
+			writeAttributes(keyValueAccess.compose(basePath, normalResourcePath), newAttributes);
 		}
 	}
 
-	/**
-	 * Helper method that reads an existing JsonElement representing the root attributes for {@code normalGroupPath},
-	 * inserts and overrides the provided attributes, and writes them back into
-	 * the attributes store.
-	 *
-	 * @param normalGroupPath to write the attributes to
-	 * @param attributes to write
-	 * @throws IOException if unable to read the attributes at {@code normalGroupPath}
-	 */
-	protected void writeZArrayAttributes(
+	protected void writeZArray(
 			final String normalGroupPath,
 			final JsonElement attributes) throws IOException {
 
-		final String absPath = keyValueAccess.compose(basePath, normalGroupPath, ZarrUtils.zarrayFile);
+		final String absPath = ZarrUtils.zArrayAbsolutePath(keyValueAccess, basePath, normalGroupPath);
 		writeAttributesAbsolute(absPath, attributes);
 	}
 
-	/**
-	 * Helper method that reads an existing JsonElement representing the root attributes for {@code normalGroupPath},
-	 * inserts and overrides the provided attributes, and writes them back into
-	 * the attributes store.
-	 *
-	 * @param normalGroupPath to write the attributes to
-	 * @param attributes to write
-	 * @throws IOException if unable to read the attributes at {@code normalGroupPath}
-	 */
-	protected void writeZGroupAttributes(
+	protected void writeZGroup(
 			final String normalGroupPath,
 			final JsonElement attributes) throws IOException {
 
-		final String absPath = keyValueAccess.compose(basePath, normalGroupPath, ZarrUtils.zgroupFile);
+		final String absPath = ZarrUtils.zGroupAbsolutePath(keyValueAccess, basePath, normalGroupPath);
+		writeAttributesAbsolute(absPath, attributes);
+	}
+
+	protected void writeZAttrs(
+			final String normalGroupPath,
+			final JsonElement attributes) throws IOException {
+
+		final String absPath = ZarrUtils.zAttrsAbsolutePath(keyValueAccess, basePath, normalGroupPath);
 		writeAttributesAbsolute(absPath, attributes);
 	}
 
@@ -479,6 +623,49 @@ public class ZarrKeyValueWriter extends N5KeyValueWriter implements ZarrUtils {
 					dataBlock);
 		}
 	}
+
+	@Override
+	public boolean remove(final String path) throws IOException {
+
+		final String normalPath = keyValueAccess.normalize(path);
+		final String groupPath = groupPath(normalPath);
+//		if (cacheMeta) {
+//			removeCachedGroup(normalPath, groupPath);
+//		} else {
+			if (keyValueAccess.exists(groupPath))
+				keyValueAccess.delete(groupPath);
+//		}
+
+		/* an IOException should have occurred if anything had failed midway */
+		return true;
+	}
+
+//	private void removeCachedGroup(final String normalPath, final String groupPath) throws IOException {
+//
+//		synchronized (metaCache) {
+//			if (keyValueAccess.exists(groupPath)) {
+//				keyValueAccess.delete(groupPath);
+//
+//				/* cache nonexistence for all prior children */
+//				for (final String key : metaCache.keySet()) {
+//					if (key.startsWith(normalPath))
+//						metaCache.put(key, emptyGroupInfo);
+//				}
+//
+//				/* remove child from parent */
+//				final String parentPath = keyValueAccess.parent(normalPath);
+//				final N5GroupInfo parent = metaCache.get(parentPath);
+//				if (parent != null) {
+//					final HashSet<String> children = parent.children;
+//					if (children != null) {
+//						synchronized (children) {
+//							children.remove(keyValueAccess.relativize(normalPath, parentPath));
+//						}
+//					}
+//				}
+//			}
+//		}
+//	}
 
 	@Override
 	public DataBlock<?> readBlock(
