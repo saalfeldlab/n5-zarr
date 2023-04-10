@@ -102,10 +102,12 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final String basePath,
 			final GsonBuilder gsonBuilder,
 			final boolean mapN5DatasetAttributes,
+			final boolean mergeAttributes,
 			final String dimensionSeparator,
 			final boolean cacheAttributes) throws IOException {
 
-		super( keyValueAccess, initializeContainer(keyValueAccess, basePath), gsonBuilder, mapN5DatasetAttributes, cacheAttributes );
+		super( keyValueAccess, initializeContainer(keyValueAccess, basePath), gsonBuilder,
+				mapN5DatasetAttributes, mergeAttributes, cacheAttributes );
 		this.dimensionSeparator = dimensionSeparator;
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
 		if (exists("/")) {
@@ -341,7 +343,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			return true;
 		}
 
-		final JsonElement attributes = getAttributes(normalAttrPathName);
+		final JsonElement attributes = getJsonResource(normalAttrPathName);
 		if (GsonUtils.removeAttribute(attributes, normalKey) != null) {
 			writeAttributes(absoluteNormalPath, attributes);
 			return true;
@@ -356,7 +358,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		final String absoluteNormalPath = keyValueAccess.compose(basePath, normalAttrPathName);
 		final String normalKey = N5URL.normalizeAttributePath(key);
 
-		final JsonElement attributes = getAttributes(normalAttrPathName);
+		final JsonElement attributes = getJsonResource(normalAttrPathName);
 		final T obj = GsonUtils.removeAttribute(attributes, normalKey, cls, gson);
 		if (obj != null) {
 			writeAttributes(absoluteNormalPath, attributes);
@@ -518,7 +520,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 		if (!attributes.isEmpty()) {
 
-			final JsonElement existingAttributes = getAttributes(normalResourcePath);
+			final JsonElement existingAttributes = getJsonResource(normalResourcePath);
 			JsonElement newAttributes = existingAttributes != null && existingAttributes.isJsonObject() ? existingAttributes.getAsJsonObject() : new JsonObject();
 
 			newAttributes = GsonUtils.insertAttributes(newAttributes, attributes, gson);

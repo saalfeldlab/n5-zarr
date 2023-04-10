@@ -71,6 +71,7 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 					.registerTypeAdapter(DType.class, new DType.JsonAdapter())
 					.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter),
 				true,
+				true,
 				cacheMeta);
 
 		if( !exists("/"))

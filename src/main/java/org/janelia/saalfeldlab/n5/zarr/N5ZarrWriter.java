@@ -74,6 +74,7 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 				basePath,
 				gsonBuilder,
 				mapN5DatasetAttributes,
+				true,
 				dimensionSeparator,
 				cacheAttributes);
 	}

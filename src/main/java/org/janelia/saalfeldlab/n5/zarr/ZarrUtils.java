@@ -7,6 +7,7 @@ import java.util.Collection;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
+import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 
@@ -225,31 +226,31 @@ public interface ZarrUtils extends N5Reader {
 		return keyValueAccess.compose(normalPath, zgroupFile);
 	}
 
-	static JsonElement getAttributeFromResource(final KeyValueAccess keyValueAccess, final Gson gson, final String absolutePath ) throws IOException {
+	static JsonElement getJsonResource(final KeyValueAccess keyValueAccess, final Gson gson, final String absolutePath) throws N5Exception.N5IOException {
 
-		if ( !keyValueAccess.exists( absolutePath ) )
+		if (!keyValueAccess.exists(absolutePath))
 			return null;
 
-		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading( absolutePath ))
-		{
-			final JsonElement attributes = GsonUtils.readAttributes( lockedChannel.newReader(), gson );
-			return attributes;
+		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
+			return GsonUtils.readAttributes(lockedChannel.newReader(), gson);
+		} catch (IOException e) {
+			throw new N5Exception.N5IOException("Cannot open lock for Reading", e);
 		}
 	}
 
 	static JsonElement getAttributesZAttrs( final KeyValueAccess keyValueAccess, final Gson gson, final String basePath, final String normalPathName ) throws IOException {
 
-		return getAttributeFromResource( keyValueAccess, gson, zAttrsAbsolutePath(keyValueAccess, basePath, normalPathName));
+		return getJsonResource( keyValueAccess, gson, zAttrsAbsolutePath(keyValueAccess, basePath, normalPathName));
 	}
 
 	static JsonElement getAttributesZArray(final KeyValueAccess keyValueAccess,final Gson gson, final String basePath, final String normalPathName ) throws IOException {
 
-		return getAttributeFromResource( keyValueAccess, gson, zArrayAbsolutePath( keyValueAccess, basePath, normalPathName));
+		return getJsonResource( keyValueAccess, gson, zArrayAbsolutePath( keyValueAccess, basePath, normalPathName));
 	}
 
 	static JsonElement getAttributesZGroup( final KeyValueAccess keyValueAccess,final Gson gson, final String basePath, final String normalPathName ) throws IOException {
 
-		return getAttributeFromResource( keyValueAccess, gson,  zGroupAbsolutePath(keyValueAccess, basePath, normalPathName ));
+		return getJsonResource( keyValueAccess, gson,  zGroupAbsolutePath(keyValueAccess, basePath, normalPathName ));
 	}
 
 	/**

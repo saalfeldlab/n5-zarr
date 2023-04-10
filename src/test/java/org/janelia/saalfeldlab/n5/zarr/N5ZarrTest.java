@@ -578,7 +578,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 			n5.setAttribute(groupName, "key1", "value1");
 //			n5.listAttributes(groupName).forEach( (k,v) -> { System.out.println( k + " : " + v ); });
-			Assert.assertEquals(1, n5.listAttributes(groupName).size()); // length 2 because it includes "zarr_version"
+			Assert.assertEquals(2, n5.listAttributes(groupName).size()); // length 2 because it includes "zarr_version"
 
 			/* class interface */
 			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
@@ -592,8 +592,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			newAttributes.put("key3", "value3");
 			n5.setAttributes(groupName, newAttributes);
 
-//			Assert.assertEquals(4, n5.listAttributes(groupName).size());
-			Assert.assertEquals(3, n5.listAttributes(groupName).size());
+			Assert.assertEquals(4, n5.listAttributes(groupName).size());
 			/* class interface */
 			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
 			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", String.class));
@@ -613,8 +612,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.setAttribute(groupName, "key1", new Integer(1));
 			n5.setAttribute(groupName, "key2", new Integer(2));
 
-//			Assert.assertEquals(4, n5.listAttributes(groupName).size());
-			Assert.assertEquals(3, n5.listAttributes(groupName).size());
+			Assert.assertEquals(4, n5.listAttributes(groupName).size());
 			/* class interface */
 			Assert.assertEquals(new Integer(1), n5.getAttribute(groupName, "key1", Integer.class));
 			Assert.assertEquals(new Integer(2), n5.getAttribute(groupName, "key2", Integer.class));
@@ -633,13 +631,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.removeAttribute(groupName, "key1");
 			n5.removeAttribute(groupName, "key2");
 			n5.removeAttribute(groupName, "key3");
-
-//			Map<String, Class<?>> attrs = n5.listAttributes(groupName);
-//			attrs.forEach( (k,v) -> {
-//				System.out.println( k + "  >  " + v);
-//			});
-
-			Assert.assertEquals(0, n5.listAttributes(groupName).size());
+			Assert.assertEquals(1, n5.listAttributes(groupName).size());
 		}
 	}
 
