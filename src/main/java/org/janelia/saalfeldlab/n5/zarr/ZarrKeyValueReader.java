@@ -43,6 +43,7 @@ import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URL;
+import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
 
 import com.google.gson.Gson;
@@ -107,7 +108,7 @@ public class ZarrKeyValueReader implements N5Reader, ZarrUtils {
 		this.mergeAttributes = mergeAttributes;
 
 		if (cacheMeta)
-			cache = new N5JsonCache((groupPath, cacheKey) -> normalGetAttributes(groupPath), this::normalExists,
+			cache = new N5JsonCache((groupPath, cacheKey) -> normalGetJsonResource(groupPath,cacheKey), this::normalExists,
 					this::normalExists, this::normalDatasetExists, this::normalList);
 		else
 			cache = null;
@@ -157,7 +158,14 @@ public class ZarrKeyValueReader implements N5Reader, ZarrUtils {
 	@Override
 	public Version getVersion() throws IOException {
 
-		return ZarrUtils.getVersion(keyValueAccess, gson, basePath);
+		// Note: getZarray and getZGroup use cache if available.
+		if( datasetExists("")) {
+			return ZarrUtils.getVersion(getZArray("").getAsJsonObject());
+		}
+		else if( groupExists( "" )) {
+			return ZarrUtils.getVersion(getZGroup("").getAsJsonObject());
+		}
+		return ZarrUtils.VERSION;
 	}
 
 	@Override
@@ -176,9 +184,12 @@ public class ZarrKeyValueReader implements N5Reader, ZarrUtils {
 		return keyValueAccess.exists(groupPath(normalPathName)) || normalDatasetExists(normalPathName);
 	}
 
-	protected boolean groupExists(final String absoluteNormalPath) {
+	protected boolean groupExists(final String normalPath) {
 
-		return ZarrUtils.groupExists(keyValueAccess, absoluteNormalPath);
+		if( cacheMeta ) {
+			return cache.isGroup(normalPath);
+		}
+		return ZarrUtils.groupExists(keyValueAccess, keyValueAccess.compose(basePath, normalPath ));
 	}
 
 	@Override
@@ -212,19 +223,16 @@ public class ZarrKeyValueReader implements N5Reader, ZarrUtils {
 	@Override
 	public ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws IOException {
 
-		final String normalPath = N5URL.normalizeGroupPath(zArrayPath(pathName));
-		final JsonElement attributes;
-		if (cacheMeta && cache.isDataset(normalPath)) {
-			attributes = cache.getAttributes(normalPath, N5JsonCache.jsonFile);
-		} else {
-			attributes = getJsonResource(normalPath); // TODO getAttributes uses cache too, use normalGetDatasetAttributes instead
-		}
+		final JsonElement attributes = getZArray(pathName); // normalizes and caches
 
+//		final String normalPath = N5URL.normalizeGroupPath(pathName);
+//		final JsonElement attributes;
+//		if (cacheMeta && cache.isDataset(normalPath)) {
+//			attributes = cache.getAttributes(normalPath, ZarrUtils.zarrayFile);
+//		} else {
+//			attributes = getJsonResource(zArrayPath(normalPath)); // TODO getAttributes uses cache too, use normalGetDatasetAttributes instead
+//		}
 		return createDatasetAttributes(attributes);
-
-//		// TODO read from cache 
-//		final ZArrayAttributes zArrayAttrs = ZarrUtils.getZArrayAttributes(keyValueAccess, gson, basePath, pathName);
-//		return zArrayAttrs.getDatasetAttributes();
 	}
 
 	public ZArrayAttributes getZArrayAttributes(final String pathName) throws IOException {
@@ -267,17 +275,32 @@ public class ZarrKeyValueReader implements N5Reader, ZarrUtils {
 
 	public JsonElement getZGroup( final String groupPath ) throws IOException {
 
-		return getJsonResource(ZarrUtils.zGroupPath(keyValueAccess, groupPath));
+		// TODO decide whether to apply cache logic here or one level down (in getJsonResource)
+		if (cacheMeta) {
+			return cache.getAttributes(N5URL.normalizeGroupPath(groupPath), ZarrUtils.zgroupFile);
+		} else {
+			return getJsonResource(ZarrUtils.zGroupPath(keyValueAccess, groupPath));
+		}
 	}
 
 	public JsonElement getZArray( final String groupPath ) throws IOException {
 
-		return getJsonResource(ZarrUtils.zArrayPath(keyValueAccess, groupPath));
+		// TODO decide whether to apply cache logic here or one level down (in getJsonResource)
+		if (cacheMeta) {
+			return cache.getAttributes(N5URL.normalizeGroupPath(groupPath), ZarrUtils.zarrayFile);
+		} else {
+			return getJsonResource(ZarrUtils.zArrayPath(keyValueAccess, groupPath));
+		}
 	}
 
 	public JsonElement getZAttributes( final String groupPath ) throws IOException {
 
-		return getJsonResource(ZarrUtils.zAttrsPath(keyValueAccess, groupPath));
+		// TODO decide whether to apply cache logic here or one level down (in getJsonResource)
+		if (cacheMeta) {
+			return cache.getAttributes(N5URL.normalizeGroupPath(groupPath), ZarrUtils.zattrsFile);
+		} else {
+			return getJsonResource(ZarrUtils.zAttrsPath(keyValueAccess, groupPath));
+		}
 	}
 	
 	public JsonElement getAttributes( final String groupPath ) throws IOException {
@@ -288,15 +311,15 @@ public class ZarrKeyValueReader implements N5Reader, ZarrUtils {
 		JsonElement attrElem = null;
 		if (mergeAttributes) {
 			try {
-				groupElem = getZGroup(groupPath);
+				groupElem = getZGroup(groupPath); // uses cache
 			} catch (IOException e) {}
 
 			try {
-				arrElem = getZArray(groupPath);
+				arrElem = getZArray(groupPath); // uses cache
 			} catch (IOException e) {}
 
 			try {
-				attrElem = getZAttributes(groupPath);
+				attrElem = getZAttributes(groupPath); // uses cache
 			} catch (IOException e) {}
 
 			return ZarrUtils.combineAll( groupElem, arrElem, attrElem );
@@ -350,13 +373,14 @@ public class ZarrKeyValueReader implements N5Reader, ZarrUtils {
 
 	protected JsonElement getJsonResource( final String resourcePath ) throws IOException {
 
+		// TODO decide whether to implement cache at this level or "one level up"
 		final String normalResourcePath = N5URL.normalizeGroupPath(resourcePath);
-		/* If cached, return the cache*/
-		if (cacheMeta) {
-			return cache.getAttributes(normalResourcePath, N5JsonCache.jsonFile);
-		} else {
+//		/* If cached, return the cache*/
+//		if (cacheMeta) {
+//			return cache.getAttributes(normalResourcePath, N5JsonCache.jsonFile);
+//		} else {
 			return normalGetJsonResource(normalResourcePath);
-		}
+//		}
 	}
 
 	/**
@@ -365,9 +389,15 @@ public class ZarrKeyValueReader implements N5Reader, ZarrUtils {
 	 * @return
 	 * @throws N5Exception.N5IOException
 	 */
-	private JsonElement normalGetJsonResource(String normalResourcePath) throws N5Exception.N5IOException {
+	protected JsonElement normalGetJsonResource(String normalResourcePath) throws N5Exception.N5IOException {
 
 		final String absoluteNormalPath = keyValueAccess.compose(basePath, N5URL.normalizeGroupPath(normalResourcePath));
+		return ZarrUtils.getJsonResource(keyValueAccess, gson, absoluteNormalPath);
+	}
+
+	protected JsonElement normalGetJsonResource(String normalPath, String cacheKey) throws N5Exception.N5IOException {
+
+		final String absoluteNormalPath = keyValueAccess.compose(basePath, normalPath, cacheKey);
 		return ZarrUtils.getJsonResource(keyValueAccess, gson, absoluteNormalPath);
 	}
 

@@ -9,7 +9,6 @@ import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Reader.Version;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -39,11 +38,20 @@ public interface ZarrUtils extends N5Reader {
 		}
 
 		if (elem != null && elem.isJsonObject()) {
-			JsonElement fmt = elem.getAsJsonObject().get("zarr_format");
+			final JsonElement fmt = elem.getAsJsonObject().get( ZARR_FORMAT_KEY );
 			if (fmt.isJsonPrimitive())
 				return new Version(fmt.getAsInt(), 0, 0);
 		}
 		return VERSION;
+	}
+
+	static Version getVersion( final JsonObject json )
+	{
+		final JsonElement fmt = json.get(ZARR_FORMAT_KEY);
+		if (fmt.isJsonPrimitive())
+			return new Version(fmt.getAsInt(), 0, 0);
+
+		return null;
 	}
 
 	static boolean groupExists(final KeyValueAccess keyValueAccess, final String absolutePath) {
@@ -126,9 +134,9 @@ public interface ZarrUtils extends N5Reader {
 
 	static JsonElement combine(final JsonElement base, final JsonElement add) {
 		if (base == null)
-			return add;
+			return add == null ? null : add.deepCopy();
 		else if (add == null)
-			return base;
+			return base == null ? null : base.deepCopy();
 
 		if (base.isJsonObject() && add.isJsonObject()) {
 			final JsonObject baseObj = base.getAsJsonObject();
@@ -141,7 +149,7 @@ public interface ZarrUtils extends N5Reader {
 			for (int i = 0; i < addArr.size(); i++)
 				baseArr.add(addArr.get(i));
 		}
-		return base;
+		return base == null ? null : base.deepCopy();
 	}
 
 	static Gson registerGson(final GsonBuilder gsonBuilder) {
