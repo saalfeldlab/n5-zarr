@@ -216,13 +216,14 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		try (final N5Writer writer = createN5Writer()) {
 
+			@SuppressWarnings("resource")
 			final N5ZarrWriter zarr = (N5ZarrWriter)writer;
 			final Version n5Version = writer.getVersion();
 			Assert.assertTrue(n5Version.equals(N5ZarrReader.VERSION));
 
 			final JsonObject bumpVersion = new JsonObject();
 			bumpVersion.add( ZarrUtils.ZARR_FORMAT_KEY, new JsonPrimitive( N5ZarrReader.VERSION.getMajor() + 1));
-			zarr.writeZGroup("/", bumpVersion);
+			zarr.writeZGroup("", bumpVersion);
 
 			final Version version = writer.getVersion();
 			assertFalse(N5ZarrReader.VERSION.isCompatible(version));
@@ -577,15 +578,12 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.createGroup(groupName);
 
 			n5.setAttribute(groupName, "key1", "value1");
-//			n5.listAttributes(groupName).forEach( (k,v) -> { System.out.println( k + " : " + v ); });
 			Assert.assertEquals(2, n5.listAttributes(groupName).size()); // length 2 because it includes "zarr_version"
 
 			/* class interface */
 			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
 			/* type interface */
-			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {
-
-			}.getType()));
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>(){}.getType()));
 
 			final Map<String, String> newAttributes = new HashMap<>();
 			newAttributes.put("key2", "value2");
@@ -598,15 +596,9 @@ public class N5ZarrTest extends AbstractN5Test {
 			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", String.class));
 			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", String.class));
 			/* type interface */
-			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {
-
-			}.getType()));
-			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", new TypeToken<String>() {
-
-			}.getType()));
-			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {
-
-			}.getType()));
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>(){}.getType()));
+			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", new TypeToken<String>(){}.getType()));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>(){}.getType()));
 
 			// test the case where the resulting file becomes shorter
 			n5.setAttribute(groupName, "key1", new Integer(1));
@@ -618,15 +610,9 @@ public class N5ZarrTest extends AbstractN5Test {
 			Assert.assertEquals(new Integer(2), n5.getAttribute(groupName, "key2", Integer.class));
 			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", String.class));
 			/* type interface */
-			Assert.assertEquals(new Integer(1), n5.getAttribute(groupName, "key1", new TypeToken<Integer>() {
-
-			}.getType()));
-			Assert.assertEquals(new Integer(2), n5.getAttribute(groupName, "key2", new TypeToken<Integer>() {
-
-			}.getType()));
-			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {
-
-			}.getType()));
+			Assert.assertEquals(new Integer(1), n5.getAttribute(groupName, "key1", new TypeToken<Integer>(){}.getType()));
+			Assert.assertEquals(new Integer(2), n5.getAttribute(groupName, "key2", new TypeToken<Integer>(){}.getType()));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>(){}.getType()));
 
 			n5.removeAttribute(groupName, "key1");
 			n5.removeAttribute(groupName, "key2");
