@@ -27,24 +27,6 @@ public interface ZarrUtils extends N5Reader {
 
 	public static final String ZARR_FORMAT_KEY = "zarr_format";
 
-	static Version getVersion( final KeyValueAccess keyValueAccess, final Gson gson, final String basePath ) throws IOException {
-		final JsonElement elem;
-		if (groupExists(keyValueAccess, basePath, "")) {
-			elem = getAttributesZGroup(keyValueAccess, gson, basePath, "");
-		} else if (datasetExists(keyValueAccess, basePath, "")) {
-			elem = getAttributesZArray(keyValueAccess, gson, basePath, "");
-		} else {
-			return VERSION;
-		}
-
-		if (elem != null && elem.isJsonObject()) {
-			final JsonElement fmt = elem.getAsJsonObject().get( ZARR_FORMAT_KEY );
-			if (fmt.isJsonPrimitive())
-				return new Version(fmt.getAsInt(), 0, 0);
-		}
-		return VERSION;
-	}
-
 	static Version getVersion( final JsonObject json )
 	{
 		final JsonElement fmt = json.get(ZARR_FORMAT_KEY);
@@ -64,74 +46,34 @@ public interface ZarrUtils extends N5Reader {
 		return keyValueAccess.isFile(zGroupAbsolutePath(keyValueAccess, basePath, normalPath));
 	}
 
-	static boolean datasetExists( final KeyValueAccess keyValueAccess, final String basePath, final String normalPath) throws IOException {
-
-		return keyValueAccess.isFile(zArrayAbsolutePath(keyValueAccess, basePath, normalPath));
-	}
-
-//	@Override
-//	default JsonElement getAttributes(final String pathName) throws IOException {
-//		return getMergedAttributes(pathName);
-//	}
-
-//	public static ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws IOException {
-//
-//		final ZArrayAttributes zattrs = getZArrayAttributes(pathName);
-//		if (zattrs == null)
-//			return null;
-//		else
-//			return zattrs.getDatasetAttributes();
-//	}
-
-	static ZArrayAttributes getZArrayAttributes(final KeyValueAccess keyValueAccess, final Gson gson, final String basePath, final String pathName) throws IOException {
-
-		final JsonElement elem = getAttributesZArray(keyValueAccess, gson, basePath, pathName);
-		if (elem == null)
-			return null;
-
-		final JsonObject attributes;
-		if (elem.isJsonObject())
-			attributes = elem.getAsJsonObject();
-		else
-			return null;
-
-		final JsonElement sepElem = attributes.get("dimension_separator");
-		return new ZArrayAttributes(
-				attributes.get("zarr_format").getAsInt(),
-				gson.fromJson(attributes.get("shape"), long[].class),
-				gson.fromJson(attributes.get("chunks"), int[].class),
-				gson.fromJson(attributes.get("dtype"), DType.class),
-				gson.fromJson(attributes.get("compressor"), ZarrCompressor.class),
-				attributes.get("fill_value").getAsString(),
-				attributes.get("order").getAsString().charAt(0),
-				sepElem != null ? sepElem.getAsString() : ".",
-				gson.fromJson(attributes.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType()));
-	}
-
-	static JsonElement getMergedAttributes( final KeyValueAccess keyValueAccess, final Gson gson, final String basePath, final String pathName ) {
-
-		JsonElement groupElem = null;
-		JsonElement arrElem = null;
-		JsonElement attrElem = null;
-		try {
-			groupElem = getAttributesZGroup(keyValueAccess, gson, basePath, pathName);
-		} catch (IOException e) { }
-
-		try {
-			arrElem = getAttributesZArray( keyValueAccess, gson, basePath, pathName );
-		} catch (IOException e) { }
-
-		try {
-			attrElem = getAttributesZAttrs( keyValueAccess, gson, basePath, pathName );
-		} catch (IOException e) { }
-
-		return combineAll( groupElem, arrElem, attrElem );
-	}
-
-	static JsonElement combineAll(final JsonElement ...elements ) {
+	/**
+	 * Returns one {@link JsonElement} that (attempts to) combine all 
+	 * passed json elements. Reduces the list by repeatedly calling the
+	 * two-argument {@link combine} method.
+	 * 
+	 * @param elements an array of json elements
+	 * @return a new, combined element
+	 */
+	static JsonElement combineAll(final JsonElement... elements) {
 		return Arrays.stream(elements).reduce(null, ZarrUtils::combine);
 	}
 
+	/**
+	 * Returns one {@link JsonElement} that combines two others. The returned instance
+	 * is a deep copy, and the arguments are not modified.
+	 * A copy of base element is returned if the two arguments can not be combined.
+	 * The two arguments may be combined if they are both {@link JsonObject}s or both
+	 * {@link JsonArray}s.
+	 * <p>
+	 * If both arguments are {@link JsonObject}s, every key-value pair in the add argument
+	 * is added to the (copy of) the base argument, overwriting any duplicate keys.
+	 * If both arguments are {@link JsonArray}s, the add argument is concatenated to the 
+	 * (copy of) the base argument.
+	 *
+	 * @param base the base element
+	 * @param add the element to add
+	 * @return the new element
+	 */
 	static JsonElement combine(final JsonElement base, final JsonElement add) {
 		if (base == null)
 			return add == null ? null : add.deepCopy();
