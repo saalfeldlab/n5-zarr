@@ -139,12 +139,12 @@ public interface ZarrUtils extends N5Reader {
 			return base == null ? null : base.deepCopy();
 
 		if (base.isJsonObject() && add.isJsonObject()) {
-			final JsonObject baseObj = base.getAsJsonObject();
+			final JsonObject baseObj = base.getAsJsonObject().deepCopy();
 			final JsonObject addObj = add.getAsJsonObject();
 			for (String k : addObj.keySet())
 				baseObj.add(k, addObj.get(k));
 		} else if (base.isJsonArray() && add.isJsonArray()) {
-			final JsonArray baseArr = base.getAsJsonArray();
+			final JsonArray baseArr = base.getAsJsonArray().deepCopy();
 			final JsonArray addArr = add.getAsJsonArray();
 			for (int i = 0; i < addArr.size(); i++)
 				baseArr.add(addArr.get(i));
