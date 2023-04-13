@@ -418,7 +418,7 @@ public class ZarrKeyValueReader implements N5Reader, ZarrUtils {
 	 */
 	protected JsonElement normalReadJsonResource(final String normalResourceParent, final String resourceName) throws N5Exception.N5IOException {
 
-		final String absoluteNormalPath = keyValueAccess.compose(basePath, N5URL.normalizeGroupPath(normalResourceParent));
+		final String absoluteNormalPath = keyValueAccess.compose(basePath, N5URL.normalizeGroupPath(normalResourceParent), resourceName );
 		return ZarrUtils.getJsonResource(keyValueAccess, gson, absoluteNormalPath);
 	}
 
