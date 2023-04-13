@@ -1,41 +1,54 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
-import com.google.gson.GsonBuilder;
 import org.junit.Assert;
 import org.junit.Test;
+
+import com.google.gson.GsonBuilder;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 
 public class ZarrCachedFSTest extends N5ZarrTest {
 
-	@Override protected N5ZarrWriter createN5Writer() throws IOException {
+	@Override
+	protected N5ZarrWriter createN5Writer() throws IOException {
 
-		return createN5Writer( true );
+		return createN5Writer(true);
 	}
 
-	protected N5ZarrWriter createN5Writer( final boolean cacheAttributes ) throws IOException {
+	protected N5ZarrWriter createN5Writer(final boolean cacheAttributes) throws IOException {
 
-		return new N5ZarrWriter(tempN5PathName(), cacheAttributes);
+		return createN5Writer(tempN5PathName(), new GsonBuilder(), ".", cacheAttributes);
 	}
 
-	@Override protected N5ZarrWriter createN5Writer(String location, GsonBuilder gson) throws IOException {
+	@Override
+	protected N5ZarrWriter createN5Writer(String location, GsonBuilder gsonBuilder) throws IOException {
 
-		if (!new File(location).exists()) {
+		return createN5Writer(location, gsonBuilder, ".");
+	}
+
+	protected N5ZarrWriter createN5Writer(String location, String dimensionSeparator) throws IOException {
+
+		return createN5Writer(location, new GsonBuilder(), dimensionSeparator);
+	}
+
+	protected N5ZarrWriter createN5Writer(String location, GsonBuilder gsonBuilder, String dimensionSeparator, boolean cachedAttributes ) throws IOException {
+
+		final Path testN5Path = Paths.get(location);
+		final boolean existsBefore = testN5Path.toFile().exists();
+		final N5ZarrWriter zarr = new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, true, cachedAttributes);
+		final boolean existsAfter = testN5Path.toFile().exists();
+		if (!existsBefore && existsAfter) {
 			tmpFiles.add(location);
 		}
-		return new N5ZarrWriter(location, gson, true);
+		return zarr;
 	}
 
-	@Override protected N5ZarrReader createN5Reader(String location, GsonBuilder gson) throws IOException {
-
-		return new N5ZarrReader(location, gson, true);
-	}
-
-	protected static String tempN5PathName()  {
+	protected static String tempN5PathName() {
 		try {
 			final File tmpFile = Files.createTempDirectory("zarr-cached-test-").toFile();
 			tmpFile.deleteOnExit();

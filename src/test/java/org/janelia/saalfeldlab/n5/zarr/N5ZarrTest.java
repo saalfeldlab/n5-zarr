@@ -43,10 +43,13 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.io.FileUtils;
 import org.janelia.saalfeldlab.n5.AbstractN5Test;
 import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
@@ -62,6 +65,7 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -91,41 +95,68 @@ import net.imglib2.view.Views;
 public class N5ZarrTest extends AbstractN5Test {
 	static private String testZarrDatasetName = "/test/data";
 
+	@AfterClass
+	public static void cleanup() {
+
+		for (String tmpFile : tmpFiles) {
+			try {
+				FileUtils.deleteDirectory(new File(tmpFile));
+			} catch (Exception e) {
+			}
+		}
+	}
+
 	private static String createTestDirPath(String prefix) throws IOException {
 
 		return Files.createTempDirectory(prefix).toFile().getCanonicalPath();
 	}
 
-	/**
-	 * @throws IOException
-	 */
+	protected static String tmpPathName() {
+		try {
+			final File tmpFile = Files.createTempDirectory("n5-zarr-test-").toFile();
+			tmpFile.deleteOnExit();
+			final String tmpPath = tmpFile.getCanonicalPath();
+			tmpFiles.add(tmpPath);
+			return tmpPath;
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 	@Override
 	protected N5ZarrWriter createN5Writer() throws IOException {
 
-		final String testDirPath = createTestDirPath("n5-zarr-test-");
-		return new N5ZarrWriter(testDirPath);
+		final String testDirPath = tmpPathName();
+		return createN5Writer(testDirPath, new GsonBuilder());
 	}
 
 	@Override
-	protected N5ZarrWriter createN5Writer( String location, GsonBuilder gson ) throws IOException {
+	protected N5ZarrWriter createN5Writer(String location, GsonBuilder gsonBuilder) throws IOException {
 
-		return new N5ZarrWriter(location, gson);
+		return createN5Writer(location, gsonBuilder, ".");
 	}
 
-	protected N5ZarrWriter createN5Writer( String location, String dimensionSeparator ) throws IOException {
+	protected N5ZarrWriter createN5Writer(String location, String dimensionSeparator) throws IOException {
 
-		return new N5ZarrWriter(location, new GsonBuilder(), dimensionSeparator, true, false);
+		return createN5Writer(location, new GsonBuilder(), dimensionSeparator);
+	}
+
+	protected N5ZarrWriter createN5Writer(String location, GsonBuilder gsonBuilder, String dimensionSeparator) throws IOException {
+
+		final Path testN5Path = Paths.get(location);
+		final boolean existsBefore = testN5Path.toFile().exists();
+		final N5ZarrWriter zarr = new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, true, false);
+		final boolean existsAfter = testN5Path.toFile().exists();
+		if (!existsBefore && existsAfter) {
+			tmpFiles.add(location);
+		}
+		return zarr;
 	}
 
 	@Override
 	protected N5Reader createN5Reader(String location, GsonBuilder gson) throws IOException {
 
 		return new N5ZarrReader(location, gson);
-	}
-
-	protected N5ZarrWriter createN5Writer(String location) throws IOException {
-
-		return new N5ZarrWriter(location);
 	}
 
 	@Override
