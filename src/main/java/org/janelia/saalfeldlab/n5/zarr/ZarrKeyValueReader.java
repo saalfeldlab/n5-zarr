@@ -107,8 +107,11 @@ public class ZarrKeyValueReader implements N5Reader, ZarrUtils {
 		this.mergeAttributes = mergeAttributes;
 
 		if (cacheMeta)
-			cache = new N5JsonCache((groupPath, cacheKey) -> normalReadJsonResource(groupPath,cacheKey), this::normalExists,
-					this::normalExists, this::normalDatasetExists, this::normalList);
+			// note normalExists isn't quite the normal version of exists.
+			// rather, it only checks for the existence of the requested on the backend
+			// (this is the desired behavior the cache needs
+			cache = new N5JsonCache((groupPath, cacheKey) -> normalReadJsonResource(groupPath,cacheKey),
+					this::normalExists, this::normalGroupExists, this::normalDatasetExists, this::normalList);
 		else
 			cache = null;
 	}
@@ -169,12 +172,9 @@ public class ZarrKeyValueReader implements N5Reader, ZarrUtils {
 	@Override
 	public boolean exists(final String pathName) {
 
-		final String normalPathName = N5URL.normalizeGroupPath(pathName);
-		if (cacheMeta)
-			return cache.exists(normalPathName);
-		else {
-			return normalExists(normalPathName);
-		}
+		final String normalPathName = N5URL.normalizeGroupPath( pathName );
+		// datasetExists and groupExists use the cache
+		return datasetExists( normalPathName ) || groupExists( normalPathName );
 	}
 
 	private boolean normalExists(String normalPathName) {
@@ -184,9 +184,14 @@ public class ZarrKeyValueReader implements N5Reader, ZarrUtils {
 
 	protected boolean groupExists(final String normalPath) {
 
-		if( cacheMeta ) {
-			return cache.isGroup(normalPath);
+		if (cacheMeta) {
+			return cache.isGroup(normalPath, ZarrUtils.zgroupFile);
 		}
+		return normalGroupExists(normalPath);
+	}
+
+	protected boolean normalGroupExists(final String normalPath) {
+
 		return ZarrUtils.groupExists(keyValueAccess, keyValueAccess.compose(basePath, normalPath ));
 	}
 
@@ -195,7 +200,7 @@ public class ZarrKeyValueReader implements N5Reader, ZarrUtils {
 
 		if (cacheMeta) {
 			final String normalPathName = N5URL.normalizeGroupPath(pathName);
-			return cache.isDataset(normalPathName);
+			return cache.isDataset(normalPathName, ZarrUtils.zarrayFile);
 		}
 		return normalDatasetExists(pathName);
 	}

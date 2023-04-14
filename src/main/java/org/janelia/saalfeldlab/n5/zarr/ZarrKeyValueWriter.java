@@ -269,7 +269,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		if (key.equals("/")) {
 			writeJsonResource(normalAttrPathName, JsonNull.INSTANCE);
 			if (cacheMeta)
-				cache.setCacheAttributes(normalPath, ZarrUtils.zattrsFile, JsonNull.INSTANCE);
+				cache.updateCacheInfo( absoluteNormalPath, ZarrUtils.zattrsFile, JsonNull.INSTANCE);
 
 			return true;
 		}
@@ -278,7 +278,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		if (GsonUtils.removeAttribute(attributes, normalKey) != null) {
 
 			if (cacheMeta)
-				cache.setCacheAttributes(normalPath, ZarrUtils.zattrsFile, attributes);
+				cache.updateCacheInfo( absoluteNormalPath, ZarrUtils.zattrsFile, attributes);
 
 			writeJsonResource(normalAttrPathName, attributes);
 			return true;
@@ -297,7 +297,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		final T obj = GsonUtils.removeAttribute(attributes, normalKey, cls, gson);
 		if (obj != null) {
 			if (cacheMeta)
-				cache.setCacheAttributes(normalPath, ZarrUtils.zattrsFile, attributes);
+				cache.updateCacheInfo(normalPath, ZarrUtils.zattrsFile, attributes);
 
 			writeJsonResource(normalAttrPathName, attributes);
 		}
@@ -381,7 +381,12 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		if( cacheMeta ) {
 			// TODO updateCacheInfo doesn't update attributes
 			// cache.updateCacheInfo(normalGroupPath, ZarrUtils.zarrayFile, attributes);
-			cache.setCacheInfo(normalGroupPath, ZarrUtils.zarrayFile, attributes, false, true);
+
+			//cache.setCacheInfo(normalGroupPath, ZarrUtils.zarrayFile, attributes, false, true);
+
+			// TODO would be cool to be able to manually set isGroup and isDataset on update
+			// because as it is, the cache needlessly checks the backend after this call (I think)
+			cache.updateCacheInfo(normalGroupPath, ZarrUtils.zarrayFile, attributes);
 		}
 		writeJsonResource(zArrayPath(normalGroupPath), attributes);
 	}
@@ -390,25 +395,36 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final String normalGroupPath,
 			final JsonElement attributes) throws IOException {
 
+		writeJsonResource(zGroupPath(normalGroupPath), attributes);
 		if( cacheMeta ) {
 			// TODO updateCacheInfo doesn't update attributes
 			// cache.updateCacheInfo(normalGroupPath, ZarrUtils.zgroupFile, attributes);
-			cache.setCacheInfo(normalGroupPath, ZarrUtils.zgroupFile, attributes, true, false);
+
+			//cache.setCacheInfo(normalGroupPath, ZarrUtils.zgroupFile, attributes, true, false);
+
+			// TODO would be cool to be able to manually set isGroup and isDataset on update
+			// because as it is, the cache needlessly checks the backend after this call (I think)
+//			cache.updateCacheInfo(normalGroupPath, ZarrUtils.zgroupFile, attributes);
+
+			cache.updateCacheInfo(normalGroupPath, ZarrUtils.zgroupFile);
 		}
-		writeJsonResource(zGroupPath(normalGroupPath), attributes);
 	}
 
 	protected void writeZAttrs(
 			final String normalGroupPath,
 			final JsonElement attributes) throws IOException {
 
+		writeJsonResource(zAttrsPath(normalGroupPath), attributes);
 		if( cacheMeta ) {
 			// TODO updateCacheInfo doesn't update attributes
 			// cache.updateCacheInfo(normalGroupPath, ZarrUtils.zattrsFile, attributes);
-			cache.setCacheInfo(normalGroupPath, ZarrUtils.zattrsFile, attributes, 
-					groupExists(normalGroupPath), datasetExists(normalGroupPath));
+//			cache.setCacheInfo(normalGroupPath, ZarrUtils.zattrsFile, attributes, 
+//					groupExists(normalGroupPath), datasetExists(normalGroupPath));
+
+//			cache.updateCacheInfo(normalGroupPath, ZarrUtils.zattrsFile, attributes);
+
+			cache.updateCacheInfo(normalGroupPath, ZarrUtils.zattrsFile);
 		}
-		writeJsonResource(zAttrsPath(normalGroupPath), attributes);
 	}
 
 	/**
