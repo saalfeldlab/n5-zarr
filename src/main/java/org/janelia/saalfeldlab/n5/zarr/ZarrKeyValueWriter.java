@@ -378,6 +378,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final String normalGroupPath,
 			final JsonElement attributes) throws IOException {
 
+		writeJsonResource(zArrayPath(normalGroupPath), attributes);
 		if( cacheMeta ) {
 			// TODO updateCacheInfo doesn't update attributes
 			// cache.updateCacheInfo(normalGroupPath, ZarrUtils.zarrayFile, attributes);
@@ -388,7 +389,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			// because as it is, the cache needlessly checks the backend after this call (I think)
 			cache.updateCacheInfo(normalGroupPath, ZarrUtils.zarrayFile, attributes);
 		}
-		writeJsonResource(zArrayPath(normalGroupPath), attributes);
 	}
 
 	protected void writeZGroup(
