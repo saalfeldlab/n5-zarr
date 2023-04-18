@@ -46,8 +46,8 @@ import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5URL;
 import org.janelia.saalfeldlab.n5.N5Writer;
 
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
@@ -105,45 +105,20 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final String dimensionSeparator,
 			final boolean cacheAttributes) throws IOException {
 
-		super( keyValueAccess, initializeContainer(keyValueAccess, basePath), gsonBuilder,
+		super( false, keyValueAccess, basePath, gsonBuilder,
 				mapN5DatasetAttributes, mergeAttributes, cacheAttributes );
 		this.dimensionSeparator = dimensionSeparator;
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
 		if (exists("/")) {
 			final Version version = getVersion();
-			if (!ZarrUtils.VERSION.isCompatible(version))
-				throw new IOException("Incompatible version " + version + " (this is " + ZarrUtils.VERSION + ").");
+			if (!ZarrKeyValueReader.VERSION.isCompatible(version))
+				throw new IOException("Incompatible version " + version + " (this is " + ZarrKeyValueReader.VERSION + ").");
 		}
-
-		// TODO update cache on creation?
-		// can't do it initializeContainer, unfortunately?
-		// leaving cache empty on startup for now, it will be updated on request.
-	}
-
-	protected static String initializeContainer(
-			final KeyValueAccess keyValueAccess,
-			final String basePath) throws IOException {
-
-		final String normBasePath = keyValueAccess.normalize(basePath);
-		final String absolutePath = ZarrUtils.zGroupAbsolutePath(keyValueAccess, basePath, "");
-
-		// Exit if .zgroup already exists
-		if( keyValueAccess.isFile(absolutePath))
-			return basePath;
-
-		// otherwise create the folder
-		keyValueAccess.createDirectories(normBasePath);
-
-		// set version
-		final JsonObject versionObject = new JsonObject();
-		versionObject.add(ZarrUtils.ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
-
-		final Gson gson = new Gson();
-		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
-			GsonUtils.writeAttributes(lock.newWriter(), versionObject, gson);
+		else
+		{
+			createGroup("/");
+			setVersion("/");
 		}
-
-		return normBasePath;
 	}
 
 	protected void setVersion(final String path) throws IOException {
@@ -153,18 +128,13 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 	protected void setVersion(final String path, final boolean create) throws IOException {
 
 		final JsonObject versionObject = new JsonObject();
-		versionObject.add(ZarrUtils.ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
+		versionObject.add(ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
 
 		final String normalPath = N5URL.normalizeGroupPath(path);
 		if( create || groupExists(normalPath))
 			writeZGroup(normalPath, versionObject); // updates cache
 		else if( datasetExists(normalPath))
 		{
-			// TODO test
-//			final HashMap<String, Object> zarrayMap = getZArrayAttributes(normalPath).asMap();
-//			zarrayMap.put(ZARR_FORMAT_KEY, N5ZarrReader.VERSION.getMajor());
-//			setAttributesZarray(normalPath, zarrayMap); // updates cache
-
 			final JsonObject zarrayJson = getZArray(normalPath).getAsJsonObject();
 			zarrayJson.add(ZARR_FORMAT_KEY, new JsonPrimitive( N5ZarrReader.VERSION.getMajor()));
 			writeZArray(normalPath, zarrayJson); // updates cache
@@ -269,7 +239,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		if (key.equals("/")) {
 			writeJsonResource(normalAttrPathName, JsonNull.INSTANCE);
 			if (cacheMeta)
-				cache.updateCacheInfo( absoluteNormalPath, ZarrUtils.zattrsFile, JsonNull.INSTANCE);
+				cache.updateCacheInfo( absoluteNormalPath, zattrsFile, JsonNull.INSTANCE);
 
 			return true;
 		}
@@ -278,7 +248,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		if (GsonUtils.removeAttribute(attributes, normalKey) != null) {
 
 			if (cacheMeta)
-				cache.updateCacheInfo( absoluteNormalPath, ZarrUtils.zattrsFile, attributes);
+				cache.updateCacheInfo( absoluteNormalPath, zattrsFile, attributes);
 
 			writeJsonResource(normalAttrPathName, attributes);
 			return true;
@@ -290,14 +260,14 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 	public <T> T removeAttribute(final String pathName, final String key, final Class<T> cls) throws IOException {
 
 		final String normalPath = N5URL.normalizeGroupPath(pathName);
-		final String normalAttrPathName = ZarrUtils.zAttrsPath(keyValueAccess, normalPath );
+		final String normalAttrPathName = zAttrsPath(normalPath );
 		final String normalKey = N5URL.normalizeAttributePath(key);
 
 		final JsonElement attributes = getZAttributes(normalPath); // uses cache
 		final T obj = GsonUtils.removeAttribute(attributes, normalKey, cls, gson);
 		if (obj != null) {
 			if (cacheMeta)
-				cache.updateCacheInfo(normalPath, ZarrUtils.zattrsFile, attributes);
+				cache.updateCacheInfo(normalPath, zattrsFile, attributes);
 
 			writeJsonResource(normalAttrPathName, attributes);
 		}
@@ -321,9 +291,9 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final DatasetAttributes datasetAttributes) throws IOException {
 
 		final long[] shape = datasetAttributes.getDimensions().clone();
-		ZarrUtils.reorder(shape);
+		reorder(shape);
 		final int[] chunks = datasetAttributes.getBlockSize().clone();
-		ZarrUtils.reorder(chunks);
+		reorder(chunks);
 
 		final ZArrayAttributes zArrayAttributes = new ZArrayAttributes(
 				N5ZarrReader.VERSION.getMajor(),
@@ -387,7 +357,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 			// TODO would be cool to be able to manually set isGroup and isDataset on update
 			// because as it is, the cache needlessly checks the backend after this call (I think)
-			cache.updateCacheInfo(normalGroupPath, ZarrUtils.zarrayFile, attributes);
+			cache.updateCacheInfo(normalGroupPath, zarrayFile, attributes);
 		}
 	}
 
@@ -406,7 +376,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			// because as it is, the cache needlessly checks the backend after this call (I think)
 //			cache.updateCacheInfo(normalGroupPath, ZarrUtils.zgroupFile, attributes);
 
-			cache.updateCacheInfo(normalGroupPath, ZarrUtils.zgroupFile);
+			cache.updateCacheInfo(normalGroupPath, zgroupFile);
 		}
 	}
 
@@ -423,7 +393,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 //			cache.updateCacheInfo(normalGroupPath, ZarrUtils.zattrsFile, attributes);
 
-			cache.updateCacheInfo(normalGroupPath, ZarrUtils.zattrsFile);
+			cache.updateCacheInfo(normalGroupPath, zattrsFile);
 		}
 	}
 
@@ -484,7 +454,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		final String path = keyValueAccess.compose(
 				basePath,
 				normalPath,
-				ZarrUtils.getZarrDataBlockPath(
+				getZarrDataBlockPath(
 						dataBlock.getGridPosition(),
 						zarrDatasetAttributes.getDimensionSeparator(),
 						zarrDatasetAttributes.isRowMajor()).toString());
@@ -685,7 +655,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			if (dsetAttrs != null) {
 				JsonElement e = src.get(srcKey);
 				if (e.isJsonArray() && dsetAttrs.isRowMajor())
-					ZarrUtils.reorder(e.getAsJsonArray());
+					reorder(e.getAsJsonArray());
 
 				zarrElems.getOrMakeZarray().add(destKey, e);
 				src.remove(srcKey);
@@ -699,7 +669,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			if (dsetAttrs != null ) {
 				JsonElement e = src.get(srcKey);
 				if( e.isJsonArray() && dsetAttrs.isRowMajor() )
-					ZarrUtils.reorder(e.getAsJsonArray());
+					reorder(e.getAsJsonArray());
 
 				zarrElems.getOrMakeZarray().add(destKey, e );
 				src.remove(srcKey);
@@ -787,4 +757,41 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		}
 
 	}
+
+	static void reorder(final long[] array) {
+
+		long a;
+		final int max = array.length - 1;
+		for (int i = (max - 1) / 2; i >= 0; --i) {
+			final int j = max - i;
+			a = array[i];
+			array[i] = array[j];
+			array[j] = a;
+		}
+	}
+
+	static void reorder(final int[] array) {
+
+		int a;
+		final int max = array.length - 1;
+		for (int i = (max - 1) / 2; i >= 0; --i) {
+			final int j = max - i;
+			a = array[i];
+			array[i] = array[j];
+			array[j] = a;
+		}
+	}
+
+	static void reorder(final JsonArray array) {
+
+		JsonElement a;
+		final int max = array.size() - 1;
+		for (int i = (max - 1) / 2; i >= 0; --i) {
+			final int j = max - i;
+			a = array.get(i);
+			array.set(i, array.get(j));
+			array.set(j, a );
+		}
+	}
+
 }

@@ -253,7 +253,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			Assert.assertTrue(n5Version.equals(N5ZarrReader.VERSION));
 
 			final JsonObject bumpVersion = new JsonObject();
-			bumpVersion.add( ZarrUtils.ZARR_FORMAT_KEY, new JsonPrimitive( N5ZarrReader.VERSION.getMajor() + 1));
+			bumpVersion.add( ZarrKeyValueReader.ZARR_FORMAT_KEY, new JsonPrimitive( N5ZarrReader.VERSION.getMajor() + 1));
 			zarr.writeZGroup("", bumpVersion);
 
 			final Version version = writer.getVersion();

@@ -124,8 +124,8 @@ public class ZArrayAttributes {
 		final int[] blockSize = chunks.clone();
 
 		if (isRowMajor) {
-			ZarrUtils.reorder(dimensions);
-			ZarrUtils.reorder(blockSize);
+			ZarrKeyValueWriter.reorder(dimensions);
+			ZarrKeyValueWriter.reorder(blockSize);
 		}
 
 		return new ZarrDatasetAttributes(
