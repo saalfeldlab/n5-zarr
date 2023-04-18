@@ -162,6 +162,8 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 	@Override
 	public void createGroup(final String path) throws IOException {
 
+		// Overridden to change the cache key, though it may not be necessary
+		// since the contents is null
 		final String normalPath = N5URL.normalizeGroupPath(path);
 		keyValueAccess.createDirectories(groupPath(normalPath));
 		if (cacheMeta) {
@@ -170,12 +172,14 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 				String parent = N5URL.normalizeGroupPath("/");
 				for (String child : pathParts) {
 					final String childPath = keyValueAccess.compose(parent, child);
-					cache.addChild(parent, child);
+					// add the group to the cache
+					getCache().addNewCacheInfo(childPath, zgroupFile, null, true, false);
+					getCache().addChild(parent, child);
 					parent = childPath;
 				}
 			}
 		}
-		initializeGroup(normalPath);
+		initializeGroup(normalPath); // caches the contents of .zgroup
 	}
 
 	@Override
@@ -183,18 +187,15 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final String path,
 			final DatasetAttributes datasetAttributes) throws IOException {
 
+		// Overriding because CachedGsonKeyValueWriter calls createGroup.
+		// Not correct for zarr, since groups and datasets are mutually exclusive
 		final String normalPath = N5URL.normalizeGroupPath(path);
-//		if (cacheMeta) {
-//			final N5GroupInfo info = createCachedGroup(normalPath);
-//			synchronized (info) {
-//				setDatasetAttributes(normalPath, datasetAttributes);
-//				info.isDataset = true;
-//			}
-//		} else {
-			final String absPath = groupPath(normalPath);
-			keyValueAccess.createDirectories(absPath);
-			setDatasetAttributes(normalPath, datasetAttributes);
-//		}
+		final String absPath = groupPath(normalPath);
+		keyValueAccess.createDirectories(absPath);
+		setDatasetAttributes(normalPath, datasetAttributes);
+
+		if (cacheMeta())
+			getCache().setIsDataset(normalPath, true);
 	}
 
 
@@ -207,9 +208,8 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		if (!exists(normalPath))
 			throw new N5Exception.N5IOException("" + normalPath + " is not a group or dataset.");
 
-		// TODO cache here or in writeAttributes?
+		// cache here or in writeAttributes?
 		// I think in writeAttributes is better - let it delegate to writeZArray, writeZAttrs, writeZGroup
-
 		final JsonElement existingAttributes = getAttributes(normalPath); // uses cache
 		JsonElement newAttributes = existingAttributes != null && existingAttributes.isJsonObject() ? existingAttributes.getAsJsonObject() : new JsonObject();
 		newAttributes = GsonUtils.insertAttributes(newAttributes, attributes, gson);
@@ -314,32 +314,18 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		writeZArray(pathName, gson.toJsonTree(attributes.asMap()));
 	}
 
-	public void setZGroup( final String pathName, final Version version ) throws IOException {
+	protected void setZGroup( final String pathName, final Version version ) throws IOException {
 
-		// TODO probably shouldn't be public, but leave it for now for testVersion 
+		// used in testVersion 
 		writeZGroup(pathName, gson.toJsonTree(version));
 	}
 
 	protected void writeJsonResource(final String normalResourcePath, final JsonElement attributes) throws IOException {
 
-		// TODO the same as normalWriteJsonResource at the moment,
-		// keeping this around for now if I decide to move cache logic here.
-
-//		if (cacheMeta) {
-//			final JsonElement cachedAttrs = cache.getAttributes(normalResourcePath, "");
-//
-//		} else {
-			normalWriteJsonResource(normalResourcePath, attributes);
-//		}
-	}
-
-	protected void normalWriteJsonResource(final String normalResourcePath, final JsonElement attributes) throws IOException {
-
 		if (attributes == null)
 			return;
 		final String absolutePath = keyValueAccess.compose(basePath, normalResourcePath);
 		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
-//			final JsonElement root = GsonUtils.insertAttribute( GsonUtils.readAttributes(lock.newReader(), gson), "/", attributes, gson);
 			GsonUtils.writeAttributes(lock.newWriter(), attributes, gson);
 		}
 	}
@@ -349,14 +335,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final JsonElement attributes) throws IOException {
 
 		writeJsonResource(zArrayPath(normalGroupPath), attributes);
-		if( cacheMeta ) {
-			// TODO updateCacheInfo doesn't update attributes
-			// cache.updateCacheInfo(normalGroupPath, ZarrUtils.zarrayFile, attributes);
-
-			//cache.setCacheInfo(normalGroupPath, ZarrUtils.zarrayFile, attributes, false, true);
-
-			// TODO would be cool to be able to manually set isGroup and isDataset on update
-			// because as it is, the cache needlessly checks the backend after this call (I think)
+		if (cacheMeta()) {
 			cache.updateCacheInfo(normalGroupPath, zarrayFile, attributes);
 		}
 	}
@@ -366,16 +345,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final JsonElement attributes) throws IOException {
 
 		writeJsonResource(zGroupPath(normalGroupPath), attributes);
-		if( cacheMeta ) {
-			// TODO updateCacheInfo doesn't update attributes
-			// cache.updateCacheInfo(normalGroupPath, ZarrUtils.zgroupFile, attributes);
-
-			//cache.setCacheInfo(normalGroupPath, ZarrUtils.zgroupFile, attributes, true, false);
-
-			// TODO would be cool to be able to manually set isGroup and isDataset on update
-			// because as it is, the cache needlessly checks the backend after this call (I think)
-//			cache.updateCacheInfo(normalGroupPath, ZarrUtils.zgroupFile, attributes);
-
+		if (cacheMeta()) {
 			cache.updateCacheInfo(normalGroupPath, zgroupFile);
 		}
 	}
@@ -385,14 +355,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final JsonElement attributes) throws IOException {
 
 		writeJsonResource(zAttrsPath(normalGroupPath), attributes);
-		if( cacheMeta ) {
-			// TODO updateCacheInfo doesn't update attributes
-			// cache.updateCacheInfo(normalGroupPath, ZarrUtils.zattrsFile, attributes);
-//			cache.setCacheInfo(normalGroupPath, ZarrUtils.zattrsFile, attributes, 
-//					groupExists(normalGroupPath), datasetExists(normalGroupPath));
-
-//			cache.updateCacheInfo(normalGroupPath, ZarrUtils.zattrsFile, attributes);
-
+		if (cacheMeta()) {
 			cache.updateCacheInfo(normalGroupPath, zattrsFile);
 		}
 	}
@@ -487,72 +450,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 		// an IOException should have occurred if anything had failed midway
 		return true;
-	}
-
-	@Override
-	public DataBlock<?> readBlock(
-			final String pathName,
-			final DatasetAttributes datasetAttributes,
-			final long... gridPosition) throws IOException {
-
-		// TODO copied from ZarrKeyValueReader
-
-		final ZarrDatasetAttributes zarrDatasetAttributes;
-		if (datasetAttributes instanceof ZarrDatasetAttributes)
-			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
-		else
-			zarrDatasetAttributes = getDatasetAttributes( pathName );
-
-		final String absolutePath = keyValueAccess.compose(basePath, pathName,
-				ZarrKeyValueReader.getZarrDataBlockPath(gridPosition,
-						zarrDatasetAttributes.getDimensionSeparator(),
-						zarrDatasetAttributes.isRowMajor()));
-
-		if (!keyValueAccess.exists(absolutePath))
-			return null;
-
-		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
-			return readBlock(lockedChannel.newInputStream(), zarrDatasetAttributes, gridPosition);
-		}
-	}
-
-	/**
-	 * Reads a {@link DataBlock} from an {@link InputStream}.
-	 *
-	 * @param in
-	 * @param datasetAttributes
-	 * @param gridPosition
-	 * @return
-	 * @throws IOException
-	 */
-	@SuppressWarnings("incomplete-switch")
-	public static DataBlock<?> readBlock(
-			final InputStream in,
-			final ZarrDatasetAttributes datasetAttributes,
-			final long... gridPosition) throws IOException {
-
-		// TODO copied from ZarrKeyValueReader
-
-		final int[] blockSize = datasetAttributes.getBlockSize();
-		final DType dType = datasetAttributes.getDType();
-
-		final ByteArrayDataBlock byteBlock = dType.createByteBlock(blockSize, gridPosition);
-		final BlockReader reader = datasetAttributes.getCompression().getReader();
-		reader.read(byteBlock, in);
-
-		switch (dType.getDataType()) {
-		case UINT8:
-		case INT8:
-			return byteBlock;
-		}
-
-		/* else translate into target type */
-		final DataBlock<?> dataBlock = dType.createDataBlock(blockSize, gridPosition);
-		final ByteBuffer byteBuffer = byteBlock.toByteBuffer();
-		byteBuffer.order(dType.getOrder());
-		dataBlock.readData(byteBuffer);
-
-		return dataBlock;
 	}
 
 	@Override
