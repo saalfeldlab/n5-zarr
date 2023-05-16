@@ -49,6 +49,53 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 	 * {@link GsonBuilder} to support custom attributes.
 	 *
 	 * @param basePath Zarr base path
+	 * @param gsonBuilder the gson builder
+	 * @param mapN5DatasetAttributes
+	 * 	  If true, getAttributes and variants of getAttribute methods will
+	 * 	  contain keys used by n5 datasets, and whose values are those for
+	 *    their corresponding zarr fields. For example, if true, the key "dimensions"
+	 *    (from n5) may be used to obtain the value of the key "shape" (from zarr).
+	 * @param mergeAttributes
+	 * 	  If true, fields from .zgroup, .zarray, and .zattrs will be merged
+	 *    when calling getAttributes, and variants of getAttribute
+	 * @param cacheMeta cache attributes and meta data
+	 * @param cacheMeta cache attributes and meta data
+	 *    Setting this to true avoids frequent reading and parsing of JSON
+	 *    encoded attributes and other meta data that requires accessing the
+	 *    store. This is most interesting for high latency backends. Changes
+	 *    of cached attributes and meta data by an independent writer on the
+	 *    same container will not be tracked.
+	 *
+	 * @throws IOException
+	 *    if the base path cannot be read or does not exist,
+	 *    if the N5 version of the container is not compatible with this
+	 *    implementation.
+	 */
+	public N5ZarrReader(final String basePath,
+			final GsonBuilder gsonBuilder,
+			final boolean mapN5DatasetAttributes,
+			final boolean mergeAttributes,
+			final boolean cacheMeta) throws IOException {
+
+		super(
+				new FileSystemKeyValueAccess(FileSystems.getDefault()),
+				basePath,
+				gsonBuilder
+					.registerTypeAdapter(DType.class, new DType.JsonAdapter())
+					.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter),
+				mapN5DatasetAttributes,
+				mergeAttributes,
+				cacheMeta);
+
+		if( !exists("/"))
+			throw new IOException("No container exists at " + basePath );
+	}
+
+	/**
+	 * Opens an {@link N5ZarrReader} at a given base path with a custom
+	 * {@link GsonBuilder} to support custom attributes.
+	 *
+	 * @param basePath Zarr base path
 	 * @param gsonBuilder
 	 * @param cacheMeta cache attributes and meta data
 	 *    Setting this to true avoids frequent reading and parsing of JSON
@@ -62,20 +109,11 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
 	 */
-	public N5ZarrReader(final String basePath, final GsonBuilder gsonBuilder, final boolean cacheMeta) throws IOException {
+	public N5ZarrReader(final String basePath,
+			final GsonBuilder gsonBuilder,
+			final boolean cacheMeta) throws IOException {
 
-		super(
-				new FileSystemKeyValueAccess(FileSystems.getDefault()),
-				basePath,
-				gsonBuilder
-					.registerTypeAdapter(DType.class, new DType.JsonAdapter())
-					.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter),
-				true,
-				true,
-				cacheMeta);
-
-		if( !exists("/"))
-			throw new IOException("No container exists at " + basePath );
+		this( basePath, gsonBuilder, true, true, cacheMeta );
 	}
 
 	/**

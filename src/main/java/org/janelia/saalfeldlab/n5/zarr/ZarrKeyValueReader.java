@@ -91,7 +91,15 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 	 * @param checkVersion perform version check
 	 * @param keyValueAccess
 	 * @param basePath N5 base path
-	 * @param gsonBuilder
+	 * @param gsonBuilder the gson builder
+	 * @param mapN5DatasetAttributes
+	 * 	  If true, getAttributes and variants of getAttribute methods will
+	 * 	  contain keys used by n5 datasets, and whose values are those for
+	 *    their corresponding zarr fields. For example, if true, the key "dimensions"
+	 *    (from n5) may be used to obtain the value of the key "shape" (from zarr).
+	 * @param mergeAttributes
+	 * 	  If true, fields from .zgroup, .zarray, and .zattrs will be merged
+	 *    when calling getAttributes, and variants of getAttribute
 	 * @param cacheMeta cache attributes and meta data
 	 *    Setting this to true avoids frequent reading and parsing of JSON
 	 *    encoded attributes and other meta data that requires accessing the
