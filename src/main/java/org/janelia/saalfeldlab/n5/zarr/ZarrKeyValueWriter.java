@@ -26,15 +26,12 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import org.janelia.saalfeldlab.n5.BlockReader;
 import org.janelia.saalfeldlab.n5.BlockWriter;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DataBlock;
@@ -112,16 +109,16 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		if (exists("/")) {
 			final Version version = getVersion();
 			if (!ZarrKeyValueReader.VERSION.isCompatible(version))
-				throw new IOException("Incompatible version " + version + " (this is " + ZarrKeyValueReader.VERSION + ").");
-		}
-		else
-		{
+				throw new IOException(
+						"Incompatible version " + version + " (this is " + ZarrKeyValueReader.VERSION + ").");
+		} else {
 			createGroup("/");
 			setVersion("/");
 		}
 	}
 
 	protected void setVersion(final String path) throws IOException {
+
 		setVersion( path, false );
 	}
 
@@ -166,7 +163,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		// since the contents is null
 		final String normalPath = N5URL.normalizeGroupPath(path);
 		keyValueAccess.createDirectories(groupPath(normalPath));
-		if (cacheMeta) {
+		if (cacheMeta()) {
 			final String[] pathParts = keyValueAccess.components(normalPath);
 			if (pathParts.length > 1) {
 				String parent = N5URL.normalizeGroupPath("/");
@@ -192,10 +189,14 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		final String normalPath = N5URL.normalizeGroupPath(path);
 		final String absPath = groupPath(normalPath);
 		keyValueAccess.createDirectories(absPath);
-		setDatasetAttributes(normalPath, datasetAttributes);
 
+		// These three lines are preferable to setDatasetAttributes because they
+		// are more efficient wrt caching
+		final ZArrayAttributes zarray = createZArrayAttributes(datasetAttributes);
+		final JsonElement attributes = gson.toJsonTree(zarray.asMap());
+		writeJsonResource(zArrayPath(normalPath), attributes);
 		if (cacheMeta())
-			getCache().setIsDataset(normalPath, true);
+			getCache().addNewCacheInfo(normalPath, zarrayFile, attributes, false, true);
 	}
 
 
@@ -238,7 +239,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 		if (key.equals("/")) {
 			writeJsonResource(normalAttrPathName, JsonNull.INSTANCE);
-			if (cacheMeta)
+			if (cacheMeta())
 				cache.updateCacheInfo( absoluteNormalPath, zattrsFile, JsonNull.INSTANCE);
 
 			return true;
@@ -247,7 +248,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		final JsonElement attributes = getZAttributes(normalPath); // uses cache
 		if (GsonUtils.removeAttribute(attributes, normalKey) != null) {
 
-			if (cacheMeta)
+			if (cacheMeta())
 				cache.updateCacheInfo( absoluteNormalPath, zattrsFile, attributes);
 
 			writeJsonResource(normalAttrPathName, attributes);
@@ -266,7 +267,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		final JsonElement attributes = getZAttributes(normalPath); // uses cache
 		final T obj = GsonUtils.removeAttribute(attributes, normalKey, cls, gson);
 		if (obj != null) {
-			if (cacheMeta)
+			if (cacheMeta())
 				cache.updateCacheInfo(normalPath, zattrsFile, attributes);
 
 			writeJsonResource(normalAttrPathName, attributes);
@@ -290,6 +291,11 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final String pathName,
 			final DatasetAttributes datasetAttributes) throws IOException {
 
+		setZArrayAttributes(pathName, createZArrayAttributes(datasetAttributes));
+	}
+
+	protected ZArrayAttributes createZArrayAttributes(final DatasetAttributes datasetAttributes) {
+
 		final long[] shape = datasetAttributes.getDimensions().clone();
 		reorder(shape);
 		final int[] chunks = datasetAttributes.getBlockSize().clone();
@@ -306,7 +312,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 				dimensionSeparator,
 				null);
 
-		setZArrayAttributes(pathName, zArrayAttributes);
+		return zArrayAttributes;
 	}
 
 	public void setZArrayAttributes( final String pathName, final ZArrayAttributes attributes) throws IOException {
@@ -438,7 +444,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 	public boolean remove(final String path) throws IOException {
 
 		final String normalGroupPath = groupPath(N5URL.normalizeGroupPath(path));
-		if (cacheMeta) {
+		if (cacheMeta()) {
 			final String[] parts = keyValueAccess.components(normalGroupPath);
 			String parentPath = keyValueAccess.compose(
 					Arrays.stream(parts).limit(parts.length - 1).toArray(String[]::new));
