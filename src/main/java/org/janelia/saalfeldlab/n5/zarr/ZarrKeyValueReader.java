@@ -726,4 +726,9 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 		return gsonBuilder;
 	}
 
+	@Override
+	public String getContainerURI() {
+		return basePath; // TODO fix
+	}
+
 }
