@@ -241,7 +241,10 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 	 */
 	public boolean existsFromContainer(final String normalPathName) {
 
-		return keyValueAccess.exists(groupPath(normalPathName));
+		// A cloud keyValueAccess may return false for exists(groupPath(normalPathName)),
+		// so instead need to check for existence of either .zarray or .zgroup
+		return keyValueAccess.exists(zGroupAbsolutePath(normalPathName)) ||
+			keyValueAccess.exists(zArrayAbsolutePath(normalPathName));
 	}
 
 	@Override
