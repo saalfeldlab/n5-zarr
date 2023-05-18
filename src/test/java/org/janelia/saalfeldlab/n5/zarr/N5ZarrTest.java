@@ -42,12 +42,16 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
 import org.janelia.saalfeldlab.n5.AbstractN5Test;
@@ -93,7 +97,10 @@ import net.imglib2.view.Views;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public class N5ZarrTest extends AbstractN5Test {
+
 	static private String testZarrDatasetName = "/test/data";
+
+	protected static Set<String> tmpFiles = new HashSet<>();
 
 	@AfterClass
 	public static void cleanup() {
@@ -109,6 +116,12 @@ public class N5ZarrTest extends AbstractN5Test {
 	private static String createTestDirPath(String prefix) throws IOException {
 
 		return Files.createTempDirectory(prefix).toFile().getCanonicalPath();
+	}
+
+	@Override
+	protected String tempN5Location() throws URISyntaxException {
+
+		return new URI("file", null, tmpPathName(), null).toString();
 	}
 
 	protected static String tmpPathName() {
@@ -269,7 +282,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Test
 	@Override
-	public void testReaderCreation() throws IOException {
+	public void testReaderCreation() throws IOException, URISyntaxException {
 
 		final File tmpFile = Files.createTempDirectory("reader-create-test-").toFile();
 		tmpFile.delete();
