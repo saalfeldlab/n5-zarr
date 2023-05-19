@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.n5.BlockWriter;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
@@ -190,13 +191,21 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		final String absPath = groupPath(normalPath);
 		keyValueAccess.createDirectories(absPath);
 
+		// create parent group
+		final String[] pathParts = keyValueAccess.components(normalPath);
+		final String parent = Arrays.stream( pathParts ).limit( pathParts.length - 1 ).collect(Collectors.joining("/"));
+		createGroup( parent );
+
 		// These three lines are preferable to setDatasetAttributes because they
 		// are more efficient wrt caching
 		final ZArrayAttributes zarray = createZArrayAttributes(datasetAttributes);
 		final JsonElement attributes = gson.toJsonTree(zarray.asMap());
 		writeJsonResource(zArrayPath(normalPath), attributes);
-		if (cacheMeta())
+		if (cacheMeta()) {
+			// cache dataset and add as child to parent
 			getCache().addNewCacheInfo(normalPath, zarrayFile, attributes, false, true);
+			getCache().addChild(parent, pathParts[pathParts.length - 1]);
+		}
 	}
 
 
@@ -443,16 +452,17 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 	@Override
 	public boolean remove(final String path) throws IOException {
 
-		final String normalGroupPath = groupPath(N5URL.normalizeGroupPath(path));
+		final String normalGroupPath = N5URL.normalizeGroupPath(path);
 		if (cacheMeta()) {
 			final String[] parts = keyValueAccess.components(normalGroupPath);
-			String parentPath = keyValueAccess.compose(
-					Arrays.stream(parts).limit(parts.length - 1).toArray(String[]::new));
+			final String parentPath = keyValueAccess
+					.compose(Arrays.stream(parts).limit(parts.length - 1).toArray(String[]::new));
 			cache.removeCache(parentPath, normalGroupPath);
 		}
 
+		final String normalAbsolutePath = groupPath(normalGroupPath);
 		// TODO check existence first? should not matter.
-		keyValueAccess.delete(normalGroupPath);
+		keyValueAccess.delete(normalAbsolutePath);
 
 		// an IOException should have occurred if anything had failed midway
 		return true;
