@@ -107,12 +107,15 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 				mapN5DatasetAttributes, mergeAttributes, cacheAttributes );
 		this.dimensionSeparator = dimensionSeparator;
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
+		Version version = null;
 		if (exists("/")) {
-			final Version version = getVersion();
+			version = getVersion();
 			if (!ZarrKeyValueReader.VERSION.isCompatible(version))
 				throw new IOException(
 						"Incompatible version " + version + " (this is " + ZarrKeyValueReader.VERSION + ").");
-		} else {
+		}
+
+		if (version == null || version == VERSION_ZERO) {
 			createGroup("/");
 			setVersion("/");
 		}
@@ -164,20 +167,21 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		// since the contents is null
 		final String normalPath = N5URL.normalizeGroupPath(path);
 		keyValueAccess.createDirectories(groupPath(normalPath));
-		if (cacheMeta()) {
-			final String[] pathParts = keyValueAccess.components(normalPath);
-			if (pathParts.length > 1) {
-				String parent = N5URL.normalizeGroupPath("/");
-				for (String child : pathParts) {
-					final String childPath = keyValueAccess.compose(parent, child);
-					// add the group to the cache
-					getCache().addNewCacheInfo(childPath, zgroupFile, null, true, false);
-					getCache().addChild(parent, child);
-					parent = childPath;
-				}
+
+		final JsonObject versionObject = new JsonObject();
+		versionObject.add(ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
+
+		final String[] components = keyValueAccess.components(normalPath);
+		String currentPath = "";
+		try {
+			for (int i = 0; i < components.length; i++) {
+				currentPath = keyValueAccess.compose(currentPath, components[i]);
+				if( cacheMeta())
+					getCache().forceAddNewCacheInfo(normalPath, zgroupFile, null, true, false );
+
+				setVersion(currentPath, true);
 			}
-		}
-		initializeGroup(normalPath); // caches the contents of .zgroup
+		} catch (IOException e) { }
 	}
 
 	@Override
@@ -202,9 +206,9 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		final JsonElement attributes = gson.toJsonTree(zarray.asMap());
 		writeJsonResource(zArrayPath(normalPath), attributes);
 		if (cacheMeta()) {
-			// cache dataset and add as child to parent
-			getCache().addNewCacheInfo(normalPath, zarrayFile, attributes, false, true);
-			getCache().addChild(parent, pathParts[pathParts.length - 1]);
+			// cache dataset and add as child to parent if necessary
+			getCache().forceAddNewCacheInfo(normalPath, zarrayFile, attributes, false, true);
+			getCache().addChildIfPresent(parent, pathParts[pathParts.length - 1]);
 		}
 	}
 
@@ -249,7 +253,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		if (key.equals("/")) {
 			writeJsonResource(normalAttrPathName, JsonNull.INSTANCE);
 			if (cacheMeta())
-				cache.updateCacheInfo( absoluteNormalPath, zattrsFile, JsonNull.INSTANCE);
+				cache.updateCacheInfo( normalPath, zattrsFile, JsonNull.INSTANCE);
 
 			return true;
 		}
@@ -258,7 +262,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		if (GsonUtils.removeAttribute(attributes, normalKey) != null) {
 
 			if (cacheMeta())
-				cache.updateCacheInfo( absoluteNormalPath, zattrsFile, attributes);
+				cache.updateCacheInfo( normalPath, zattrsFile, attributes);
 
 			writeJsonResource(normalAttrPathName, attributes);
 			return true;
@@ -349,6 +353,9 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final String normalGroupPath,
 			final JsonElement attributes) throws IOException {
 
+		if (attributes == null)
+			return;
+
 		writeJsonResource(zArrayPath(normalGroupPath), attributes);
 		if (cacheMeta()) {
 			cache.updateCacheInfo(normalGroupPath, zarrayFile, attributes);
@@ -359,9 +366,12 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final String normalGroupPath,
 			final JsonElement attributes) throws IOException {
 
+		if (attributes == null)
+			return;
+
 		writeJsonResource(zGroupPath(normalGroupPath), attributes);
 		if (cacheMeta()) {
-			cache.updateCacheInfo(normalGroupPath, zgroupFile);
+			cache.updateCacheInfo(normalGroupPath, zgroupFile, attributes);
 		}
 	}
 
@@ -369,9 +379,12 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final String normalGroupPath,
 			final JsonElement attributes) throws IOException {
 
+		if (attributes == null)
+			return;
+
 		writeJsonResource(zAttrsPath(normalGroupPath), attributes);
 		if (cacheMeta()) {
-			cache.updateCacheInfo(normalGroupPath, zattrsFile);
+			cache.updateCacheInfo(normalGroupPath, zattrsFile, attributes);
 		}
 	}
 
