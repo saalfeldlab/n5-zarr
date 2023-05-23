@@ -215,16 +215,20 @@ public class ZArrayAttributes {
 
 			final JsonObject obj = json.getAsJsonObject();
 			final JsonElement sepElem = obj.get("dimension_separator");
-			return new ZArrayAttributes(
-					obj.get("zarr_format").getAsInt(),
-					context.deserialize( obj.get("shape"), long[].class),
-					context.deserialize( obj.get("chunks"), int[].class),
-					context.deserialize( obj.get("dtype"), DType.class),// fix
-					context.deserialize( obj.get("compressor"), ZarrCompressor.class), // fix
-					obj.get("fill_value").getAsString(),
-					obj.get("order").getAsCharacter(),
-					sepElem != null ? sepElem.getAsString() : ".",
-					context.deserialize( obj.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType()));
+			try {
+				return new ZArrayAttributes(
+						obj.get("zarr_format").getAsInt(),
+						context.deserialize( obj.get("shape"), long[].class),
+						context.deserialize( obj.get("chunks"), int[].class),
+						context.deserialize( obj.get("dtype"), DType.class), // fix
+						context.deserialize( obj.get("compressor"), ZarrCompressor.class), // fix
+						obj.get("fill_value").getAsString(),
+						obj.get("order").getAsCharacter(),
+						sepElem != null ? sepElem.getAsString() : ".",
+						context.deserialize( obj.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType()));
+			} catch (Exception e) {
+				return null;
+			}
 		}
 
 	}
