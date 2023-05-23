@@ -265,6 +265,10 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 		return keyValueAccess.isFile(keyValueAccess.compose(basePath, normalPath, zgroupFile));
 	}
 
+	public boolean isGroupFromAttributes(final String normalCacheKey, final JsonElement attributes) {
+		return attributes != null && attributes.isJsonObject() && attributes.getAsJsonObject().has(ZARR_FORMAT_KEY);
+	}
+
 	@Override
 	public boolean datasetExists(final String pathName) throws N5Exception.N5IOException {
 
@@ -277,7 +281,21 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 
 	public boolean isDatasetFromContainer(String normalPathName) throws N5Exception.N5IOException {
 
-		return keyValueAccess.isFile(keyValueAccess.compose(basePath, normalPathName, zarrayFile));
+		if (keyValueAccess.isFile(keyValueAccess.compose(basePath, normalPathName, zarrayFile))) {
+			return isDatasetFromAttributes( zarrayFile, getAttributesFromContainer(normalPathName, zarrayFile));
+		} else {
+			return false;
+		}
+
+	}
+
+	public boolean isDatasetFromAttributes(final String normalCacheKey, final JsonElement attributes) {
+		if( attributes != null && attributes.isJsonObject() ) {
+			return createDatasetAttributes(attributes) != null;
+		}
+		else {
+			return false;
+		}
 	}
 
 	protected DatasetAttributes normalReadDatasetAttributes(final String pathName) throws N5Exception.N5IOException {
