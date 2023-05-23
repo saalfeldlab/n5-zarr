@@ -47,6 +47,7 @@ import org.janelia.saalfeldlab.n5.N5URL;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
+import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -63,7 +64,8 @@ import com.google.gson.JsonObject;
  */
 public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCacheableContainer {
 
-	public static Version VERSION = new Version(2, 0, 0);
+	public static final Version VERSION_ZERO = new Version(0, 0, 0);
+	public static final Version VERSION = new Version(2, 0, 0);
 	public static final String ZARR_FORMAT_KEY = "zarr_format";
 
 	public static final String zarrayFile = ".zarray";
@@ -213,10 +215,10 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 
 		// Note: getZarray and getZGroup use cache if available.
 		if( datasetExists("")) {
-			return getVersion(getZArray("").getAsJsonObject());
+			return getVersion(getZArray(""));
 		}
 		else if( groupExists( "" )) {
-			return getVersion(getZGroup("").getAsJsonObject());
+			return getVersion(getZGroup(""));
 		}
 		return VERSION;
 	}
@@ -229,7 +231,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 		final String normalPathName = N5URL.normalizeGroupPath( pathName );
 
 		// Note that datasetExists and groupExists use the cache
-		return datasetExists( normalPathName ) || groupExists( normalPathName );
+		return groupExists(normalPathName) || datasetExists(normalPathName);
 	}
 
 	/**
@@ -672,9 +674,13 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, basePath);
 	}
 
-	protected static Version getVersion( final JsonObject json )
+	protected static Version getVersion( final JsonElement json )
 	{
-		final JsonElement fmt = json.get(ZARR_FORMAT_KEY);
+		if (json == null || !json.isJsonObject()) {
+			return VERSION_ZERO;
+		}
+
+		final JsonElement fmt = json.getAsJsonObject().get(ZARR_FORMAT_KEY);
 		if (fmt.isJsonPrimitive())
 			return new Version(fmt.getAsInt(), 0, 0);
 
