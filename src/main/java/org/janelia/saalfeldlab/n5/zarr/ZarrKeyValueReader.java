@@ -134,7 +134,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 			// note normalExists isn't quite the normal version of exists.
 			// rather, it only checks for the existence of the requested on the backend
 			// (this is the desired behavior the cache needs
-			cache = new ZarrJsonCache(this);
+			cache = newCache();
 		else
 			cache = null;
 	}
@@ -173,6 +173,12 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 	public Gson getGson() {
 
 		return gson;
+	}
+
+	@Override
+	public ZarrJsonCache newCache() {
+
+		return new ZarrJsonCache(this);
 	}
 
 	@Override
