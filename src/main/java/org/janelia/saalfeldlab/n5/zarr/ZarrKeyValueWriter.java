@@ -41,6 +41,7 @@ import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
+import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5URL;
 import org.janelia.saalfeldlab.n5.N5Writer;
 
@@ -121,7 +122,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		}
 	}
 
-	protected void setVersion(final String path) throws IOException {
+	public void setVersion(final String path) throws IOException {
 
 		setVersion( path, false );
 	}
@@ -171,15 +172,26 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		final JsonObject versionObject = new JsonObject();
 		versionObject.add(ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
 
-		final String[] components = keyValueAccess.components(normalPath);
-		String currentPath = "";
-		try {
-			for (int i = 0; i < components.length; i++) {
-				currentPath = keyValueAccess.compose(currentPath, components[i]);
-				if( cacheMeta())
-					getCache().forceAddNewCacheInfo(normalPath, zgroupFile, null, true, false );
+		String[] pathParts = getKeyValueAccess().components(normalPath);
+		String parent = N5URL.normalizeGroupPath("/");
+		if (pathParts.length == 0) {
+			pathParts = new String[] { "" };
+		}
 
-				setVersion(currentPath, true);
+		try {
+			for (String child : pathParts) {
+
+				final String childPath = getKeyValueAccess().compose(parent, child);
+				if (cacheMeta()) {
+					getCache().forceAddNewCacheInfo(childPath, zgroupFile, null, true, false);
+
+					// only add if the parent exists and has children cached already
+					if (parent != null && !child.isEmpty())
+						getCache().addChildIfPresent(parent, child);
+				}
+
+				setVersion(childPath, true);
+				parent = childPath;
 			}
 		} catch (IOException e) { }
 	}

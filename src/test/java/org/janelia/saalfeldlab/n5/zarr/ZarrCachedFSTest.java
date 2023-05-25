@@ -1,12 +1,19 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
+import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.KeyValueAccess;
+import org.janelia.saalfeldlab.n5.N5CachedFSTest;
+import org.janelia.saalfeldlab.n5.N5CachedFSTest.TrackingStorage;
 import org.junit.Assert;
 import org.junit.Test;
 
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -90,6 +97,98 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 
 			Files.delete(Paths.get(attributesPath));
 			Assert.assertThrows(AssertionError.class, () -> runTests(zarr, tests));
+		}
+	}
+
+	@Test
+	public void cacheBehaviorTest() throws IOException, URISyntaxException {
+
+		final String loc = tempN5Location();
+		// make an uncached n5 writer
+		try (final ZarrTrackingStorage n5 = new ZarrTrackingStorage(
+				new FileSystemKeyValueAccess(FileSystems.getDefault()), loc, new GsonBuilder(), true)) {
+
+			N5CachedFSTest.cacheBehaviorHelper(n5);
+		}
+	}
+
+	public static class ZarrTrackingStorage extends ZarrKeyValueWriter implements TrackingStorage {
+
+		public int attrCallCount = 0;
+		public int existsCallCount = 0;
+		public int groupCallCount = 0;
+		public int groupAttrCallCount = 0;
+		public int datasetCallCount = 0;
+		public int datasetAttrCallCount = 0;
+		public int listCallCount = 0;
+
+		public ZarrTrackingStorage(final KeyValueAccess keyValueAccess, final String basePath,
+				final GsonBuilder gsonBuilder, final boolean cacheAttributes) throws IOException {
+
+			super(keyValueAccess, basePath, gsonBuilder, true, true, ".", cacheAttributes);
+		}
+
+		public JsonElement getAttributesFromContainer(final String key, final String cacheKey) {
+			attrCallCount++;
+			return super.getAttributesFromContainer(key, cacheKey);
+		}
+
+		public boolean existsFromContainer(final String path, final String cacheKey) {
+			existsCallCount++;
+			return super.existsFromContainer(path, cacheKey);
+		}
+
+		public boolean isGroupFromContainer(final String key) {
+			groupCallCount++;
+			return super.isGroupFromContainer(key);
+		}
+
+		public boolean isGroupFromAttributes(final String normalCacheKey, final JsonElement attributes) {
+			groupAttrCallCount++;
+			return super.isGroupFromAttributes(normalCacheKey, attributes);
+		}
+
+		public boolean isDatasetFromContainer(final String key) {
+			datasetCallCount++;
+			return super.isDatasetFromContainer(key);
+		}
+
+		public boolean isDatasetFromAttributes(final String normalCacheKey, final JsonElement attributes) {
+			datasetAttrCallCount++;
+			return super.isDatasetFromAttributes(normalCacheKey, attributes);
+		}
+
+		public String[] listFromContainer(final String key) {
+			listCallCount++;
+			return super.listFromContainer(key);
+		}
+
+		public int getAttrCallCount() {
+			return attrCallCount;
+		}
+
+		public int getExistCallCount() {
+			return existsCallCount;
+		}
+
+		public int getGroupCallCount() {
+			return groupCallCount;
+		}
+
+		public int getGroupAttrCallCount() {
+			return groupAttrCallCount;
+		}
+
+		public int getDatasetCallCount() {
+			return datasetCallCount;
+		}
+
+		public int getDatasetAttrCallCount() {
+			return datasetAttrCallCount;
+		}
+
+		public int getListCallCount() {
+			return listCallCount;
 		}
 	}
 }
