@@ -257,7 +257,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 		final String normalPath = N5URL.normalizeGroupPath(pathName);
 		final String normalAttrPathName = zAttrsPath(normalPath);
-		final String absoluteNormalPath = keyValueAccess.compose(basePath, normalAttrPathName);
+		final String absoluteNormalPath = keyValueAccess.compose(uri.getPath(), normalAttrPathName);
 		final String normalKey = N5URL.normalizeAttributePath(key);
 		if (!keyValueAccess.exists(absoluteNormalPath))
 			return false;
@@ -355,7 +355,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 		if (attributes == null)
 			return;
-		final String absolutePath = keyValueAccess.compose(basePath, normalResourcePath);
+		final String absolutePath = keyValueAccess.compose(uri.getPath(), normalResourcePath);
 		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
 			GsonUtils.writeAttributes(lock.newWriter(), attributes, gson);
 		}
@@ -455,7 +455,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 		final String normalPath = N5URL.normalizePath(pathName);
 		final String path = keyValueAccess.compose(
-				basePath,
+				uri.getPath(),
 				normalPath,
 				getZarrDataBlockPath(
 						dataBlock.getGridPosition(),
@@ -500,7 +500,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 		final String normPath = N5URL.normalizePath(path);
 		ZarrDatasetAttributes zarrDatasetAttributes = getDatasetAttributes(normPath);
-		final String absolutePath = keyValueAccess.compose(basePath, normPath,
+		final String absolutePath = keyValueAccess.compose(uri.getPath(), normPath,
 				ZarrKeyValueReader.getZarrDataBlockPath(gridPosition,
 						zarrDatasetAttributes.getDimensionSeparator(),
 						zarrDatasetAttributes.isRowMajor()));

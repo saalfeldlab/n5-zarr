@@ -273,7 +273,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertFalse(N5ZarrReader.VERSION.isCompatible(version));
 
 			// check that writer creation fails for incompatible version
-			assertThrows(IOException.class, () -> createN5Writer( writer.getBasePath() ));
+			assertThrows(IOException.class, () -> createN5Writer( writer.getURI().toString() ));
 
 //			final Version compatibleVersion = new Version(N5ZarrReader.VERSION.getMajor(), N5ZarrReader.VERSION.getMinor(), N5Reader.VERSION.getPatch());
 //			writer.setAttribute("/", ZarrUtils.ZARR_FORMAT_KEY, compatibleVersion.toString());

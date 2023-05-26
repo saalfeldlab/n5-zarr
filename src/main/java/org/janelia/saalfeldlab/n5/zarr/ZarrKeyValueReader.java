@@ -28,7 +28,10 @@ package org.janelia.saalfeldlab.n5.zarr;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -80,7 +83,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 
 	protected final boolean cacheMeta;
 
-	protected final String basePath;
+	protected URI uri;
 
 	final protected boolean mapN5DatasetAttributes;
 
@@ -124,11 +127,16 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 			final boolean cacheMeta) throws IOException {
 
 		this.keyValueAccess = keyValueAccess;
-		this.basePath = keyValueAccess.normalize(basePath);
 		this.gson = registerGson(gsonBuilder);
 		this.cacheMeta = cacheMeta;
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
 		this.mergeAttributes = mergeAttributes;
+
+		try {
+			uri = keyValueAccess.uri(keyValueAccess.normalize(basePath));
+		} catch (URISyntaxException e) {
+			throw new N5Exception(e);
+		}
 
 		if (cacheMeta)
 			// note normalExists isn't quite the normal version of exists.
@@ -198,9 +206,9 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 	}
 
 	@Override
-	public String getBasePath() {
+	public URI getURI() {
 
-		return this.basePath;
+		return uri;
 	}
 
 	@Override
@@ -208,7 +216,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 
 		// alternatively call compose twice, once with this functions inputs, then pass the result to the other groupPath method 
 		// this impl assumes streams and array building are less expensive than keyValueAccess composition (may not always be true)
-		return keyValueAccess.compose(Stream.concat(Stream.of(basePath), Arrays.stream(nodes)).toArray(String[]::new));
+		return keyValueAccess.compose(Stream.concat(Stream.of(uri.getPath()), Arrays.stream(nodes)).toArray(String[]::new));
 	}
 
 	/**
@@ -270,7 +278,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 
 	public boolean isGroupFromContainer(final String normalPath) {
 
-		return keyValueAccess.isFile(keyValueAccess.compose(basePath, normalPath, zgroupFile));
+		return keyValueAccess.isFile(keyValueAccess.compose(uri.getPath(), normalPath, zgroupFile));
 	}
 
 	public boolean isGroupFromAttributes(final String normalCacheKey, final JsonElement attributes) {
@@ -289,7 +297,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 
 	public boolean isDatasetFromContainer(String normalPathName) throws N5Exception.N5IOException {
 
-		if (keyValueAccess.isFile(keyValueAccess.compose(basePath, normalPathName, zarrayFile))) {
+		if (keyValueAccess.isFile(keyValueAccess.compose(uri.getPath(), normalPathName, zarrayFile))) {
 			return isDatasetFromAttributes( zarrayFile, getAttributesFromContainer(normalPathName, zarrayFile));
 		} else {
 			return false;
@@ -476,7 +484,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 	public JsonElement getAttributesFromContainer(final String normalResourceParent, final String normalResourcePath)
 			throws N5Exception.N5IOException {
 
-		final String absolutePath = keyValueAccess.compose(basePath, normalResourceParent, normalResourcePath);
+		final String absolutePath = keyValueAccess.compose(uri.getPath(), normalResourceParent, normalResourcePath);
 		if (!keyValueAccess.exists(absolutePath))
 			return null;
 
@@ -489,17 +497,17 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 
 	protected String zArrayAbsolutePath(final String normalPath) {
 
-		return keyValueAccess.compose(basePath, normalPath, zarrayFile);
+		return keyValueAccess.compose(uri.getPath(), normalPath, zarrayFile);
 	}
 
 	protected String zAttrsAbsolutePath(final String normalPath) {
 
-		return keyValueAccess.compose(basePath, normalPath, zattrsFile);
+		return keyValueAccess.compose(uri.getPath(), normalPath, zattrsFile);
 	}
 
 	protected String zGroupAbsolutePath(final String normalPath) {
 
-		return keyValueAccess.compose(basePath, normalPath, zgroupFile);
+		return keyValueAccess.compose(uri.getPath(), normalPath, zgroupFile);
 	}
 
 	protected String zArrayPath(final String normalPath) {
@@ -529,7 +537,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 		else
 			zarrDatasetAttributes = getDatasetAttributes( pathName );
 
-		final String absolutePath = keyValueAccess.compose(basePath, pathName,
+		final String absolutePath = keyValueAccess.compose(uri.getPath(), pathName,
 				getZarrDataBlockPath(gridPosition,
 						zarrDatasetAttributes.getDimensionSeparator(),
 						zarrDatasetAttributes.isRowMajor()));
@@ -677,7 +685,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 	@Override
 	public String toString() {
 
-		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, basePath);
+		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, uri.getPath());
 	}
 
 	protected static Version getVersion( final JsonElement json )
@@ -757,11 +765,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueReader, N5JsonCache
 		gsonBuilder.registerTypeAdapter(ZArrayAttributes.class, ZArrayAttributes.jsonAdapter);
 		gsonBuilder.disableHtmlEscaping();
 		return gsonBuilder;
-	}
-
-	@Override
-	public String getContainerURI() {
-		return basePath; // TODO fix
 	}
 
 }
