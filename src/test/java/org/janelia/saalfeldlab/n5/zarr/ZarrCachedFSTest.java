@@ -1,5 +1,14 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5CachedFSTest;
@@ -9,15 +18,6 @@ import org.junit.Test;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 
 public class ZarrCachedFSTest extends N5ZarrTest {
 
@@ -33,17 +33,18 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 	}
 
 	@Override
-	protected N5ZarrWriter createN5Writer(String location, GsonBuilder gsonBuilder) throws IOException {
+	protected N5ZarrWriter createN5Writer(final String location, final GsonBuilder gsonBuilder) throws IOException {
 
 		return createN5Writer(location, gsonBuilder, ".");
 	}
 
-	protected N5ZarrWriter createN5Writer(String location, String dimensionSeparator) throws IOException {
+	@Override
+	protected N5ZarrWriter createN5Writer(final String location, final String dimensionSeparator) throws IOException {
 
 		return createN5Writer(location, new GsonBuilder(), dimensionSeparator);
 	}
 
-	protected N5ZarrWriter createN5Writer(String location, GsonBuilder gsonBuilder, String dimensionSeparator, boolean cachedAttributes ) throws IOException {
+	protected N5ZarrWriter createN5Writer(final String location, final GsonBuilder gsonBuilder, final String dimensionSeparator, final boolean cachedAttributes ) throws IOException {
 
 		final Path testN5Path = Paths.get(location);
 		final boolean existsBefore = testN5Path.toFile().exists();
@@ -62,7 +63,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 			final String tmpPath = tmpFile.getCanonicalPath();
 			tmpFiles.add(tmpPath);
 			return tmpPath;
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -75,7 +76,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		final String cachedGroup = "cachedGroup";
 		try (ZarrKeyValueWriter zarr = (ZarrKeyValueWriter) createN5Writer()) {
 			zarr.createGroup(cachedGroup);
-			final String attributesPath = zarr.zAttrsAbsolutePath(cachedGroup);
+			final String attributesPath = zarr.getKeyValueAccess().compose(zarr.getURI().getPath(), cachedGroup, ZarrKeyValueReader.ZATTRS_FILE);
 
 			final ArrayList<TestData<?>> tests = new ArrayList<>();
 			addAndTest(zarr, tests, new TestData<>(cachedGroup, "a/b/c", 100));
@@ -86,9 +87,10 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 			runTests(zarr, tests);
 		}
 
-		try (ZarrKeyValueWriter zarr = (ZarrKeyValueWriter) createN5Writer(false)) {
+		try (final ZarrKeyValueWriter zarr = (ZarrKeyValueWriter) createN5Writer(false)) {
 			zarr.createGroup(cachedGroup);
-			final String attributesPath = zarr.zAttrsAbsolutePath(cachedGroup);
+			final String attributesPath = zarr.getKeyValueAccess().compose(zarr.getURI().getPath(), cachedGroup, ZarrKeyValueReader.ZATTRS_FILE);
+
 
 			final ArrayList<TestData<?>> tests = new ArrayList<>();
 			addAndTest(zarr, tests, new TestData<>(cachedGroup, "a/b/c", 100));
@@ -128,65 +130,79 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 			super(keyValueAccess, basePath, gsonBuilder, true, true, ".", cacheAttributes);
 		}
 
+		@Override
 		public JsonElement getAttributesFromContainer(final String key, final String cacheKey) {
 			attrCallCount++;
 			return super.getAttributesFromContainer(key, cacheKey);
 		}
 
+		@Override
 		public boolean existsFromContainer(final String path, final String cacheKey) {
 			existsCallCount++;
 			return super.existsFromContainer(path, cacheKey);
 		}
 
+		@Override
 		public boolean isGroupFromContainer(final String key) {
 			groupCallCount++;
 			return super.isGroupFromContainer(key);
 		}
 
+		@Override
 		public boolean isGroupFromAttributes(final String normalCacheKey, final JsonElement attributes) {
 			groupAttrCallCount++;
 			return super.isGroupFromAttributes(normalCacheKey, attributes);
 		}
 
+		@Override
 		public boolean isDatasetFromContainer(final String key) {
 			datasetCallCount++;
 			return super.isDatasetFromContainer(key);
 		}
 
+		@Override
 		public boolean isDatasetFromAttributes(final String normalCacheKey, final JsonElement attributes) {
 			datasetAttrCallCount++;
 			return super.isDatasetFromAttributes(normalCacheKey, attributes);
 		}
 
+		@Override
 		public String[] listFromContainer(final String key) {
 			listCallCount++;
 			return super.listFromContainer(key);
 		}
 
+		@Override
 		public int getAttrCallCount() {
 			return attrCallCount;
 		}
 
+		@Override
 		public int getExistCallCount() {
 			return existsCallCount;
 		}
 
+		@Override
 		public int getGroupCallCount() {
 			return groupCallCount;
 		}
 
+		@Override
 		public int getGroupAttrCallCount() {
 			return groupAttrCallCount;
 		}
 
+		@Override
 		public int getDatasetCallCount() {
 			return datasetCallCount;
 		}
 
+		@Override
 		public int getDatasetAttrCallCount() {
 			return datasetAttrCallCount;
 		}
 
+		@Override
 		public int getListCallCount() {
 			return listCallCount;
 		}

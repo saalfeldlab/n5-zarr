@@ -34,12 +34,12 @@ public class ZarrJsonCache extends N5JsonCache {
 
 			// if this path is a group, it it not a dataset
 			// if this path is a dataset, it it not a group
-			if (normalCacheKey.equals(ZarrKeyValueReader.zgroupFile)) {
+			if (normalCacheKey.equals(ZarrKeyValueReader.ZGROUP_FILE)) {
 				if (container.isGroupFromAttributes(normalCacheKey, attributesToCache)) {
 					updateCacheIsGroup(cacheInfo, true);
 					updateCacheIsDataset(cacheInfo, false);
 				}
-			} else if (normalCacheKey.equals(ZarrKeyValueReader.zarrayFile)) {
+			} else if (normalCacheKey.equals(ZarrKeyValueReader.ZARRAY_FILE)) {
 				if (container.isDatasetFromAttributes(normalCacheKey, attributesToCache)) {
 					updateCacheIsGroup(cacheInfo, false);
 					updateCacheIsDataset(cacheInfo, true);
@@ -63,9 +63,9 @@ public class ZarrJsonCache extends N5JsonCache {
 
 		// initialize cache keys to null, those that exist will be set later
 		// and having null's in the cache avoid backend calls for nonexisting files
-		updateCacheAttributes(cacheInfo, ZarrKeyValueReader.zgroupFile, null);
-		updateCacheAttributes(cacheInfo, ZarrKeyValueReader.zarrayFile, null);
-		updateCacheAttributes(cacheInfo, ZarrKeyValueReader.zattrsFile, null);
+		updateCacheAttributes(cacheInfo, ZarrKeyValueReader.ZGROUP_FILE, null);
+		updateCacheAttributes(cacheInfo, ZarrKeyValueReader.ZARRAY_FILE, null);
+		updateCacheAttributes(cacheInfo, ZarrKeyValueReader.ZATTRS_FILE, null);
 
 		if (normalCacheKey != null)
 			updateCacheAttributes(cacheInfo, normalCacheKey, uncachedAttributes);
