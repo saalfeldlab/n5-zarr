@@ -31,9 +31,9 @@ from pathlib import Path
 import numpy as np
 import zarr
 from numcodecs import Zlib, GZip, BZ2
+import sys
 
-# Nested directory store
-nested_test_path = Path.home() / 'tmp' / 'zarr-test-nested.zarr'
+nested_test_path = sys.argv[1]
 group_path = 'test/data'
 
 nested_store = zarr.NestedDirectoryStore(str(nested_test_path))

@@ -31,9 +31,12 @@ from pathlib import Path
 import numpy as np
 import zarr
 from numcodecs import Zlib, GZip, BZ2
+import sys
 
-test_path = Path.home() / 'tmp' / 'zarr-test.zarr'
+test_path = sys.argv[1]
 group_path = 'test/data'
+
+sys.stderr.write(test_path)
 
 store = zarr.DirectoryStore(str(test_path))
 root = zarr.group(store=store, overwrite=True)

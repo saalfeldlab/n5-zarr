@@ -112,24 +112,19 @@ public class N5ZarrTest extends AbstractN5Test {
 		}
 	}
 
-	private static String createTestDirPath(final String prefix) throws IOException {
-
-		return Files.createTempDirectory(prefix).toFile().getCanonicalPath();
-	}
-
 	@Override
 	protected String tempN5Location() throws URISyntaxException {
 
-		return new URI("file", null, tmpPathName(), null).toString();
+		return new URI("file", null, tmpPathName("n5-zarr-test-"), null).toString();
 	}
 
-	protected static String tmpPathName() {
+	protected static String tmpPathName(final String prefix) {
 
 		try {
-			final File tmpFile = Files.createTempDirectory("n5-zarr-test-").toFile();
-			tmpFile.deleteOnExit();
+			final File tmpFile = Files.createTempDirectory(prefix).toFile();
+			//tmpFile.deleteOnExit();
 			final String tmpPath = tmpFile.getCanonicalPath();
-			tmpFiles.add(tmpPath);
+			//tmpFiles.add(tmpPath);
 			return tmpPath;
 		} catch (final Exception e) {
 			throw new RuntimeException(e);
@@ -139,29 +134,30 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Override
 	protected N5ZarrWriter createN5Writer() throws IOException {
 
-		final String testDirPath = tmpPathName();
+		final String testDirPath = tmpPathName("n5-zarr-test-");
 		return createN5Writer(testDirPath, new GsonBuilder());
 	}
 
 	@Override
 	protected N5ZarrWriter createN5Writer(final String location, final GsonBuilder gsonBuilder) throws IOException {
 
-		return createN5Writer(location, gsonBuilder, ".");
+		return createN5Writer(location, gsonBuilder, ".", true);
 	}
 
 	protected N5ZarrWriter createN5Writer(final String location, final String dimensionSeparator) throws IOException {
 
-		return createN5Writer(location, new GsonBuilder(), dimensionSeparator);
+		return createN5Writer(location, new GsonBuilder(), dimensionSeparator, true);
 	}
 
 	protected N5ZarrWriter createN5Writer(
 			final String location,
 			final GsonBuilder gsonBuilder,
-			final String dimensionSeparator) throws IOException {
+			final String dimensionSeparator,
+			final boolean mapN5DatasetAttributes) throws IOException {
 
 		final Path testN5Path = Paths.get(location);
 		final boolean existsBefore = testN5Path.toFile().exists();
-		final N5ZarrWriter zarr = new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, true, false);
+		final N5ZarrWriter zarr = new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, false);
 		final boolean existsAfter = testN5Path.toFile().exists();
 		if (!existsBefore && existsAfter) {
 			tmpFiles.add(location);
@@ -208,7 +204,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		final String datasetName = "/test/nested/data";
 
-		final String testDirPath = createTestDirPath("n5-zarr-test-");
+		final String testDirPath = tmpPathName("n5-zarr-test-");
 		final N5ZarrWriter n5Nested = createN5Writer(testDirPath, "/");
 
 		n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
@@ -221,20 +217,20 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
-	public void testCreateDatasetNameEmpty() throws IOException {
+	public void testCreateDatasetNameEmpty() throws IOException, URISyntaxException {
 
-		final String testDirPath = createTestDirPath("n5-zarr-test-");
-		final N5ZarrWriter n5 = new N5ZarrWriter(testDirPath);
+		final String testDirPath = tmpPathName("n5-zarr-test-");
+		final N5Writer n5 = createN5Writer(testDirPath);
 		n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 		n5.remove();
 		n5.close();
 	}
 
 	@Test
-	public void testCreateDatasetNameSlash() throws IOException {
+	public void testCreateDatasetNameSlash() throws IOException, URISyntaxException {
 
-		final String testDirPath = createTestDirPath("n5-zarr-test-");
-		final N5ZarrWriter n5 = new N5ZarrWriter(testDirPath);
+		final String testDirPath = tmpPathName("n5-zarr-test-");
+		final N5Writer n5 = createN5Writer(testDirPath);
 		n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 		n5.remove();
 		n5.close();
@@ -387,14 +383,14 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Ignore("Zarr does not currently support mode 2 data blocks and serialized objects.")
 	public void testWriteReadSerializableBlock() {}
 
-	private boolean runPythonTest(final String script) throws IOException, InterruptedException {
+	private boolean runPythonTest(final String script, final String containerPath) throws IOException, InterruptedException {
 
 		final boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
 		Process process;
 		if (isWindows) {
-			process = Runtime.getRuntime().exec("cmd.exe /c python3 src\\test\\python\\" + script);
+			process = Runtime.getRuntime().exec("cmd.exe /c python3 src\\test\\python\\" + script + " " + containerPath);
 		} else {
-			process = Runtime.getRuntime().exec("python3 src/test/python/" + script);
+			process = Runtime.getRuntime().exec("python3 src/test/python/" + script + " " + containerPath);
 		}
 		final int exitCode = process.waitFor();
 		new BufferedReader(new InputStreamReader(process.getErrorStream())).lines().forEach(System.out::println);
@@ -433,15 +429,16 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testReadZarrPython() throws IOException, InterruptedException {
 
+		final String testZarrDirPath = tmpPathName("n5-zarr-test-");
+
 		/* create test data with python */
-		if (!runPythonTest("zarr-test.py")) {
+		if (!runPythonTest("zarr-test.py", testZarrDirPath)) {
 			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
 			return;
 		}
 
-		final String testZarrDirPath = createTestDirPath("zarr-test-");
-		final N5ZarrWriter n5Zarr = new N5ZarrWriter(testZarrDirPath, ".", true);
-		final N5ZarrWriter n5ZarrWithoutMapping = new N5ZarrWriter(testZarrDirPath, ".", false);
+		final N5ZarrWriter n5Zarr = createN5Writer(testZarrDirPath, ".");
+		final N5ZarrWriter n5ZarrWithoutMapping = createN5Writer(testZarrDirPath, new GsonBuilder(), ".", false);
 
 		/* groups */
 		assertTrue(n5Zarr.exists(testZarrDatasetName) && !n5Zarr.datasetExists(testZarrDatasetName));
@@ -632,13 +629,14 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testReadZarrNestedPython() throws IOException, InterruptedException {
 
+		final String testZarrNestedDirPath = tmpPathName("zarr-test-nested-");
+
 		/* create test data with python */
-		if (!runPythonTest("zarr-nested-test.py")) {
+		if (!runPythonTest("zarr-nested-test.py", testZarrNestedDirPath)) {
 			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
 			return;
 		}
 
-		final String testZarrNestedDirPath = createTestDirPath("zarr-test-nested-");
 		final N5ZarrWriter n5Zarr = new N5ZarrWriter(testZarrNestedDirPath, ".", true);
 
 		/* groups */
@@ -664,7 +662,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testRawCompressorNullInZarray() throws IOException, FileNotFoundException, ParseException {
 
-		final String testZarrDirPath = createTestDirPath("zarr-test-");
+		final String testZarrDirPath = tmpPathName("n5-zarr-test-");
 		final N5ZarrWriter n5 = new N5ZarrWriter(testZarrDirPath);
 		n5
 				.createDataset(

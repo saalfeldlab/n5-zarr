@@ -35,20 +35,25 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 	@Override
 	protected N5ZarrWriter createN5Writer(final String location, final GsonBuilder gsonBuilder) throws IOException {
 
-		return createN5Writer(location, gsonBuilder, ".");
+		return createN5Writer(location, gsonBuilder, ".", true);
 	}
 
 	@Override
 	protected N5ZarrWriter createN5Writer(final String location, final String dimensionSeparator) throws IOException {
 
-		return createN5Writer(location, new GsonBuilder(), dimensionSeparator);
+		return createN5Writer(location, new GsonBuilder(), dimensionSeparator, true);
 	}
 
-	protected N5ZarrWriter createN5Writer(final String location, final GsonBuilder gsonBuilder, final String dimensionSeparator, final boolean cachedAttributes ) throws IOException {
+	@Override
+	protected N5ZarrWriter createN5Writer(
+			final String location,
+			final GsonBuilder gsonBuilder,
+			final String dimensionSeparator,
+			final boolean mapN5DatasetAttributes) throws IOException {
 
 		final Path testN5Path = Paths.get(location);
 		final boolean existsBefore = testN5Path.toFile().exists();
-		final N5ZarrWriter zarr = new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, true, cachedAttributes);
+		final N5ZarrWriter zarr = new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, true);
 		final boolean existsAfter = testN5Path.toFile().exists();
 		if (!existsBefore && existsAfter) {
 			tmpFiles.add(location);
