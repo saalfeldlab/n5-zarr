@@ -122,9 +122,9 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		try {
 			final File tmpFile = Files.createTempDirectory(prefix).toFile();
-			//tmpFile.deleteOnExit();
+			tmpFile.deleteOnExit();
 			final String tmpPath = tmpFile.getCanonicalPath();
-			//tmpFiles.add(tmpPath);
+			tmpFiles.add(tmpPath);
 			return tmpPath;
 		} catch (final Exception e) {
 			throw new RuntimeException(e);
@@ -640,8 +640,6 @@ public class N5ZarrTest extends AbstractN5Test {
 		final N5ZarrWriter n5Zarr = new N5ZarrWriter(testZarrNestedDirPath, ".", true);
 
 		/* groups */
-		System.out.println(n5Zarr.exists(testZarrDatasetName));
-		System.out.println(n5Zarr.datasetExists(testZarrDatasetName));
 		assertTrue(n5Zarr.exists(testZarrDatasetName) && !n5Zarr.datasetExists(testZarrDatasetName));
 
 		/* array parameters */
