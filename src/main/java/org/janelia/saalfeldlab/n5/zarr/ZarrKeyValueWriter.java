@@ -173,9 +173,20 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 	@Override
 	public void createGroup(final String path) throws N5Exception {
 
+		final String normalPath = N5URL.normalizeGroupPath(path);
+		// TODO: John document this!
+		// if you are a group, avoid hitting the backend
+		// if something exists, be safe
+		if (cacheMeta()) {
+			if( getCache().isGroup(normalPath, ZGROUP_FILE))
+				return;
+			else if ( getCache().isDataset(normalPath, ZARRAY_FILE)){
+				throw new N5Exception("Can't make a group on existing dataset.");
+			}
+		}
+
 		// Overridden to change the cache key, though it may not be necessary
 		// since the contents is null
-		final String normalPath = N5URL.normalizeGroupPath(path);
 		try {
 			keyValueAccess.createDirectories(groupPath(normalPath));
 		} catch (final IOException e) {
@@ -195,10 +206,10 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 			final String childPath = getKeyValueAccess().compose(parent, child);
 			if (cacheMeta()) {
-				getCache().forceAddNewCacheInfo(childPath, ZGROUP_FILE, null, true, false);
+				getCache().initializeNonemptyCache(childPath, ZGROUP_FILE);
+				getCache().updateCacheInfo(childPath, ZGROUP_FILE, versionObject);
 
-				// only add if the parent exists and has children cached
-				// already
+				// only add if the parent exists and has children cached already
 				if (parent != null && !child.isEmpty())
 					getCache().addChildIfPresent(parent, child);
 			}
@@ -213,10 +224,21 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final String path,
 			final DatasetAttributes datasetAttributes) throws N5Exception {
 
+		final String normalPath = N5URL.normalizeGroupPath(path);
+		boolean wasGroup = false;
+		if (cacheMeta()) {
+			if (getCache().isDataset(normalPath, ZARRAY_FILE))
+				return;
+			else if (getCache().isGroup(normalPath, ZGROUP_FILE)) {
+				wasGroup = true;
+				// TODO tests currently require that we can make a dataset on a group
+//				throw new N5Exception("Can't make a group on existing path.");
+			}
+		}
+
 		// Overriding because CachedGsonKeyValueWriter calls createGroup.
 		// Not correct for zarr, since groups and datasets are mutually
 		// exclusive
-		final String normalPath = N5URL.normalizeGroupPath(path);
 		final String absPath = groupPath(normalPath);
 		try {
 			keyValueAccess.createDirectories(absPath);
@@ -234,9 +256,17 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		final ZArrayAttributes zarray = createZArrayAttributes(datasetAttributes);
 		final JsonElement attributes = gson.toJsonTree(zarray.asMap());
 		writeJsonResource(normalPath, ZARRAY_FILE, attributes);
+		if( wasGroup )
+			deleteJsonResource(normalPath, ZGROUP_FILE );
+
 		if (cacheMeta()) {
 			// cache dataset and add as child to parent if necessary
-			getCache().forceAddNewCacheInfo(normalPath, ZARRAY_FILE, attributes, false, true);
+			getCache().initializeNonemptyCache(normalPath, ZARRAY_FILE);
+			getCache().updateCacheInfo(normalPath, ZARRAY_FILE, attributes);
+			if (getCache().isDataset(normalPath, ZARRAY_FILE) && wasGroup) {
+				getCache().updateCacheInfo(normalPath, ZGROUP_FILE, N5JsonCache.emptyJson);
+			}
+
 			getCache().addChildIfPresent(parent, pathParts[pathParts.length - 1]);
 		}
 	}
@@ -365,6 +395,15 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 		// used in testVersion
 		writeZGroup(pathName, gson.toJsonTree(version));
+	}
+
+	protected void deleteJsonResource(final String normalPath, final String jsonName) throws N5Exception {
+		final String absolutePath = keyValueAccess.compose(uri.getPath(), normalPath, jsonName);
+		try {
+			keyValueAccess.delete(absolutePath);
+		} catch (IOException e1) {
+			throw new N5IOException("Failed to delete " + absolutePath, e1);
+		}
 	}
 
 	protected void writeJsonResource(

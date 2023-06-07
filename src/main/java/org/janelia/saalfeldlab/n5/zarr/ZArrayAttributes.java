@@ -35,7 +35,6 @@ import java.util.HashMap;
 import java.util.List;
 
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.zarr.ZArrayAttributes.JsonAdapter;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
