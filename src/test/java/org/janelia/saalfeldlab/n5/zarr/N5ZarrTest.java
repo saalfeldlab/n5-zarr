@@ -745,6 +745,71 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
+	public void testAttributeMapping() throws IOException {
+
+		// attribute mapping on by default
+		try (final N5Writer n5 = createN5Writer()) {
+
+			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+
+			long[] dimsZarr = n5.getAttribute(datasetName, ZArrayAttributes.shapeKey, long[].class);
+			long[] dimsN5 = n5.getAttribute(datasetName, DatasetAttributes.DIMENSIONS_KEY, long[].class);
+			assertArrayEquals( dimsZarr, dimsN5 );
+
+			int[] blkZarr = n5.getAttribute(datasetName, ZArrayAttributes.chunksKey, int[].class);
+			int[] blkN5 = n5.getAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, int[].class);
+			assertArrayEquals( blkZarr, blkN5 );
+
+			DType dtype = n5.getAttribute(datasetName, ZArrayAttributes.dTypeKey, DType.class);
+			// read to a string because zarr may not have the N5 DataType deserializer
+			DataType n5DataType = DataType.fromString(n5.getAttribute(datasetName, DatasetAttributes.DATA_TYPE_KEY, String.class));
+			assertEquals( dtype.getDataType(), n5DataType );
+
+			ZarrCompressor zarrCompression = n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class);
+			Compression n5Compression = n5.getAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, Compression.class);
+			assertEquals(zarrCompression.getCompression(), n5Compression);
+
+			final long[] newDims = new long[]{ 30, 40, 50 };
+			final int[] newBlk = new int[]{ 30, 40, 50 };
+			final DataType newDtype = DataType.FLOAT64;
+
+			// ensure variables can be set through the n5 variables as well
+			n5.setAttribute(datasetName, DatasetAttributes.DIMENSIONS_KEY, newDims );
+			dimsZarr = n5.getAttribute(datasetName, ZArrayAttributes.shapeKey, long[].class);
+			dimsN5 = n5.getAttribute(datasetName, DatasetAttributes.DIMENSIONS_KEY, long[].class);
+			assertArrayEquals( newDims, dimsZarr );
+			assertArrayEquals( newDims, dimsN5 );
+
+			n5.setAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, newBlk );
+			blkZarr = n5.getAttribute(datasetName, ZArrayAttributes.shapeKey, int[].class);
+			blkN5 = n5.getAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, int[].class);
+			assertArrayEquals(newBlk, blkZarr);
+			assertArrayEquals(newBlk, blkN5);
+
+			n5.setAttribute(datasetName, DatasetAttributes.DATA_TYPE_KEY, newDtype.toString() );
+
+			dtype = n5.getAttribute(datasetName, ZArrayAttributes.dTypeKey, DType.class);
+			n5DataType = DataType.fromString(n5.getAttribute(datasetName, DatasetAttributes.DATA_TYPE_KEY, String.class));
+			assertEquals(newDtype, dtype.getDataType());
+			assertEquals(newDtype, n5DataType);
+
+			final RawCompression rawCompression = new RawCompression();
+			n5.setAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, rawCompression);
+			zarrCompression = n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class);
+			n5Compression = n5.getAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, Compression.class);
+			assertNull(zarrCompression);
+			assertEquals(rawCompression, n5Compression);
+
+			GzipCompression gzipCompression = new GzipCompression();
+			n5.setAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, gzipCompression);
+			zarrCompression = n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class);
+			n5Compression = n5.getAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, Compression.class);
+			assertEquals(gzipCompression, zarrCompression.getCompression());
+			assertEquals(gzipCompression, n5Compression);
+		}
+	}
+
+	@Test
 	@Override
 	@Ignore
 	public void testNullAttributes() throws IOException {
