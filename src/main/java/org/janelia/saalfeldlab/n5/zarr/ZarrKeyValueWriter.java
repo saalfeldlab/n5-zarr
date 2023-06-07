@@ -35,16 +35,22 @@ import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.n5.BlockWriter;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
+import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
+import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
+import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
+import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
 import org.janelia.saalfeldlab.n5.N5URL;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.RawCompression;
 
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -70,8 +76,6 @@ import net.imglib2.view.Views;
 public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 	protected String dimensionSeparator;
-
-	protected boolean mapN5DatasetAttributes;
 
 	/**
 	 * Opens an {@link ZarrKeyValueWriter} at a given base path with a custom
@@ -119,7 +123,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 				mergeAttributes,
 				cacheAttributes);
 		this.dimensionSeparator = dimensionSeparator;
-		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
 		Version version = null;
 		if (exists("/")) {
 			version = getVersion();
@@ -283,15 +286,14 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		// cache here or in writeAttributes?
 		// I think in writeAttributes is better - let it delegate to
 		// writeZArray, writeZAttrs, writeZGroup
-		final JsonElement existingAttributes = getAttributes(normalPath); // uses
-																			// cache
+		final JsonElement existingAttributes = getAttributesUnmapped(normalPath); // uses cache
 		JsonElement newAttributes = existingAttributes != null && existingAttributes.isJsonObject()
 				? existingAttributes.getAsJsonObject()
 				: new JsonObject();
 		newAttributes = GsonUtils.insertAttributes(newAttributes, attributes, gson);
 
 		if (newAttributes.isJsonObject()) {
-			final ZarrJsonElements zje = build(newAttributes.getAsJsonObject());
+			final ZarrJsonElements zje = build(newAttributes.getAsJsonObject(), getGson());
 			// the three methods below handle caching
 			writeZArray(normalPath, zje.zarray);
 			writeZAttrs(normalPath, zje.zattrs);
@@ -413,6 +415,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 
 		if (attributes == null)
 			return;
+
 		final String absolutePath = keyValueAccess.compose(uri.getPath(), normalPath, jsonName);
 		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
 			GsonUtils.writeAttributes(lock.newWriter(), attributes, gson);
@@ -714,19 +717,41 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		}
 	}
 
-	protected static ZarrJsonElements build(final JsonObject obj) {
+	protected static void redirectDataType(final JsonObject src, final JsonObject dest) {
 
-		return build(obj, true);
+		if (src.has(DatasetAttributes.DATA_TYPE_KEY)) {
+			final JsonElement e = src.get(DatasetAttributes.DATA_TYPE_KEY);
+			dest.addProperty(ZArrayAttributes.dTypeKey, new DType(DataType.fromString(e.getAsString())).toString());
+			src.remove(DatasetAttributes.DATA_TYPE_KEY);
+		}
 	}
 
-	protected static ZarrJsonElements build(final JsonObject obj, final boolean mapN5Attributes) {
+	protected static void redirectCompression(final JsonObject src, final Gson gson, final JsonObject dest) {
+
+		if (src.has(DatasetAttributes.COMPRESSION_KEY)) {
+			final Compression c = gson.fromJson(src.get(DatasetAttributes.COMPRESSION_KEY), Compression.class);
+			if( c.getClass() == RawCompression.class)
+				dest.add(ZArrayAttributes.compressorKey, JsonNull.INSTANCE);
+			else
+				dest.add(ZArrayAttributes.compressorKey, gson.toJsonTree(ZarrCompressor.fromCompression(c)));
+
+			src.remove(DatasetAttributes.COMPRESSION_KEY);
+		}
+	}
+
+	protected static ZarrJsonElements build(final JsonObject obj, final Gson gson ) {
+
+		return build(obj, gson, true);
+	}
+
+	protected static ZarrJsonElements build(final JsonObject obj, final Gson gson, final boolean mapN5Attributes) {
 
 		// first map n5 attributes
 		if (mapN5Attributes) {
-			redirectDatasetAttribute(obj, "dimensions", obj, ZArrayAttributes.shapeKey);
-			redirectDatasetAttribute(obj, "blockSize", obj, ZArrayAttributes.chunksKey);
-			redirectDatasetAttribute(obj, "dataType", obj, ZArrayAttributes.dTypeKey);
-			redirectDatasetAttribute(obj, "compression", obj, ZArrayAttributes.compressorKey);
+			redirectDatasetAttribute(obj, DatasetAttributes.DIMENSIONS_KEY, obj, ZArrayAttributes.shapeKey);
+			redirectDatasetAttribute(obj, DatasetAttributes.BLOCK_SIZE_KEY, obj, ZArrayAttributes.chunksKey);
+			redirectDataType( obj, obj );
+			redirectCompression(obj, gson, obj);
 		}
 
 		// put relevant attributes in appropriate JsonElements
@@ -734,6 +759,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		// make the zarray
 		if (hasRequiredArrayKeys(obj)) {
 			move(obj, () -> zje.getOrMakeZarray(), ZArrayAttributes.allKeys);
+			reverseAttrsWhenCOrder( zje.zarray );
 		} else if (obj.has(ZArrayAttributes.zarrFormatKey)) {
 			// put format key in zgroup
 			move(obj, () -> zje.getOrMakeZgroup(), ZArrayAttributes.zarrFormatKey);
