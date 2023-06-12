@@ -205,7 +205,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 		for (final String child : pathParts) {
 
-			final String childPath = getKeyValueAccess().compose(parent, child);
+			final String childPath = parent.isEmpty() ? child : parent + "/" + child;
 			if (cacheMeta()) {
 				getCache().initializeNonemptyCache(childPath, ZGROUP_FILE);
 				getCache().updateCacheInfo(childPath, ZGROUP_FILE, versionObject);
