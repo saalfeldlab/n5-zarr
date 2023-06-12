@@ -46,7 +46,7 @@ import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
-import org.janelia.saalfeldlab.n5.N5URL;
+import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
 
@@ -147,7 +147,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		final JsonObject versionObject = new JsonObject();
 		versionObject.add(ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
 
-		final String normalPath = N5URL.normalizeGroupPath(path);
+		final String normalPath = N5URI.normalizeGroupPath(path);
 		if (create || groupExists(normalPath))
 			writeZGroup(normalPath, versionObject); // updates cache
 		else if (datasetExists(normalPath)) {
@@ -176,7 +176,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 	@Override
 	public void createGroup(final String path) throws N5Exception {
 
-		final String normalPath = N5URL.normalizeGroupPath(path);
+		final String normalPath = N5URI.normalizeGroupPath(path);
 		// TODO: John document this!
 		// if you are a group, avoid hitting the backend
 		// if something exists, be safe
@@ -200,7 +200,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		versionObject.add(ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
 
 		String[] pathParts = getKeyValueAccess().components(normalPath);
-		String parent = N5URL.normalizeGroupPath("/");
+		String parent = N5URI.normalizeGroupPath("/");
 		if (pathParts.length == 0) {
 			pathParts = new String[]{""};
 		}
@@ -227,7 +227,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final String path,
 			final DatasetAttributes datasetAttributes) throws N5Exception {
 
-		final String normalPath = N5URL.normalizeGroupPath(path);
+		final String normalPath = N5URI.normalizeGroupPath(path);
 		boolean wasGroup = false;
 		if (cacheMeta()) {
 			if (getCache().isDataset(normalPath, ZARRAY_FILE))
@@ -279,7 +279,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			final String path,
 			final Map<String, ?> attributes) throws N5Exception {
 
-		final String normalPath = N5URL.normalizeGroupPath(path);
+		final String normalPath = N5URI.normalizeGroupPath(path);
 		if (!exists(normalPath))
 			throw new N5Exception.N5IOException("" + normalPath + " is not a group or dataset.");
 
@@ -306,8 +306,8 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 	@Override
 	public boolean removeAttribute(final String pathName, final String key) throws N5Exception {
 
-		final String normalPath = N5URL.normalizeGroupPath(pathName);
-		final String normalKey = N5URL.normalizeAttributePath(key);
+		final String normalPath = N5URI.normalizeGroupPath(pathName);
+		final String normalKey = N5URI.normalizeAttributePath(key);
 		if (!keyValueAccess.exists(keyValueAccess.compose(uri.getPath(), normalPath, ZATTRS_FILE)))
 			return false;
 
@@ -334,8 +334,8 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 	@Override
 	public <T> T removeAttribute(final String pathName, final String key, final Class<T> cls) throws N5Exception {
 
-		final String normalPath = N5URL.normalizeGroupPath(pathName);
-		final String normalKey = N5URL.normalizeAttributePath(key);
+		final String normalPath = N5URI.normalizeGroupPath(pathName);
+		final String normalKey = N5URI.normalizeAttributePath(key);
 
 		final JsonElement attributes = getZAttributes(normalPath); // uses cache
 		final T obj = GsonUtils.removeAttribute(attributes, normalKey, cls, gson);
@@ -351,10 +351,10 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 	@Override
 	public boolean removeAttributes(final String pathName, final List<String> attributes) throws N5Exception {
 
-		final String normalPath = N5URL.normalizeGroupPath(pathName);
+		final String normalPath = N5URI.normalizeGroupPath(pathName);
 		boolean removed = false;
 		for (final String attribute : attributes) {
-			removed |= removeAttribute(normalPath, N5URL.normalizeAttributePath(attribute));
+			removed |= removeAttribute(normalPath, N5URI.normalizeAttributePath(attribute));
 		}
 		return removed;
 	}
@@ -514,7 +514,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 																	// this
 																	// correct?
 
-		final String normalPath = N5URL.normalizePath(pathName);
+		final String normalPath = N5URI.normalizeGroupPath(pathName);
 		final String path = keyValueAccess
 				.compose(
 						uri.getPath(),
@@ -543,35 +543,35 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 		}
 	}
 
-	@Override
-	public boolean remove(final String path) throws N5Exception {
-
-		final String normalGroupPath = N5URL.normalizeGroupPath(path);
-		if (cacheMeta()) {
-			final String[] parts = keyValueAccess.components(normalGroupPath);
-			final String parentPath = keyValueAccess
-					.compose(Arrays.stream(parts).limit(parts.length - 1).toArray(String[]::new));
-			cache.removeCache(parentPath, normalGroupPath);
-		}
-
-		final String normalAbsolutePath = groupPath(normalGroupPath);
-		// TODO check existence first? should not matter.
-		try {
-			keyValueAccess.delete(normalAbsolutePath);
-		} catch (final IOException e) {
-			throw new N5IOException("Failed to remove " + normalAbsolutePath, e);
-		}
-
-		// an IOException should have occurred if anything had failed midway
-		return true;
-	}
+//	@Override
+//	public boolean remove(final String path) throws N5Exception {
+//
+//		final String normalGroupPath = N5URI.normalizeGroupPath(path);
+//		if (cacheMeta()) {
+//			final String[] parts = keyValueAccess.components(normalGroupPath);
+//			final String parentPath = keyValueAccess
+//					.compose(Arrays.stream(parts).limit(parts.length - 1).toArray(String[]::new));
+//			cache.removeCache(parentPath, normalGroupPath);
+//		}
+//
+//		final String normalAbsolutePath = groupPath(normalGroupPath);
+//		// TODO check existence first? should not matter.
+//		try {
+//			keyValueAccess.delete(normalAbsolutePath);
+//		} catch (final IOException e) {
+//			throw new N5IOException("Failed to remove " + normalAbsolutePath, e);
+//		}
+//
+//		// an IOException should have occurred if anything had failed midway
+//		return true;
+//	}
 
 	@Override
 	public boolean deleteBlock(
 			final String path,
 			final long... gridPosition) throws N5Exception {
 
-		final String normPath = N5URL.normalizePath(path);
+		final String normPath = N5URI.normalizeGroupPath(path);
 		final ZarrDatasetAttributes zarrDatasetAttributes = getDatasetAttributes(normPath);
 		final String absolutePath = keyValueAccess
 				.compose(

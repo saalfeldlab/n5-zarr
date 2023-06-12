@@ -49,7 +49,7 @@ import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5URL;
+import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
@@ -276,7 +276,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		// "group" and "dataset".
 		// The implementation in CachedGsonKeyValueReader is simpler but more
 		// low-level
-		final String normalPathName = N5URL.normalizeGroupPath(pathName);
+		final String normalPathName = N5URI.normalizeGroupPath(pathName);
 
 		// Note that datasetExists and groupExists use the cache
 		return groupExists(normalPathName) || datasetExists(normalPathName);
@@ -308,7 +308,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		// this uses .zgroup. But may not be necessary, since
 		// isGroupFromContainer doesn't use the cache key
 		// (because its hardcoded).
-		final String normalPath = N5URL.normalizeGroupPath(pathName);
+		final String normalPath = N5URI.normalizeGroupPath(pathName);
 		if (cacheMeta()) {
 			return cache.isGroup(normalPath, ZGROUP_FILE);
 		}
@@ -331,7 +331,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	public boolean datasetExists(final String pathName) throws N5Exception.N5IOException {
 
 		if (cacheMeta()) {
-			final String normalPathName = N5URL.normalizeGroupPath(pathName);
+			final String normalPathName = N5URI.normalizeGroupPath(pathName);
 			return cache.isDataset(normalPathName, ZARRAY_FILE);
 		}
 		return isDatasetFromContainer(pathName);
@@ -423,16 +423,16 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	@Override
 	public <T> T getAttribute(final String pathName, final String key, final Class<T> clazz) throws N5Exception {
 
-		final String normalizedAttributePath = N5URL.normalizeAttributePath(key);
-		final JsonElement attributes = getAttributes(pathName);
+		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
+		final JsonElement attributes = getAttributes(pathName); // handles caching
 		return GsonUtils.readAttribute(attributes, normalizedAttributePath, clazz, gson);
 	}
 
 	@Override
 	public <T> T getAttribute(final String pathName, final String key, final Type type) throws N5Exception {
 
-		final String normalizedAttributePath = N5URL.normalizeAttributePath(key);
-		final JsonElement attributes = getAttributes(pathName);
+		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
+		final JsonElement attributes = getAttributes(pathName); // handles caching
 		return GsonUtils.readAttribute(attributes, normalizedAttributePath, type, gson);
 	}
 
@@ -489,7 +489,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 */
 	protected JsonElement getZGroup(final String path) throws N5Exception {
 
-		return getJsonResource(N5URL.normalizeGroupPath(path), ZGROUP_FILE);
+		return getJsonResource(N5URI.normalizeGroupPath(path), ZGROUP_FILE);
 	}
 
 	/**
@@ -504,7 +504,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 */
 	protected JsonElement getZArray(final String path) throws N5Exception {
 
-		return getJsonResource(N5URL.normalizeGroupPath(path), ZARRAY_FILE);
+		return getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE);
 	}
 
 	protected JsonElement zarrToN5DatasetAttributes(final JsonElement elem ) {
@@ -562,7 +562,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 */
 	protected JsonElement getZAttributes(final String path) throws N5Exception {
 
-		return getJsonResource(N5URL.normalizeGroupPath(path), ZATTRS_FILE);
+		return getJsonResource(N5URI.normalizeGroupPath(path), ZATTRS_FILE);
 	}
 
 	/**
@@ -586,10 +586,10 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		JsonElement out;
 		if (mergeAttributes) {
 			out= combineAll(
-					getJsonResource(N5URL.normalizeGroupPath(path), ZGROUP_FILE),
+					getJsonResource(N5URI.normalizeGroupPath(path), ZGROUP_FILE),
 					zarrToN5DatasetAttributes(
-							reverseAttrsWhenCOrder(getJsonResource(N5URL.normalizeGroupPath(path), ZARRAY_FILE))),
-					getJsonResource(N5URL.normalizeGroupPath(path), ZATTRS_FILE));
+							reverseAttrsWhenCOrder(getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE))),
+					getJsonResource(N5URI.normalizeGroupPath(path), ZATTRS_FILE));
 		} else
 			out = getZAttributes(path);
 
@@ -602,9 +602,9 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		if (mergeAttributes) {
 
 			out= combineAll(
-					getJsonResource(N5URL.normalizeGroupPath(path), ZGROUP_FILE),
-					reverseAttrsWhenCOrder(getJsonResource(N5URL.normalizeGroupPath(path), ZARRAY_FILE)),
-					getJsonResource(N5URL.normalizeGroupPath(path), ZATTRS_FILE));
+					getJsonResource(N5URI.normalizeGroupPath(path), ZGROUP_FILE),
+					reverseAttrsWhenCOrder(getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE)),
+					getJsonResource(N5URI.normalizeGroupPath(path), ZATTRS_FILE));
 		} else
 			out = getZAttributes(path);
 
