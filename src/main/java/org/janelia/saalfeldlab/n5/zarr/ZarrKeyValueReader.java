@@ -32,8 +32,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.n5.BlockReader;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
@@ -51,7 +49,6 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
 import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
 
@@ -224,7 +221,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	@Override
-	public N5JsonCache getCache() {
+	public ZarrJsonCache getCache() {
 
 		return cache;
 	}
@@ -239,17 +236,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	public URI getURI() {
 
 		return uri;
-	}
-
-	@Override
-	public String groupPath(final String... nodes) {
-
-		// alternatively call compose twice, once with this functions inputs,
-		// then pass the result to the other groupPath method
-		// this impl assumes streams and array building are less expensive than
-		// keyValueAccess composition (may not always be true)
-		return keyValueAccess
-				.compose(Stream.concat(Stream.of(uri.getPath()), Arrays.stream(nodes)).toArray(String[]::new));
 	}
 
 	/**
@@ -345,7 +331,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		} else {
 			return false;
 		}
-
 	}
 
 	@Override
@@ -362,12 +347,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	protected DatasetAttributes normalReadDatasetAttributes(final String pathName) throws N5Exception {
 
 		return createDatasetAttributes(getZArray(pathName));
-	}
-
-	@Override
-	public Map<String, Class<?>> listAttributes(final String pathName) throws N5Exception {
-
-		return GsonUtils.listAttributes(getAttributes(pathName));
 	}
 
 	/**

@@ -82,7 +82,6 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 
 	public byte[] getFillBytes() {
 
-		// TODO Auto-generated method stub
 		return fillBytes;
 	}
 

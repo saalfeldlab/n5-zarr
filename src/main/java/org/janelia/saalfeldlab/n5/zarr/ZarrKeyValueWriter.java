@@ -28,13 +28,13 @@ package org.janelia.saalfeldlab.n5.zarr;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.n5.BlockWriter;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
+import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
@@ -43,11 +43,9 @@ import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
-import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
 import org.janelia.saalfeldlab.n5.N5URI;
-import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
 
 import com.google.gson.Gson;
@@ -73,7 +71,7 @@ import net.imglib2.view.Views;
  * @author Stephan Saalfeld
  * @author John Bogovic
  */
-public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
+public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGsonKeyValueN5Writer {
 
 	protected String dimensionSeparator;
 
@@ -346,17 +344,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements N5Writer {
 			writeJsonResource(normalPath, ZATTRS_FILE, attributes);
 		}
 		return obj;
-	}
-
-	@Override
-	public boolean removeAttributes(final String pathName, final List<String> attributes) throws N5Exception {
-
-		final String normalPath = N5URI.normalizeGroupPath(pathName);
-		boolean removed = false;
-		for (final String attribute : attributes) {
-			removed |= removeAttribute(normalPath, N5URI.normalizeAttributePath(attribute));
-		}
-		return removed;
 	}
 
 	@Override
