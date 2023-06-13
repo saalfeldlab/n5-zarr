@@ -283,8 +283,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		// exists(groupPath(normalPathName)),
 		// so instead need to check for existence of either .zarray or .zgroup
 		return
-				keyValueAccess.exists(keyValueAccess.compose(uri.getPath(), normalPathName, ZGROUP_FILE)) ||
-				keyValueAccess.exists(keyValueAccess.compose(uri.getPath(), normalPathName, ZARRAY_FILE));
+				keyValueAccess.exists(keyValueAccess.compose(uri, normalPathName, ZGROUP_FILE)) ||
+				keyValueAccess.exists(keyValueAccess.compose(uri, normalPathName, ZARRAY_FILE));
 	}
 
 	@Override
@@ -304,7 +304,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	@Override
 	public boolean isGroupFromContainer(final String normalPath) {
 
-		return keyValueAccess.isFile(keyValueAccess.compose(uri.getPath(), normalPath, ZGROUP_FILE));
+		return keyValueAccess.isFile(keyValueAccess.compose(uri, normalPath, ZGROUP_FILE));
 	}
 
 	@Override
@@ -326,7 +326,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	@Override
 	public boolean isDatasetFromContainer(final String normalPathName) throws N5Exception.N5IOException {
 
-		if (keyValueAccess.isFile(keyValueAccess.compose(uri.getPath(), normalPathName, ZARRAY_FILE))) {
+		if (keyValueAccess.isFile(keyValueAccess.compose(uri, normalPathName, ZARRAY_FILE))) {
 			return isDatasetFromAttributes(ZARRAY_FILE, getAttributesFromContainer(normalPathName, ZARRAY_FILE));
 		} else {
 			return false;
@@ -595,7 +595,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			final String normalResourceParent,
 			final String normalResourcePath) throws N5Exception {
 
-		final String absolutePath = keyValueAccess.compose(uri.getPath(), normalResourceParent, normalResourcePath);
+		final String absolutePath = keyValueAccess.compose(uri, normalResourceParent, normalResourcePath);
 		if (!keyValueAccess.exists(absolutePath))
 			return null;
 
@@ -620,7 +620,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 		final String absolutePath = keyValueAccess
 				.compose(
-						uri.getPath(),
+						uri,
 						pathName,
 						getZarrDataBlockPath(
 								gridPosition,
