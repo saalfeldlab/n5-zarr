@@ -306,7 +306,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 		final String normalPath = N5URI.normalizeGroupPath(pathName);
 		final String normalKey = N5URI.normalizeAttributePath(key);
-		if (!keyValueAccess.exists(keyValueAccess.compose(uri.getPath(), normalPath, ZATTRS_FILE)))
+		if (!keyValueAccess.exists(keyValueAccess.compose(uri, normalPath, ZATTRS_FILE)))
 			return false;
 
 		if (key.equals("/")) {
@@ -387,7 +387,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 	}
 
 	protected void deleteJsonResource(final String normalPath, final String jsonName) throws N5Exception {
-		final String absolutePath = keyValueAccess.compose(uri.getPath(), normalPath, jsonName);
+		final String absolutePath = keyValueAccess.compose(uri, normalPath, jsonName);
 		try {
 			keyValueAccess.delete(absolutePath);
 		} catch (IOException e1) {
@@ -403,7 +403,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		if (attributes == null)
 			return;
 
-		final String absolutePath = keyValueAccess.compose(uri.getPath(), normalPath, jsonName);
+		final String absolutePath = keyValueAccess.compose(uri, normalPath, jsonName);
 		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
 			GsonUtils.writeAttributes(lock.newWriter(), attributes, gson);
 		} catch (final IOException e) {
@@ -504,7 +504,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final String normalPath = N5URI.normalizeGroupPath(pathName);
 		final String path = keyValueAccess
 				.compose(
-						uri.getPath(),
+						uri,
 						normalPath,
 						getZarrDataBlockPath(
 								dataBlock.getGridPosition(),
@@ -562,7 +562,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final ZarrDatasetAttributes zarrDatasetAttributes = getDatasetAttributes(normPath);
 		final String absolutePath = keyValueAccess
 				.compose(
-						uri.getPath(),
+						uri,
 						normPath,
 						ZarrKeyValueReader
 								.getZarrDataBlockPath(
