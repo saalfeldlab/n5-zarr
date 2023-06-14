@@ -336,17 +336,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	@Override
 	public boolean isDatasetFromAttributes(final String normalCacheKey, final JsonElement attributes) {
 
-		// TODO also check cache key
-		if (attributes != null && attributes.isJsonObject()) {
+		if (normalCacheKey.equals(ZARRAY_FILE) && attributes != null && attributes.isJsonObject()) {
 			return createDatasetAttributes(attributes) != null;
 		} else {
 			return false;
 		}
-	}
-
-	protected DatasetAttributes normalReadDatasetAttributes(final String pathName) throws N5Exception {
-
-		return createDatasetAttributes(getZArray(pathName));
 	}
 
 	/**
@@ -356,7 +350,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 * @param pathName
 	 *            the path relative to the container's root
 	 * @return the zarr array attributes
-	 * @throws IOException
+	 * @throws N5Exception
 	 *             the exception
 	 */
 	@Override
