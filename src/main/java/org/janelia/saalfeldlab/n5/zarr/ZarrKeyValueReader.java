@@ -258,10 +258,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	@Override
 	public boolean exists(final String pathName) {
 
-		// Overridden because of the difference in how n5 and zarr define
-		// "group" and "dataset".
-		// The implementation in CachedGsonKeyValueReader is simpler but more
-		// low-level
+		// Overridden because of the difference in how n5 and zarr define "group" and "dataset".
+		// The implementation in CachedGsonKeyValueReader is simpler but more low-level
 		final String normalPathName = N5URI.normalizeGroupPath(pathName);
 
 		// Note that datasetExists and groupExists use the cache
@@ -290,10 +288,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	@Override
 	public boolean groupExists(final String pathName) {
 
-		// TODO I overrode this because parent uses attributes.json,
-		// this uses .zgroup. But may not be necessary, since
-		// isGroupFromContainer doesn't use the cache key
-		// (because its hardcoded).
+		// Overriden because the parent implementation uses attributes.json,
+		// this uses .zgroup.
 		final String normalPath = N5URI.normalizeGroupPath(pathName);
 		if (cacheMeta()) {
 			return cache.isGroup(normalPath, ZGROUP_FILE);
@@ -366,10 +362,10 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 * @param pathName
 	 *            the path relative to the container's root
 	 * @return the zarr array attributes
-	 * @throws IOException
+	 * @throws N5Exception
 	 *             the exception
 	 */
-	public ZArrayAttributes getZArrayAttributes(final String pathName) throws IOException {
+	public ZArrayAttributes getZArrayAttributes(final String pathName) throws N5Exception {
 
 		return getZArrayAttributes(getZArray(pathName));
 	}
@@ -550,7 +546,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 * @param path
 	 *            the path
 	 * @return the json element
-	 * @throws N5Exception.N5IOException
+	 * @throws N5Exception
 	 *             the exception
 	 */
 	@Override

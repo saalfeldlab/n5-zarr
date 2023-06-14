@@ -175,9 +175,9 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 	public void createGroup(final String path) throws N5Exception {
 
 		final String normalPath = N5URI.normalizeGroupPath(path);
-		// TODO: John document this!
-		// if you are a group, avoid hitting the backend
-		// if something exists, be safe
+		// avoid hitting the backend if this path is already a group according to the cache
+		// else if exists is true (then a dataset is present) so throw an exception to avoid
+		// overwriting / invalidating existing data
 		if (cacheMeta()) {
 			if( getCache().isGroup(normalPath, ZGROUP_FILE))
 				return;
@@ -375,6 +375,14 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		return zArrayAttributes;
 	}
 
+	/**
+	 * Write the contents of the attributes argument to the .zarray file at
+	 * the given pathName. Overwrites and existing .zarray. 
+	 * 
+	 * @param pathName the group / dataset path
+	 * @param attributes ZArray attributes
+	 * @throws N5Exception the exception
+	 */
 	public void setZArrayAttributes(final String pathName, final ZArrayAttributes attributes) throws N5Exception {
 
 		writeZArray(pathName, gson.toJsonTree(attributes.asMap()));
@@ -450,10 +458,10 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 	/**
 	 * Writes a {@link DataBlock} into an {@link OutputStream}.
 	 *
-	 * @param out
-	 * @param datasetAttributes
-	 * @param dataBlock
-	 * @throws IOException
+	 * @param out the output stream
+	 * @param datasetAttributes dataset attributes
+	 * @param dataBlock the data block
+	 * @throws IOException the exception
 	 */
 	public static <T> void writeBlock(
 			final OutputStream out,
@@ -529,29 +537,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 					e);
 		}
 	}
-
-//	@Override
-//	public boolean remove(final String path) throws N5Exception {
-//
-//		final String normalGroupPath = N5URI.normalizeGroupPath(path);
-//		if (cacheMeta()) {
-//			final String[] parts = keyValueAccess.components(normalGroupPath);
-//			final String parentPath = keyValueAccess
-//					.compose(Arrays.stream(parts).limit(parts.length - 1).toArray(String[]::new));
-//			cache.removeCache(parentPath, normalGroupPath);
-//		}
-//
-//		final String normalAbsolutePath = groupPath(normalGroupPath);
-//		// TODO check existence first? should not matter.
-//		try {
-//			keyValueAccess.delete(normalAbsolutePath);
-//		} catch (final IOException e) {
-//			throw new N5IOException("Failed to remove " + normalAbsolutePath, e);
-//		}
-//
-//		// an IOException should have occurred if anything had failed midway
-//		return true;
-//	}
 
 	@Override
 	public boolean deleteBlock(
@@ -731,6 +716,17 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		return build(obj, gson, true);
 	}
 
+	/**
+	 * Creates a {@link ZarrJsonElements} object from a {@link JsonObject} containing attributes.
+	 * <p>
+	 * Used when re-directing attributes to the appropriate zarr metadata files according to
+	 * attribute keys.
+	 * 
+	 * @param obj the json attributes object
+	 * @param gson the json
+	 * @param mapN5Attributes if true, map n5 attribute keys to corresponding zarr attribute keys
+	 * @return
+	 */
 	protected static ZarrJsonElements build(final JsonObject obj, final Gson gson, final boolean mapN5Attributes) {
 
 		// first map n5 attributes
@@ -777,6 +773,11 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		}
 	}
 
+	/**
+	 * Stores {@link JsonObject}s to be written to .zattrs, .zgroup, and .zarray.
+	 * <p>
+	 * Used when re-directing attributes to these files by the attribute key name.
+	 */
 	protected static class ZarrJsonElements {
 
 		public JsonObject zattrs;
