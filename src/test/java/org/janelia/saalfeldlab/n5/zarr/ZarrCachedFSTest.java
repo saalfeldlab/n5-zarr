@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.n5.zarr;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5CachedFSTest;
+import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5CachedFSTest.N5TrackingStorage;
 import org.janelia.saalfeldlab.n5.N5CachedFSTest.TrackingStorage;
 import org.junit.Assert;
@@ -268,7 +270,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		assertEquals(expectedAttributeCount, n5.getAttrCallCount());
 		assertEquals(expectedListCount, n5.getListCallCount());
 
-		n5.list(nonExistentGroup);
+		assertThrows(N5Exception.class, () -> n5.list(nonExistentGroup));
 		assertEquals(expectedExistCount, n5.getExistCallCount());
 		assertEquals(expectedGroupCount, n5.getGroupCallCount());
 		assertEquals(expectedDatasetCount, n5.getDatasetCallCount());
