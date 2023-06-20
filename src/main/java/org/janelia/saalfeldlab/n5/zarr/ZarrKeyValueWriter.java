@@ -55,6 +55,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSyntaxException;
 
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -318,6 +319,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		}
 
 		final JsonElement attributes = getZAttributes(normalPath); // uses cache
+
 		if (GsonUtils.removeAttribute(attributes, normalKey) != null) {
 
 			if (cacheMeta())
@@ -336,7 +338,12 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final String normalKey = N5URI.normalizeAttributePath(key);
 
 		final JsonElement attributes = getZAttributes(normalPath); // uses cache
-		final T obj = GsonUtils.removeAttribute(attributes, normalKey, cls, gson);
+		final T obj;
+		try {
+			obj = GsonUtils.removeAttribute(attributes, normalKey, cls, gson);
+		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
+			throw new N5Exception.N5ClassCastException(e);
+		}
 		if (obj != null) {
 			if (cacheMeta())
 				cache.updateCacheInfo(normalPath, ZATTRS_FILE, attributes);

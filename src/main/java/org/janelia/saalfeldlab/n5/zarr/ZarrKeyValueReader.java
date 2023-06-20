@@ -58,6 +58,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 
 /**
  * {@link N5Reader} implementation through {@link KeyValueAccess} with JSON
@@ -149,7 +150,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		this.mergeAttributes = mergeAttributes;
 
 		try {
-			uri = keyValueAccess.uri(keyValueAccess.normalize(basePath));
+			uri = keyValueAccess.uri(basePath);
 		} catch (final URISyntaxException e) {
 			throw new N5Exception(e);
 		}
@@ -320,7 +321,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	@Override
-	public boolean isDatasetFromContainer(final String normalPathName) throws N5Exception.N5IOException {
+	public boolean isDatasetFromContainer(final String normalPathName) throws N5Exception {
 
 		if (keyValueAccess.isFile(keyValueAccess.compose(uri, normalPathName, ZARRAY_FILE))) {
 			return isDatasetFromAttributes(ZARRAY_FILE, getAttributesFromContainer(normalPathName, ZARRAY_FILE));
@@ -394,7 +395,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
 		final JsonElement attributes = getAttributes(pathName); // handles caching
-		return GsonUtils.readAttribute(attributes, normalizedAttributePath, clazz, gson);
+		try {
+			return GsonUtils.readAttribute(attributes, normalizedAttributePath, clazz, gson);
+		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
+			throw new N5Exception.N5ClassCastException(e);
+		}
 	}
 
 	@Override
@@ -402,7 +407,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
 		final JsonElement attributes = getAttributes(pathName); // handles caching
-		return GsonUtils.readAttribute(attributes, normalizedAttributePath, type, gson);
+		try {
+			return GsonUtils.readAttribute(attributes, normalizedAttributePath, type, gson);
+		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
+			throw new N5Exception.N5ClassCastException(e);
+		}
 	}
 
 	/**

@@ -60,6 +60,7 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -793,10 +794,9 @@ public class N5ZarrTest extends AbstractN5Test {
 
 			final RawCompression rawCompression = new RawCompression();
 			n5.setAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, rawCompression);
-			zarrCompression = n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class);
 			n5Compression = n5.getAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, Compression.class);
-			assertNull(zarrCompression);
 			assertEquals(rawCompression, n5Compression);
+			assertThrows( N5Exception.N5ClassCastException.class, () -> n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class));
 
 			GzipCompression gzipCompression = new GzipCompression();
 			n5.setAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, gzipCompression);

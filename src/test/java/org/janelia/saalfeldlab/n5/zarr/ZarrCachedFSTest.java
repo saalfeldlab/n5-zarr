@@ -17,9 +17,7 @@ import java.util.ArrayList;
 
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
-import org.janelia.saalfeldlab.n5.N5CachedFSTest;
 import org.janelia.saalfeldlab.n5.N5Exception;
-import org.janelia.saalfeldlab.n5.N5CachedFSTest.N5TrackingStorage;
 import org.janelia.saalfeldlab.n5.N5CachedFSTest.TrackingStorage;
 import org.junit.Assert;
 import org.junit.Test;
@@ -368,6 +366,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		public int datasetCallCount = 0;
 		public int datasetAttrCallCount = 0;
 		public int listCallCount = 0;
+		public int writeAttrCallCount = 0;
 
 		public ZarrTrackingStorage(final KeyValueAccess keyValueAccess, final String basePath,
 				final GsonBuilder gsonBuilder, final boolean cacheAttributes) throws IOException {
@@ -417,6 +416,11 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 			return super.listFromContainer(key);
 		}
 
+		@Override public void writeAttributes(String normalGroupPath, JsonElement attributes) throws N5Exception {
+			writeAttrCallCount++;
+			super.writeAttributes(normalGroupPath, attributes);
+		}
+
 		@Override
 		public int getAttrCallCount() {
 			return attrCallCount;
@@ -450,6 +454,10 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		@Override
 		public int getListCallCount() {
 			return listCallCount;
+		}
+
+		@Override public int getWriteAttrCallCount() {
+			return writeAttrCallCount;
 		}
 	}
 }
