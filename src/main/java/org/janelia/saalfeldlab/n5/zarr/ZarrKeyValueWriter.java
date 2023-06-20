@@ -189,7 +189,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		// Overridden to change the cache key, though it may not be necessary
 		// since the contents is null
 		try {
-			keyValueAccess.createDirectories(groupPath(normalPath));
+			keyValueAccess.createDirectories(absoluteGroupPath(normalPath));
 		} catch (final IOException e) {
 			throw new N5Exception.N5IOException("Failed to create group " + path, e);
 		}
@@ -240,7 +240,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		// Overriding because CachedGsonKeyValueWriter calls createGroup.
 		// Not correct for zarr, since groups and datasets are mutually
 		// exclusive
-		final String absPath = groupPath(normalPath);
+		final String absPath = absoluteGroupPath(normalPath);
 		try {
 			keyValueAccess.createDirectories(absPath);
 		} catch (final IOException e) {
