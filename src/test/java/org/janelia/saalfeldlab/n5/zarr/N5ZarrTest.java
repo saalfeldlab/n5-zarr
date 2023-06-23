@@ -49,11 +49,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
-import org.apache.commons.io.FileUtils;
 import org.janelia.saalfeldlab.n5.AbstractN5Test;
 import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
@@ -65,17 +62,19 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.reflect.TypeToken;
@@ -802,10 +801,51 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	@Override
 	@Ignore
-	public void testNullAttributes() throws IOException {
+	public void testNullAttributes() throws IOException, URISyntaxException {
 
-		// TODO rework this test given that gson's serialize nulls must be
-		// turned on
+		// serializeNulls must be on for Zarr to be able to write datasets with raw compression
+
+		/* serializeNulls*/
+		try (N5Writer writer = createN5Writer(tempN5Location(), new GsonBuilder().serializeNulls())) {
+
+			writer.createGroup(groupName);
+			writer.setAttribute(groupName, "nullValue", null);
+			assertNull(writer.getAttribute(groupName, "nullValue", Object.class));
+			assertEquals(JsonNull.INSTANCE, writer.getAttribute(groupName, "nullValue", JsonElement.class));
+			final HashMap<String, Object> nulls = new HashMap<>();
+			nulls.put("anotherNullValue", null);
+			nulls.put("structured/nullValue", null);
+			nulls.put("implicitNulls[3]", null);
+			writer.setAttributes(groupName, nulls);
+
+			assertNull(writer.getAttribute(groupName, "anotherNullValue", Object.class));
+			assertEquals(JsonNull.INSTANCE, writer.getAttribute(groupName, "anotherNullValue", JsonElement.class));
+
+			assertNull(writer.getAttribute(groupName, "structured/nullValue", Object.class));
+			assertEquals(JsonNull.INSTANCE, writer.getAttribute(groupName, "structured/nullValue", JsonElement.class));
+
+			assertNull(writer.getAttribute(groupName, "implicitNulls[3]", Object.class));
+			assertEquals(JsonNull.INSTANCE, writer.getAttribute(groupName, "implicitNulls[3]", JsonElement.class));
+
+			assertNull(writer.getAttribute(groupName, "implicitNulls[1]", Object.class));
+			assertEquals(JsonNull.INSTANCE, writer.getAttribute(groupName, "implicitNulls[1]", JsonElement.class));
+
+			/* Negative test; a value that truly doesn't exist will still return `null` but will also return `null` when querying as a `JsonElement` */
+			assertNull(writer.getAttribute(groupName, "implicitNulls[10]", Object.class));
+			assertNull(writer.getAttribute(groupName, "implicitNulls[10]", JsonElement.class));
+
+			assertNull(writer.getAttribute(groupName, "keyDoesn'tExist", Object.class));
+			assertNull(writer.getAttribute(groupName, "keyDoesn'tExist", JsonElement.class));
+
+			/* check existing value gets overwritten */
+			writer.setAttribute(groupName, "existingValue", 1);
+			assertEquals((Integer)1, writer.getAttribute(groupName, "existingValue", Integer.class));
+			writer.setAttribute(groupName, "existingValue", null);
+			assertThrows(N5ClassCastException.class, () -> writer.getAttribute(groupName, "existingValue", Integer.class));
+			assertEquals(JsonNull.INSTANCE, writer.getAttribute(groupName, "existingValue", JsonElement.class));
+
+			writer.remove();
+		}
 	}
 
 	@Test
@@ -813,6 +853,8 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Ignore
 	public void testRootLeaves() throws IOException {
 
-		// probably not feasible if mergeAttributes are turned on.
+		// This tests serializing primitives, and arrays at the root of an n5's attributes,
+		// since .zattrs must be a json object, this would test invalide behavior for zarr,
+		// therefore this test is ignored.
 	}
 }
