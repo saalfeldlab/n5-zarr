@@ -101,18 +101,6 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	static private String testZarrDatasetName = "/test/data";
 
-	protected static Set<String> tmpFiles = new HashSet<>();
-
-	@AfterClass
-	public static void cleanup() {
-
-		for (final String tmpFile : tmpFiles) {
-			try {
-				FileUtils.deleteDirectory(new File(tmpFile));
-			} catch (final Exception e) {}
-		}
-	}
-
 	@Override
 	protected String tempN5Location() throws URISyntaxException {
 
@@ -124,9 +112,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		try {
 			final File tmpFile = Files.createTempDirectory(prefix).toFile();
 			tmpFile.deleteOnExit();
-			final String tmpPath = tmpFile.getCanonicalPath();
-			tmpFiles.add(tmpPath);
-			return tmpPath;
+			return tmpFile.getCanonicalPath();
 		} catch (final Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -136,7 +122,14 @@ public class N5ZarrTest extends AbstractN5Test {
 	protected N5ZarrWriter createN5Writer() throws IOException {
 
 		final String testDirPath = tmpPathName("n5-zarr-test-");
-		return createN5Writer(testDirPath, new GsonBuilder());
+		final Path testN5Path = Paths.get(testDirPath);
+		return new N5ZarrWriter(testDirPath, new GsonBuilder(), ".", true, false) {
+			@Override public void close() {
+
+				remove();
+				super.close();
+			}
+		};
 	}
 
 	@Override
@@ -158,12 +151,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		final Path testN5Path = Paths.get(location);
 		final boolean existsBefore = testN5Path.toFile().exists();
-		final N5ZarrWriter zarr = new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, false);
-		final boolean existsAfter = testN5Path.toFile().exists();
-		if (!existsBefore && existsAfter) {
-			tmpFiles.add(location);
-		}
-		return zarr;
+		return new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, false);
 	}
 
 	@Override
@@ -187,17 +175,20 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Override
 	@Test
-	public void testCreateDataset() {
+	public void testCreateDataset() throws IOException {
 
-		n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+		final DatasetAttributes info;
+		try (N5Writer n5 = createN5Writer()) {
+			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 
-		assertTrue("Dataset does not exist", n5.exists(datasetName));
+			assertTrue("Dataset does not exist", n5.exists(datasetName));
 
-		final DatasetAttributes info = n5.getDatasetAttributes(datasetName);
-		assertArrayEquals(dimensions, info.getDimensions());
-		assertArrayEquals(blockSize, info.getBlockSize());
-		assertEquals(DataType.UINT64, info.getDataType());
-		assertEquals(getCompressions()[0].getClass(), info.getCompression().getClass());
+			info = n5.getDatasetAttributes(datasetName);
+			assertArrayEquals(dimensions, info.getDimensions());
+			assertArrayEquals(blockSize, info.getBlockSize());
+			assertEquals(DataType.UINT64, info.getDataType());
+			assertEquals(getCompressions()[0].getClass(), info.getCompression().getClass());
+		}
 	}
 
 	@Test
@@ -214,6 +205,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		// TODO test that parents of nested dataset are groups
 
 		n5Nested.remove(datasetName);
+		n5Nested.remove();
 		n5Nested.close();
 	}
 
@@ -317,61 +309,67 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Override
 	@Test
-	public void testExists() {
+	public void testExists() throws IOException {
 
 		final String groupName2 = groupName + "-2";
 		final String datasetName2 = datasetName + "-2";
 		final String notExists = groupName + "-notexists";
 
-		n5.createDataset(datasetName2, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-		assertTrue(n5.exists(datasetName2));
-		assertTrue(n5.datasetExists(datasetName2));
+		try (N5Writer n5 = createN5Writer()) {
 
-		n5.createGroup(groupName2);
-		assertTrue(n5.exists(groupName2));
-		assertFalse(n5.datasetExists(groupName2));
+			n5.createDataset(datasetName2, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			assertTrue(n5.exists(datasetName2));
+			assertTrue(n5.datasetExists(datasetName2));
 
-		assertFalse(n5.exists(notExists));
-		assertFalse(n5.datasetExists(notExists));
+			n5.createGroup(groupName2);
+			assertTrue(n5.exists(groupName2));
+			assertFalse(n5.datasetExists(groupName2));
 
-		assertTrue(n5.remove(datasetName2));
-		assertTrue(n5.remove(groupName2));
+			assertFalse(n5.exists(notExists));
+			assertFalse(n5.datasetExists(notExists));
+
+			assertTrue(n5.remove(datasetName2));
+			assertTrue(n5.remove(groupName2));
+		}
 	}
 
 	@Override
 	@Test
-	public void testListAttributes() {
+	public void testListAttributes() throws IOException {
 
 		final String groupName2 = groupName + "-2";
 		final String datasetName2 = datasetName + "-2";
 
-		n5.createDataset(datasetName2, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-		n5.setAttribute(datasetName2, "attr1", new double[]{1, 2, 3});
-		n5.setAttribute(datasetName2, "attr2", new String[]{"a", "b", "c"});
-		n5.setAttribute(datasetName2, "attr3", 1.0);
-		n5.setAttribute(datasetName2, "attr4", "a");
-		n5.setAttribute(datasetName2, "attr5", 5.4);
+		try (N5Writer n5 = createN5Writer()) {
 
-		Map<String, Class<?>> attributesMap = n5.listAttributes(datasetName2);
-		assertTrue(attributesMap.get("attr1") == long[].class);
-		assertTrue(attributesMap.get("attr2") == String[].class);
-		assertTrue(attributesMap.get("attr3") == long.class);
-		assertTrue(attributesMap.get("attr4") == String.class);
-		assertTrue(attributesMap.get("attr5") == double.class);
+			n5.createDataset(datasetName2, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			n5.setAttribute(datasetName2, "attr1", new double[]{1, 2, 3});
+			n5.setAttribute(datasetName2, "attr2", new String[]{"a", "b", "c"});
+			n5.setAttribute(datasetName2, "attr3", 1.0);
+			n5.setAttribute(datasetName2, "attr4", "a");
+			n5.setAttribute(datasetName2, "attr5", 5.4);
 
-		n5.createGroup(groupName2);
-		n5.setAttribute(groupName2, "attr1", new double[]{1, 2, 3});
-		n5.setAttribute(groupName2, "attr2", new String[]{"a", "b", "c"});
-		n5.setAttribute(groupName2, "attr3", 1.0);
-		n5.setAttribute(groupName2, "attr4", "a");
-		n5.setAttribute(groupName2, "attr5", 5.4);
+			Map<String, Class<?>> attributesMap = n5.listAttributes(datasetName2);
+			assertTrue(attributesMap.get("attr1") == long[].class);
+			assertTrue(attributesMap.get("attr2") == String[].class);
+			assertTrue(attributesMap.get("attr3") == long.class);
+			assertTrue(attributesMap.get("attr4") == String.class);
+			assertTrue(attributesMap.get("attr5") == double.class);
 
-		attributesMap = n5.listAttributes(datasetName2);
-		assertTrue(attributesMap.get("attr1") == long[].class);
-		assertTrue(attributesMap.get("attr2") == String[].class);
-		assertTrue(attributesMap.get("attr3") == long.class);
-		assertTrue(attributesMap.get("attr4") == String.class);
-		assertTrue(attributesMap.get("attr5") == double.class);
+			n5.createGroup(groupName2);
+			n5.setAttribute(groupName2, "attr1", new double[]{1, 2, 3});
+			n5.setAttribute(groupName2, "attr2", new String[]{"a", "b", "c"});
+			n5.setAttribute(groupName2, "attr3", 1.0);
+			n5.setAttribute(groupName2, "attr4", "a");
+			n5.setAttribute(groupName2, "attr5", 5.4);
+
+			attributesMap = n5.listAttributes(datasetName2);
+			assertTrue(attributesMap.get("attr1") == long[].class);
+			assertTrue(attributesMap.get("attr2") == String[].class);
+			assertTrue(attributesMap.get("attr3") == long.class);
+			assertTrue(attributesMap.get("attr4") == String.class);
+			assertTrue(attributesMap.get("attr5") == double.class);
+		}
 	}
 
 	@Override
@@ -663,13 +661,12 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		final String testZarrDirPath = tmpPathName("n5-zarr-test-");
 		final N5ZarrWriter n5 = new N5ZarrWriter(testZarrDirPath);
-		n5
-				.createDataset(
-						testZarrDatasetName,
-						new long[]{1, 2, 3},
-						new int[]{1, 2, 3},
-						DataType.UINT16,
-						new RawCompression());
+		n5.createDataset(
+				testZarrDatasetName,
+				new long[]{1, 2, 3},
+				new int[]{1, 2, 3},
+				DataType.UINT16,
+				new RawCompression());
 		final JSONParser jsonParser = new JSONParser();
 		try (FileReader freader = new FileReader(testZarrDirPath + testZarrDatasetName + "/.zarray")) {
 			final JSONObject zarray = (JSONObject)jsonParser.parse(freader);
@@ -689,13 +686,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.createGroup(groupName);
 
 			n5.setAttribute(groupName, "key1", "value1");
-			Assert.assertEquals(2, n5.listAttributes(groupName).size()); // length
-																			// 2
-																			// because
-																			// it
-																			// includes
-																			// "zarr_version"
-
+			// length 2 because it includes "zarr_version"
+			Assert.assertEquals(2, n5.listAttributes(groupName).size());
 			/* class interface */
 			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
 			/* type interface */
@@ -823,16 +815,4 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		// probably not feasible if mergeAttributes are turned on.
 	}
-
-//	/**
-//	 * @throws IOException
-//	 */
-//	@AfterClass
-//	public static void rampDownAfterClass() throws IOException {
-//
-////		assertTrue(n5.remove());
-////		initialized = false;
-//		n5 = null;
-//	}
-
 }

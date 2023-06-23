@@ -30,7 +30,15 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 	@Override
 	protected N5ZarrWriter createN5Writer() throws IOException {
 
-		return createN5Writer(true);
+		final String testDirPath = tmpPathName("zarr-cached-test-");
+		final Path testN5Path = Paths.get(testDirPath);
+		return new N5ZarrWriter(testDirPath, new GsonBuilder(), ".", true, true) {
+			@Override public void close() {
+
+				remove();
+				super.close();
+			}
+		};
 	}
 
 	protected N5ZarrWriter createN5Writer(final boolean cacheAttributes) throws IOException {
@@ -62,10 +70,18 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 
 		final Path testN5Path = Paths.get(location);
 		final boolean existsBefore = testN5Path.toFile().exists();
-		final N5ZarrWriter zarr = new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, true);
-		final boolean existsAfter = testN5Path.toFile().exists();
-		if (!existsBefore && existsAfter) {
-			tmpFiles.add(location);
+		final N5ZarrWriter zarr;
+		if (!existsBefore) {
+			zarr = new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, true) {
+
+				@Override public void close() {
+
+					remove();
+					super.close();
+				}
+			};
+		} else {
+			zarr = new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, true);
 		}
 		return zarr;
 	}
@@ -74,9 +90,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		try {
 			final File tmpFile = Files.createTempDirectory("zarr-cached-test-").toFile();
 			tmpFile.deleteOnExit();
-			final String tmpPath = tmpFile.getCanonicalPath();
-			tmpFiles.add(tmpPath);
-			return tmpPath;
+			return tmpFile.getCanonicalPath();
 		} catch (final Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -113,6 +127,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 
 			Files.delete(Paths.get(attributesPath));
 			Assert.assertThrows(AssertionError.class, () -> runTests(zarr, tests));
+			zarr.remove();
 		}
 	}
 
@@ -121,10 +136,11 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 
 		final String loc = tempN5Location();
 		// make an uncached n5 writer
-		try (final ZarrTrackingStorage n5 = new ZarrTrackingStorage(
-				new FileSystemKeyValueAccess(FileSystems.getDefault()), loc, new GsonBuilder(), true)) {
+		final FileSystemKeyValueAccess keyValueAccess = new FileSystemKeyValueAccess(FileSystems.getDefault());
+		try (final ZarrTrackingStorage n5 = new ZarrTrackingStorage(keyValueAccess, loc, new GsonBuilder(), true)) {
 
 			zarrCacheBehaviorHelper(n5);
+			n5.remove();
 		}
 	}
 
