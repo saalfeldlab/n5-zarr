@@ -101,18 +101,6 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	static private String testZarrDatasetName = "/test/data";
 
-	protected static Set<String> tmpFiles = new HashSet<>();
-
-	@AfterClass
-	public static void cleanup() {
-
-		for (final String tmpFile : tmpFiles) {
-			try {
-				FileUtils.deleteDirectory(new File(tmpFile));
-			} catch (final Exception e) {}
-		}
-	}
-
 	@Override
 	protected String tempN5Location() throws URISyntaxException {
 
@@ -124,9 +112,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		try {
 			final File tmpFile = Files.createTempDirectory(prefix).toFile();
 			tmpFile.deleteOnExit();
-			final String tmpPath = tmpFile.getCanonicalPath();
-			tmpFiles.add(tmpPath);
-			return tmpPath;
+			return tmpFile.getCanonicalPath();
 		} catch (final Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -136,7 +122,14 @@ public class N5ZarrTest extends AbstractN5Test {
 	protected N5ZarrWriter createN5Writer() throws IOException {
 
 		final String testDirPath = tmpPathName("n5-zarr-test-");
-		return createN5Writer(testDirPath, new GsonBuilder());
+		final Path testN5Path = Paths.get(testDirPath);
+		return new N5ZarrWriter(testDirPath, new GsonBuilder(), ".", true, false) {
+			@Override public void close() {
+
+				remove();
+				super.close();
+			}
+		};
 	}
 
 	@Override
@@ -158,12 +151,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		final Path testN5Path = Paths.get(location);
 		final boolean existsBefore = testN5Path.toFile().exists();
-		final N5ZarrWriter zarr = new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, false);
-		final boolean existsAfter = testN5Path.toFile().exists();
-		if (!existsBefore && existsAfter) {
-			tmpFiles.add(location);
-		}
-		return zarr;
+		return new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, false);
 	}
 
 	@Override
@@ -214,6 +202,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		// TODO test that parents of nested dataset are groups
 
 		n5Nested.remove(datasetName);
+		n5Nested.remove();
 		n5Nested.close();
 	}
 
