@@ -121,7 +121,6 @@ public class N5ZarrTest extends AbstractN5Test {
 	protected N5ZarrWriter createN5Writer() throws IOException {
 
 		final String testDirPath = tmpPathName("n5-zarr-test-");
-		final Path testN5Path = Paths.get(testDirPath);
 		return new N5ZarrWriter(testDirPath, new GsonBuilder(), ".", true, false) {
 			@Override public void close() {
 
@@ -148,8 +147,6 @@ public class N5ZarrTest extends AbstractN5Test {
 			final String dimensionSeparator,
 			final boolean mapN5DatasetAttributes) throws IOException {
 
-		final Path testN5Path = Paths.get(location);
-		final boolean existsBefore = testN5Path.toFile().exists();
 		return new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, false);
 	}
 
@@ -221,22 +218,17 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testCreateDatasetNameSlash() throws IOException, URISyntaxException {
 
-		final String testDirPath = tmpPathName("n5-zarr-test-");
-		final N5Writer n5 = createN5Writer(testDirPath);
-		n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-		n5.remove();
-		n5.close();
+		try (final N5Writer n5 = createN5Writer()) {
+			n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+		}
 	}
 
 	@Test
 	public void testGetDatasetAttributesNull() throws IOException {
-		final N5ZarrWriter n5 = new N5ZarrWriter(testDirPath);
-		try {
+
+		try (final N5Writer n5 = createN5Writer()) {
 			final DatasetAttributes attributes = n5.getDatasetAttributes("");
 			assertNull(attributes);
-		} finally {
-			n5.remove();
-			n5.close();
 		}
 	}
 
@@ -251,7 +243,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		final byte[] fillValue = new byte[]{0};
 
 		final byte[] dst = N5ZarrWriter.padCrop(src, srcBlockSize, dstBlockSize, nBytes, nBits, fillValue);
-		assertArrayEquals(new byte[]{1, 1, 0, 1, 1, 0, 0, 0, 0}, dst);src/test/java/org/janelia/saalfeldlab/n5/zarr/TestMapping.java
+		assertArrayEquals(new byte[]{1, 1, 0, 1, 1, 0, 0, 0, 0}, dst);
 	}
 
 	@Override
@@ -553,7 +545,9 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_<f8"), refDouble);
 		assertIsSequence(
-				Views
+				Views		n5.remove();
+				n5.close();
+
 						.permute(
 								(RandomAccessibleInterval<DoubleType>)N5Utils
 										.open(n5Zarr, testZarrDatasetName + "/30x20_f_<f8"),
@@ -585,7 +579,7 @@ public class N5ZarrTest extends AbstractN5Test {
 				refFloat);
 
 		/* compressors */
-		final UnsignedLongType refUnsignedLong = new UnsignedLongType();src/test/java/org/janelia/saalfeldlab/n5/zarr/TestMapping.java
+		final UnsignedLongType refUnsignedLong = new UnsignedLongType();
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_>u8_zlib"), refUnsignedLong);
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_>u8_gzip"), refUnsignedLong);
