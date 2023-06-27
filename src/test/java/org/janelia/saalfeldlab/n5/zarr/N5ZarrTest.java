@@ -121,7 +121,6 @@ public class N5ZarrTest extends AbstractN5Test {
 	protected N5ZarrWriter createN5Writer() throws IOException {
 
 		final String testDirPath = tmpPathName("n5-zarr-test-");
-		final Path testN5Path = Paths.get(testDirPath);
 		return new N5ZarrWriter(testDirPath, new GsonBuilder(), ".", true, false) {
 			@Override public void close() {
 
@@ -148,8 +147,6 @@ public class N5ZarrTest extends AbstractN5Test {
 			final String dimensionSeparator,
 			final boolean mapN5DatasetAttributes) throws IOException {
 
-		final Path testN5Path = Paths.get(location);
-		final boolean existsBefore = testN5Path.toFile().exists();
 		return new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, false);
 	}
 
@@ -221,11 +218,18 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testCreateDatasetNameSlash() throws IOException, URISyntaxException {
 
-		final String testDirPath = tmpPathName("n5-zarr-test-");
-		final N5Writer n5 = createN5Writer(testDirPath);
-		n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-		n5.remove();
-		n5.close();
+		try (final N5Writer n5 = createN5Writer()) {
+			n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+		}
+	}
+
+	@Test
+	public void testGetDatasetAttributesNull() throws IOException {
+
+		try (final N5Writer n5 = createN5Writer()) {
+			final DatasetAttributes attributes = n5.getDatasetAttributes("");
+			assertNull(attributes);
+		}
 	}
 
 	@Test
@@ -541,7 +545,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_<f8"), refDouble);
 		assertIsSequence(
-				Views
+				Views		
 						.permute(
 								(RandomAccessibleInterval<DoubleType>)N5Utils
 										.open(n5Zarr, testZarrDatasetName + "/30x20_f_<f8"),
