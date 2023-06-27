@@ -25,11 +25,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libblosc1
-      - name: Setup Python For Blosc (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: 'pypy3.9'
+      - name: Install Python Test Dependencies
+        run: pip install --no-input --user numpy zarr
       - name: Set up Java
         uses: actions/setup-java@v2
         with:
@@ -40,7 +41,8 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           pip install --no-input --user blosc
-          set PATH=%AppData%\Python\bin
+          mkdir src\test\resources
+          copy %AppData%\Python\bin\blosc.dll src\test\resources
           mvn -B clean test --file pom.xml
       - name: Maven Test Ubuntu
         if: matrix.os == 'ubuntu-latest'
