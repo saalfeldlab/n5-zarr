@@ -229,6 +229,18 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
+	public void testGetDatasetAttributesNull() throws IOException {
+		final N5ZarrWriter n5 = new N5ZarrWriter(testDirPath);
+		try {
+			final DatasetAttributes attributes = n5.getDatasetAttributes("");
+			assertNull(attributes);
+		} finally {
+			n5.remove();
+			n5.close();
+		}
+	}
+
+	@Test
 	public void testPadCrop() throws Exception {
 
 		final byte[] src = new byte[]{1, 1, 1, 1}; // 2x2
@@ -239,7 +251,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		final byte[] fillValue = new byte[]{0};
 
 		final byte[] dst = N5ZarrWriter.padCrop(src, srcBlockSize, dstBlockSize, nBytes, nBits, fillValue);
-		assertArrayEquals(new byte[]{1, 1, 0, 1, 1, 0, 0, 0, 0}, dst);
+		assertArrayEquals(new byte[]{1, 1, 0, 1, 1, 0, 0, 0, 0}, dst);src/test/java/org/janelia/saalfeldlab/n5/zarr/TestMapping.java
 	}
 
 	@Override
@@ -573,7 +585,7 @@ public class N5ZarrTest extends AbstractN5Test {
 				refFloat);
 
 		/* compressors */
-		final UnsignedLongType refUnsignedLong = new UnsignedLongType();
+		final UnsignedLongType refUnsignedLong = new UnsignedLongType();src/test/java/org/janelia/saalfeldlab/n5/zarr/TestMapping.java
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_>u8_zlib"), refUnsignedLong);
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_>u8_gzip"), refUnsignedLong);

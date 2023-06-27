@@ -47,7 +47,7 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 	 *
 	 * If the base path does not exist, it will be created.
 	 *
-	 * If the base path exists and if the N5 version of the container is
+	 * If the base path exists and if tsrc/test/java/org/janelia/saalfeldlab/n5/zarr/TestMapping.javahe N5 version of the container is
 	 * compatible with this implementation, the N5 version of this container
 	 * will be set to the current N5 version of this implementation.
 	 *
@@ -207,6 +207,5 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 
 		this(basePath, new GsonBuilder());
 	}
-
 
 }
