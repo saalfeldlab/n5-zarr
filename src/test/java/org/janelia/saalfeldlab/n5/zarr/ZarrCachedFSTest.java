@@ -31,11 +31,10 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 	protected N5ZarrWriter createN5Writer() throws IOException {
 
 		final String testDirPath = tmpPathName("zarr-cached-test-");
-		final Path testN5Path = Paths.get(testDirPath);
 		return new N5ZarrWriter(testDirPath, new GsonBuilder(), ".", true, true) {
 			@Override public void close() {
 
-				remove();
+				assertTrue(remove());
 				super.close();
 			}
 		};
@@ -68,22 +67,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 			final String dimensionSeparator,
 			final boolean mapN5DatasetAttributes) throws IOException {
 
-		final Path testN5Path = Paths.get(location);
-		final boolean existsBefore = testN5Path.toFile().exists();
-		final N5ZarrWriter zarr;
-		if (!existsBefore) {
-			zarr = new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, true) {
-
-				@Override public void close() {
-
-					remove();
-					super.close();
-				}
-			};
-		} else {
-			zarr = new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, true);
-		}
-		return zarr;
+		return new N5ZarrWriter(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, true);
 	}
 
 	protected static String tempN5PathName() {
@@ -104,7 +88,10 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		final String cachedGroup = "cachedGroup";
 		try (ZarrKeyValueWriter zarr = (ZarrKeyValueWriter) createN5Writer()) {
 			zarr.createGroup(cachedGroup);
-			final String attributesPath = zarr.getKeyValueAccess().compose(zarr.getURI().getPath(), cachedGroup, ZarrKeyValueReader.ZATTRS_FILE);
+			final String attributesPath = new File(zarr.getURI()).toPath()
+					.resolve(cachedGroup)
+					.resolve(ZarrKeyValueReader.ZATTRS_FILE)
+					.toAbsolutePath().toString();
 
 			final ArrayList<TestData<?>> tests = new ArrayList<>();
 			addAndTest(zarr, tests, new TestData<>(cachedGroup, "a/b/c", 100));
@@ -117,7 +104,11 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 
 		try (final ZarrKeyValueWriter zarr = (ZarrKeyValueWriter) createN5Writer(false)) {
 			zarr.createGroup(cachedGroup);
-			final String attributesPath = zarr.getKeyValueAccess().compose(zarr.getURI().getPath(), cachedGroup, ZarrKeyValueReader.ZATTRS_FILE);
+
+			final String attributesPath = new File(zarr.getURI()).toPath()
+					.resolve(cachedGroup)
+					.resolve(ZarrKeyValueReader.ZATTRS_FILE)
+					.toAbsolutePath().toString();
 
 
 			final ArrayList<TestData<?>> tests = new ArrayList<>();

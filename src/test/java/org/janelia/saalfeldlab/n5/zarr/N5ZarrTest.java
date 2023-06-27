@@ -92,8 +92,6 @@ import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.Views;
 
 /**
- *
- *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public class N5ZarrTest extends AbstractN5Test {
@@ -103,7 +101,11 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Override
 	protected String tempN5Location() throws URISyntaxException {
 
-		return new URI("file", null, tmpPathName("n5-zarr-test-"), null).toString();
+		try {
+			return Files.createTempDirectory("n5-zarr-test").toUri().toString();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	protected static String tmpPathName(final String prefix) {
@@ -122,9 +124,10 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		final String testDirPath = tmpPathName("n5-zarr-test-");
 		return new N5ZarrWriter(testDirPath, new GsonBuilder(), ".", true, false) {
+
 			@Override public void close() {
 
-				remove();
+				assertTrue(remove());
 				super.close();
 			}
 		};
@@ -252,8 +255,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		try (final N5Writer writer = createN5Writer()) {
 
-			@SuppressWarnings("resource")
-			final N5ZarrWriter zarr = (N5ZarrWriter)writer;
+			@SuppressWarnings("resource") final N5ZarrWriter zarr = (N5ZarrWriter)writer;
 			final Version n5Version = writer.getVersion();
 			Assert.assertTrue(n5Version.equals(N5ZarrReader.VERSION));
 
@@ -267,8 +269,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			// check that writer creation fails for incompatible version
 			assertThrows(IOException.class, () -> createN5Writer(writer.getURI().toString()));
 
-//			final Version compatibleVersion = new Version(N5ZarrReader.VERSION.getMajor(), N5ZarrReader.VERSION.getMinor(), N5Reader.VERSION.getPatch());
-//			writer.setAttribute("/", ZarrUtils.ZARR_FORMAT_KEY, compatibleVersion.toString());
+			//			final Version compatibleVersion = new Version(N5ZarrReader.VERSION.getMajor(), N5ZarrReader.VERSION.getMinor(), N5Reader.VERSION.getPatch());
+			//			writer.setAttribute("/", ZarrUtils.ZARR_FORMAT_KEY, compatibleVersion.toString());
 		}
 	}
 
@@ -378,12 +380,16 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Override
 	@Test
 	@Ignore("Zarr does not currently support mode 1 data blocks.")
-	public void testMode1WriteReadByteBlock() {}
+	public void testMode1WriteReadByteBlock() {
+
+	}
 
 	@Override
 	@Test
 	@Ignore("Zarr does not currently support mode 2 data blocks and serialized objects.")
-	public void testWriteReadSerializableBlock() {}
+	public void testWriteReadSerializableBlock() {
+
+	}
 
 	private boolean runPythonTest(final String script, final String containerPath) throws IOException, InterruptedException {
 
@@ -476,35 +482,29 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_|u1"), refUnsignedByte);
 		assertIsSequence(
-				Views
-						.permute(
-								(RandomAccessibleInterval<UnsignedByteType>)N5Utils
-										.open(n5Zarr, testZarrDatasetName + "/3x2_f_|u1"),
-								0,
-								1),
-				refUnsignedByte);
+			Views.permute(
+				(RandomAccessibleInterval<UnsignedByteType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_f_|u1"),
+				0,
+				1),
+			refUnsignedByte);
 
 		/* LE int64 in C and F order */
 		final LongType refLong = new LongType();
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_<i8"), refLong);
 		assertIsSequence(
-				Views
-						.permute(
-								(RandomAccessibleInterval<LongType>)N5Utils
-										.open(n5Zarr, testZarrDatasetName + "/3x2_f_<i8"),
-								0,
-								1),
+				Views.permute(
+					(RandomAccessibleInterval<LongType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_f_<i8"),
+					0,
+					1),
 				refLong);
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_<i8"), refLong);
 		assertIsSequence(
-				Views
-						.permute(
-								(RandomAccessibleInterval<LongType>)N5Utils
-										.open(n5Zarr, testZarrDatasetName + "/30x20_f_<i8"),
-								0,
-								1),
+				Views.permute(
+					(RandomAccessibleInterval<LongType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_f_<i8"),
+					0,
+					1),
 				refLong);
 
 		/* BE int32 in C and F order */
@@ -512,69 +512,57 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_>u4"), refUnsignedInt);
 		assertIsSequence(
-				Views
-						.permute(
-								(RandomAccessibleInterval<UnsignedIntType>)N5Utils
-										.open(n5Zarr, testZarrDatasetName + "/3x2_f_>u4"),
-								0,
-								1),
-				refUnsignedInt);
+			Views.permute(
+				(RandomAccessibleInterval<UnsignedIntType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_f_>u4"),
+				0,
+				1),
+			refUnsignedInt);
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_>u4"), refUnsignedInt);
 		assertIsSequence(
-				Views
-						.permute(
-								(RandomAccessibleInterval<UnsignedIntType>)N5Utils
-										.open(n5Zarr, testZarrDatasetName + "/30x20_f_>u4"),
-								0,
-								1),
-				refUnsignedInt);
+			Views.permute(
+				(RandomAccessibleInterval<UnsignedIntType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_f_>u4"),
+				0,
+				1),
+			refUnsignedInt);
 
 		/* LE float64 in C and F order */
 		final DoubleType refDouble = new DoubleType();
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_<f8"), refDouble);
 		assertIsSequence(
-				Views
-						.permute(
-								(RandomAccessibleInterval<DoubleType>)N5Utils
-										.open(n5Zarr, testZarrDatasetName + "/3x2_f_<f8"),
-								0,
-								1),
-				refDouble);
+			Views.permute(
+					(RandomAccessibleInterval<DoubleType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_f_<f8"),
+					0,
+					1),
+			refDouble);
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_<f8"), refDouble);
 		assertIsSequence(
-				Views		
-						.permute(
-								(RandomAccessibleInterval<DoubleType>)N5Utils
-										.open(n5Zarr, testZarrDatasetName + "/30x20_f_<f8"),
-								0,
-								1),
-				refDouble);
+			Views.permute(
+				(RandomAccessibleInterval<DoubleType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_f_<f8"),
+				0,
+				1),
+			refDouble);
 
 		/* BE float32 in C and F order */
 		final FloatType refFloat = new FloatType();
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_>f4"), refFloat);
 		assertIsSequence(
-				Views
-						.permute(
-								(RandomAccessibleInterval<FloatType>)N5Utils
-										.open(n5Zarr, testZarrDatasetName + "/3x2_f_>f4"),
-								0,
-								1),
-				refFloat);
+			Views.permute(
+				(RandomAccessibleInterval<FloatType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_f_>f4"),
+				0,
+				1),
+			refFloat);
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_>f4"), refFloat);
 		assertIsSequence(
-				Views
-						.permute(
-								(RandomAccessibleInterval<FloatType>)N5Utils
-										.open(n5Zarr, testZarrDatasetName + "/30x20_f_>f4"),
-								0,
-								1),
-				refFloat);
+			Views.permute(
+				(RandomAccessibleInterval<FloatType>)N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_f_>f4"),
+				0,
+				1),
+			refFloat);
 
 		/* compressors */
 		final UnsignedLongType refUnsignedLong = new UnsignedLongType();
@@ -694,7 +682,9 @@ public class N5ZarrTest extends AbstractN5Test {
 			/* class interface */
 			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
 			/* type interface */
-			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {}.getType()));
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {
+
+			}.getType()));
 
 			final Map<String, String> newAttributes = new HashMap<>();
 			newAttributes.put("key2", "value2");
@@ -707,9 +697,15 @@ public class N5ZarrTest extends AbstractN5Test {
 			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", String.class));
 			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", String.class));
 			/* type interface */
-			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {}.getType()));
-			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", new TypeToken<String>() {}.getType()));
-			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {}.getType()));
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {
+
+			}.getType()));
+			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", new TypeToken<String>() {
+
+			}.getType()));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {
+
+			}.getType()));
 
 			// test the case where the resulting file becomes shorter
 			n5.setAttribute(groupName, "key1", new Integer(1));
@@ -724,12 +720,18 @@ public class N5ZarrTest extends AbstractN5Test {
 			Assert
 					.assertEquals(
 							new Integer(1),
-							n5.getAttribute(groupName, "key1", new TypeToken<Integer>() {}.getType()));
+							n5.getAttribute(groupName, "key1", new TypeToken<Integer>() {
+
+							}.getType()));
 			Assert
 					.assertEquals(
 							new Integer(2),
-							n5.getAttribute(groupName, "key2", new TypeToken<Integer>() {}.getType()));
-			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {}.getType()));
+							n5.getAttribute(groupName, "key2", new TypeToken<Integer>() {
+
+							}.getType()));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {
+
+			}.getType()));
 
 			n5.removeAttribute(groupName, "key1");
 			n5.removeAttribute(groupName, "key2");
@@ -748,39 +750,39 @@ public class N5ZarrTest extends AbstractN5Test {
 
 			long[] dimsZarr = n5.getAttribute(datasetName, ZArrayAttributes.shapeKey, long[].class);
 			long[] dimsN5 = n5.getAttribute(datasetName, DatasetAttributes.DIMENSIONS_KEY, long[].class);
-			assertArrayEquals( dimsZarr, dimsN5 );
+			assertArrayEquals(dimsZarr, dimsN5);
 
 			int[] blkZarr = n5.getAttribute(datasetName, ZArrayAttributes.chunksKey, int[].class);
 			int[] blkN5 = n5.getAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, int[].class);
-			assertArrayEquals( blkZarr, blkN5 );
+			assertArrayEquals(blkZarr, blkN5);
 
 			DType dtype = n5.getAttribute(datasetName, ZArrayAttributes.dTypeKey, DType.class);
 			// read to a string because zarr may not have the N5 DataType deserializer
 			DataType n5DataType = DataType.fromString(n5.getAttribute(datasetName, DatasetAttributes.DATA_TYPE_KEY, String.class));
-			assertEquals( dtype.getDataType(), n5DataType );
+			assertEquals(dtype.getDataType(), n5DataType);
 
 			ZarrCompressor zarrCompression = n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class);
 			Compression n5Compression = n5.getAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, Compression.class);
 			assertEquals(zarrCompression.getCompression(), n5Compression);
 
-			final long[] newDims = new long[]{ 30, 40, 50 };
-			final int[] newBlk = new int[]{ 30, 40, 50 };
+			final long[] newDims = new long[]{30, 40, 50};
+			final int[] newBlk = new int[]{30, 40, 50};
 			final DataType newDtype = DataType.FLOAT64;
 
 			// ensure variables can be set through the n5 variables as well
-			n5.setAttribute(datasetName, DatasetAttributes.DIMENSIONS_KEY, newDims );
+			n5.setAttribute(datasetName, DatasetAttributes.DIMENSIONS_KEY, newDims);
 			dimsZarr = n5.getAttribute(datasetName, ZArrayAttributes.shapeKey, long[].class);
 			dimsN5 = n5.getAttribute(datasetName, DatasetAttributes.DIMENSIONS_KEY, long[].class);
-			assertArrayEquals( newDims, dimsZarr );
-			assertArrayEquals( newDims, dimsN5 );
+			assertArrayEquals(newDims, dimsZarr);
+			assertArrayEquals(newDims, dimsN5);
 
-			n5.setAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, newBlk );
+			n5.setAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, newBlk);
 			blkZarr = n5.getAttribute(datasetName, ZArrayAttributes.shapeKey, int[].class);
 			blkN5 = n5.getAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, int[].class);
 			assertArrayEquals(newBlk, blkZarr);
 			assertArrayEquals(newBlk, blkN5);
 
-			n5.setAttribute(datasetName, DatasetAttributes.DATA_TYPE_KEY, newDtype.toString() );
+			n5.setAttribute(datasetName, DatasetAttributes.DATA_TYPE_KEY, newDtype.toString());
 
 			dtype = n5.getAttribute(datasetName, ZArrayAttributes.dTypeKey, DType.class);
 			n5DataType = DataType.fromString(n5.getAttribute(datasetName, DatasetAttributes.DATA_TYPE_KEY, String.class));
@@ -791,7 +793,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.setAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, rawCompression);
 			n5Compression = n5.getAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, Compression.class);
 			assertEquals(rawCompression, n5Compression);
-			assertThrows( N5Exception.N5ClassCastException.class, () -> n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class));
+			assertThrows(N5Exception.N5ClassCastException.class, () -> n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class));
 
 			GzipCompression gzipCompression = new GzipCompression();
 			n5.setAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, gzipCompression);
