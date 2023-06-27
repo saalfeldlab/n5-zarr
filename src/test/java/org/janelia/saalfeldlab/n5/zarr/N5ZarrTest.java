@@ -545,9 +545,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_<f8"), refDouble);
 		assertIsSequence(
-				Views		n5.remove();
-				n5.close();
-
+				Views		
 						.permute(
 								(RandomAccessibleInterval<DoubleType>)N5Utils
 										.open(n5Zarr, testZarrDatasetName + "/30x20_f_<f8"),
