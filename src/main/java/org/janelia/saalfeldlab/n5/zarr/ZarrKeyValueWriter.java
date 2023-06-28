@@ -100,8 +100,8 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 	 *            not be
 	 *            tracked.
 	 *
-	 * @throws IOException
-	 *             if the base path cannot be written to or cannot becreated.
+	 * @throws N5Exception
+	 *             if the base path cannot be written to or cannot be created.
 	 */
 	public ZarrKeyValueWriter(
 			final KeyValueAccess keyValueAccess,
@@ -111,7 +111,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			final boolean mergeAttributes,
 			final String dimensionSeparator,
 			final boolean cacheAttributes)
-			throws IOException {
+			throws N5Exception {
 
 		super(
 				false,
@@ -126,7 +126,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		if (exists("/")) {
 			version = getVersion();
 			if (!ZarrKeyValueReader.VERSION.isCompatible(version))
-				throw new IOException(
+				throw new N5Exception.N5IOException(
 						"Incompatible version " + version + " (this is " + ZarrKeyValueReader.VERSION + ").");
 		}
 

@@ -28,10 +28,10 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
-import java.io.IOException;
 import java.nio.file.FileSystems;
 
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.N5Exception;
 
 import com.google.gson.GsonBuilder;
 
@@ -66,7 +66,7 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 	 *    of cached attributes and meta data by an independent writer on the
 	 *    same container will not be tracked.
 	 *
-	 * @throws IOException
+	 * @throws N5Exception
 	 *    if the base path cannot be read or does not exist,
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
@@ -75,7 +75,7 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 			final GsonBuilder gsonBuilder,
 			final boolean mapN5DatasetAttributes,
 			final boolean mergeAttributes,
-			final boolean cacheMeta) throws IOException {
+			final boolean cacheMeta) throws N5Exception {
 
 		super(
 				new FileSystemKeyValueAccess(FileSystems.getDefault()),
@@ -88,7 +88,7 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 				cacheMeta);
 
 		if( !exists("/"))
-			throw new IOException("No container exists at " + basePath );
+			throw new N5Exception.N5IOException("No container exists at " + basePath );
 	}
 
 	/**
@@ -104,14 +104,14 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 	 *    of cached attributes and meta data by an independent writer on the
 	 *    same container will not be tracked.
 	 *
-	 * @throws IOException
+	 * @throws N5Exception
 	 *    if the base path cannot be read or does not exist,
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
 	 */
 	public N5ZarrReader(final String basePath,
 			final GsonBuilder gsonBuilder,
-			final boolean cacheMeta) throws IOException {
+			final boolean cacheMeta) throws N5Exception {
 
 		this( basePath, gsonBuilder, true, true, cacheMeta );
 	}
@@ -127,12 +127,12 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 	 *    of cached attributes and meta data by an independent writer on the
 	 *    same container will not be tracked.
 	 *
-	 * @throws IOException
+	 * @throws N5Exception
 	 *    if the base path cannot be read or does not exist,
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
 	 */
-	public N5ZarrReader(final String basePath, final boolean cacheMeta) throws IOException {
+	public N5ZarrReader(final String basePath, final boolean cacheMeta) throws N5Exception {
 
 		this(basePath, new GsonBuilder(), cacheMeta);
 	}
@@ -143,12 +143,12 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 	 *
 	 * @param basePath N5 base path
 	 * @param gsonBuilder
-	 * @throws IOException
+	 * @throws N5Exception
 	 *    if the base path cannot be read or does not exist,
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
 	 */
-	public N5ZarrReader(final String basePath, final GsonBuilder gsonBuilder) throws IOException {
+	public N5ZarrReader(final String basePath, final GsonBuilder gsonBuilder) throws N5Exception {
 
 		this(basePath, gsonBuilder, false);
 	}
@@ -157,12 +157,12 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 	 * Opens an {@link N5ZarrReader} at a given base path.
 	 *
 	 * @param basePath N5 base path
-	 * @throws IOException
+	 * @throws N5Exception
 	 *    if the base path cannot be read or does not exist,
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
 	 */
-	public N5ZarrReader(final String basePath) throws IOException {
+	public N5ZarrReader(final String basePath) throws N5Exception {
 
 		this(basePath, new GsonBuilder(), false);
 	}

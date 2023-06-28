@@ -127,7 +127,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 *            will
 	 *            not be tracked.
 	 *
-	 * @throws IOException
+	 * @throws N5Exception
 	 *             if the base path cannot be read or does not exist,
 	 *             if the N5 version of the container is not compatible with
 	 *             this
@@ -141,7 +141,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			final boolean mapN5DatasetAttributes,
 			final boolean mergeAttributes,
 			final boolean cacheMeta)
-			throws IOException {
+			throws N5Exception {
 
 		this.keyValueAccess = keyValueAccess;
 		this.gson = registerGson(gsonBuilder);
@@ -185,7 +185,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 *            will
 	 *            not be tracked.
 	 *
-	 * @throws IOException
+	 * @throws N5Exception
 	 *             if the base path cannot be read or does not exist,
 	 *             if the N5 version of the container is not compatible with
 	 *             this
@@ -198,7 +198,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			final boolean mapN5DatasetAttributes,
 			final boolean mergeAttributes,
 			final boolean cacheMeta)
-			throws IOException {
+			throws N5Exception {
 
 		this(true, keyValueAccess, basePath, gsonBuilder, mapN5DatasetAttributes, mergeAttributes, cacheMeta);
 	}

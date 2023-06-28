@@ -28,10 +28,10 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
-import java.io.IOException;
 import java.nio.file.FileSystems;
 
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Writer;
 
 import com.google.gson.GsonBuilder;
@@ -61,13 +61,13 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 	 *    of cached attributes and meta data by an independent writer on the
 	 *    same container will not be tracked.
 	 *
-	 * @throws IOException
+	 * @throws N5Exception
 	 *    if the base path cannot be written to or cannot be created,
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
 	 */
 	public N5ZarrWriter(final String basePath, final GsonBuilder gsonBuilder, final String dimensionSeparator,
-			final boolean mapN5DatasetAttributes, final boolean cacheAttributes) throws IOException {
+			final boolean mapN5DatasetAttributes, final boolean cacheAttributes) throws N5Exception {
 
 		super(
 				new FileSystemKeyValueAccess(FileSystems.getDefault()),
@@ -97,13 +97,13 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 	 *    of cached attributes and meta data by an independent writer on the
 	 *    same container will not be tracked.
 	 *
-	 * @throws IOException
+	 * @throws N5Exception
 	 *    if the base path cannot be written to or cannot be created,
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
 	 */
 	public N5ZarrWriter(final String basePath, final String dimensionSeparator, final boolean cacheAttributes)
-			throws IOException {
+			throws N5Exception {
 
 		this(basePath, new GsonBuilder(), dimensionSeparator, true, cacheAttributes);
 	}
@@ -125,12 +125,12 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 	 *    of cached attributes and meta data by an independent writer on the
 	 *    same container will not be tracked.
 	 *
-	 * @throws IOException
+	 * @throws N5Exception
 	 *    if the base path cannot be written to or cannot be created,
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
 	 */
-	public N5ZarrWriter(final String basePath, final boolean cacheAttributes) throws IOException {
+	public N5ZarrWriter(final String basePath, final boolean cacheAttributes) throws N5Exception {
 
 		this(basePath, new GsonBuilder(), ".", true, cacheAttributes);
 	}
@@ -150,12 +150,12 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 	 * @param basePath n5 base path
 	 * @param gsonBuilder
 	 *
-	 * @throws IOException
+	 * @throws N5Exception
 	 *    if the base path cannot be written to or cannot be created,
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
 	 */
-	public N5ZarrWriter(final String basePath, final GsonBuilder gsonBuilder, final boolean cacheAttributes ) throws IOException {
+	public N5ZarrWriter(final String basePath, final GsonBuilder gsonBuilder, final boolean cacheAttributes ) throws N5Exception {
 
 		this(basePath, gsonBuilder, ".", true, cacheAttributes);
 	}
@@ -175,12 +175,12 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 	 * @param basePath n5 base path
 	 * @param gsonBuilder
 	 *
-	 * @throws IOException
+	 * @throws N5Exception
 	 *    if the base path cannot be written to or cannot be created,
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
 	 */
-	public N5ZarrWriter(final String basePath, final GsonBuilder gsonBuilder) throws IOException {
+	public N5ZarrWriter(final String basePath, final GsonBuilder gsonBuilder) throws N5Exception {
 
 		this(basePath, gsonBuilder, ".", true, false);
 	}
@@ -198,12 +198,12 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 	 *
 	 * @param basePath n5 base path
 	 *
-	 * @throws IOException
+	 * @throws N5Exception
 	 *    if the base path cannot be written to or cannot be created,
 	 *    if the N5 version of the container is not compatible with this
 	 *    implementation.
 	 */
-	public N5ZarrWriter(final String basePath) throws IOException {
+	public N5ZarrWriter(final String basePath) throws N5Exception {
 
 		this(basePath, new GsonBuilder());
 	}
