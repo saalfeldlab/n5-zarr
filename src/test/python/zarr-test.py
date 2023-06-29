@@ -66,22 +66,26 @@ group.array(
 group.array(
   name='3x2_c_i8',
   data=array_3x2_c,
+  dtype='<i8',
   chunks=(2, 3),
   overwrite=True)
 group.array(
   name='3x2_f_i8',
   data=array_3x2_f,
+  dtype='<i8',
   chunks=(2, 3),
   order='F',
   overwrite=True)
 group.array(
   name='30x20_c_i8',
   data=array_30x20_c,
+  dtype='<i8',
   chunks=(7, 13),
   overwrite=True)
 group.array(
   name='30x20_f_i8',
   data=array_30x20_f,
+  dtype='<i8',
   chunks=(7, 13),
   order='F',
   overwrite=True)
