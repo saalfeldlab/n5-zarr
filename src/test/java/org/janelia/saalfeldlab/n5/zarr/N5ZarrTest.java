@@ -389,14 +389,18 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	}
 
-	private boolean runPythonTest(final String script, final String containerPath) throws IOException, InterruptedException {
+	private boolean runPythonTest(final String script, final String containerPath) throws InterruptedException {
 
-		Process process = Runtime.getRuntime().exec("poetry run python src/test/python/" + script + " " + containerPath);
-		final int exitCode = process.waitFor();
-		new BufferedReader(new InputStreamReader(process.getErrorStream())).lines().forEach(System.out::println);
-		process.destroy();
+		try {
+			Process process = Runtime.getRuntime().exec("poetry run python src/test/python/" + script + " " + containerPath);
+			final int exitCode = process.waitFor();
+			new BufferedReader(new InputStreamReader(process.getErrorStream())).lines().forEach(System.out::println);
+			process.destroy();
+			return (exitCode == 0);
+		} catch (IOException e) {
+			return false;
+		}
 
-		return (exitCode == 0);
 	}
 
 	private static <T extends IntegerType<T>> void assertIsSequence(
