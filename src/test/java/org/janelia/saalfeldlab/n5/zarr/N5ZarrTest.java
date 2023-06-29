@@ -393,13 +393,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	private boolean runPythonTest(final String script, final String containerPath) throws IOException, InterruptedException {
 
-		final boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
-		Process process;
-		if (isWindows) {
-			process = Runtime.getRuntime().exec("cmd.exe /c python3 src\\test\\python\\" + script + " " + containerPath);
-		} else {
-			process = Runtime.getRuntime().exec("python3 src/test/python/" + script + " " + containerPath);
-		}
+		Process process = Runtime.getRuntime().exec("poetry run python src/test/python/" + script + " " + containerPath);
 		final int exitCode = process.waitFor();
 		new BufferedReader(new InputStreamReader(process.getErrorStream())).lines().forEach(System.out::println);
 		process.destroy();
