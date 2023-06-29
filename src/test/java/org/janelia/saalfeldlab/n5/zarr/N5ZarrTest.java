@@ -447,12 +447,12 @@ public class N5ZarrTest extends AbstractN5Test {
 		final DatasetAttributes datasetAttributesC = n5Zarr.getDatasetAttributes(testZarrDatasetName + "/3x2_c_i8");
 		assertArrayEquals(datasetAttributesC.getDimensions(), new long[]{3, 2});
 		assertArrayEquals(datasetAttributesC.getBlockSize(), new int[]{3, 2});
-		assertEquals(datasetAttributesC.getDataType(), DataType.INT64);
+		assertEquals(DataType.INT64, datasetAttributesC.getDataType());
 
 		final DatasetAttributes datasetAttributesF = n5Zarr.getDatasetAttributes(testZarrDatasetName + "/3x2_f_i8");
 		assertArrayEquals(datasetAttributesF.getDimensions(), new long[]{2, 3});
 		assertArrayEquals(datasetAttributesF.getBlockSize(), new int[]{2, 3});
-		assertEquals(datasetAttributesF.getDataType(), DataType.INT64);
+		assertEquals(DataType.INT64, datasetAttributesF.getDataType());
 
 		/* N5 array parameter mapping */
 		assertArrayEquals(
