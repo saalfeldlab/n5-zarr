@@ -67,7 +67,7 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final boolean isRowMajor,
 			final String fill_value) {
 
-		this( dimensions, blockSize, dType, compression, isRowMajor, fill_value, "");
+		this( dimensions, blockSize, dType, compression, isRowMajor, fill_value, ".");
 	}
 
 	public boolean isRowMajor() {
@@ -82,7 +82,6 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 
 	public byte[] getFillBytes() {
 
-		// TODO Auto-generated method stub
 		return fillBytes;
 	}
 

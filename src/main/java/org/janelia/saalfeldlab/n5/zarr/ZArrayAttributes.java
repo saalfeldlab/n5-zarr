@@ -28,12 +28,21 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
 import org.janelia.saalfeldlab.n5.RawCompression;
+
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.reflect.TypeToken;
 
 
 /**
@@ -42,15 +51,23 @@ import org.janelia.saalfeldlab.n5.RawCompression;
  */
 public class ZArrayAttributes {
 
-	protected static final String zarrFormatKey = "zarr_format";
-	protected static final String shapeKey = "shape";
-	protected static final String chunksKey = "chunks";
-	protected static final String dTypeKey = "dtype";
-	protected static final String compressorKey = "compressor";
-	protected static final String fillValueKey = "fill_value";
-	protected static final String orderKey = "order";
-	protected static final String filtersKey = "filters";
-	protected static final String dimensionSeparatorKey = "dimension_separator";
+	public static final String zarrFormatKey = "zarr_format";
+	public static final String shapeKey = "shape";
+	public static final String chunksKey = "chunks";
+	public static final String dTypeKey = "dtype";
+	public static final String compressorKey = "compressor";
+	public static final String fillValueKey = "fill_value";
+	public static final String orderKey = "order";
+	public static final String filtersKey = "filters";
+	public static final String dimensionSeparatorKey = "dimension_separator";
+
+	public static final String[] requiredKeys = new String[]{
+		zarrFormatKey, shapeKey, chunksKey, dTypeKey, compressorKey, fillValueKey, filtersKey
+	};
+
+	public static final String[] allKeys = new String[] { zarrFormatKey, shapeKey, chunksKey, dTypeKey, compressorKey,
+			fillValueKey, filtersKey, orderKey, dimensionSeparatorKey
+	};
 
 	private final int zarr_format;
 	private final long[] shape;
@@ -106,8 +123,8 @@ public class ZArrayAttributes {
 		final int[] blockSize = chunks.clone();
 
 		if (isRowMajor) {
-			Utils.reorder(dimensions);
-			Utils.reorder(blockSize);
+			ZarrKeyValueWriter.reorder(dimensions);
+			ZarrKeyValueWriter.reorder(blockSize);
 		}
 
 		return new ZarrDatasetAttributes(
@@ -172,11 +189,13 @@ public class ZArrayAttributes {
 		map.put(shapeKey, shape);
 		map.put(chunksKey, chunks);
 		map.put(dTypeKey, dtype.toString());
-		map.put(compressorKey, compressor instanceof RawCompression ? null : compressor);
 		map.put(fillValueKey, fill_value);
 		map.put(orderKey, order);
 		map.put(filtersKey, filters);
 		map.put(dimensionSeparatorKey, dimensionSeparator);
+
+		// compression key is required, need to write json null
+		map.put(compressorKey, compressor instanceof RawCompression ? JsonNull.INSTANCE : compressor);
 
 		return map;
 	}
@@ -184,5 +203,32 @@ public class ZArrayAttributes {
 	public Collection<Filter> getFilters() {
 
 		return filters;
+	}
+
+	public static JsonAdapter jsonAdapter = new JsonAdapter();
+
+	public static class JsonAdapter implements JsonDeserializer<ZArrayAttributes> {
+
+		@Override
+		public ZArrayAttributes deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+
+			final JsonObject obj = json.getAsJsonObject();
+			final JsonElement sepElem = obj.get("dimension_separator");
+			try {
+				return new ZArrayAttributes(
+						obj.get("zarr_format").getAsInt(),
+						context.deserialize( obj.get("shape"), long[].class),
+						context.deserialize( obj.get("chunks"), int[].class),
+						context.deserialize( obj.get("dtype"), DType.class), // fix
+						context.deserialize( obj.get("compressor"), ZarrCompressor.class), // fix
+						obj.get("fill_value").getAsString(),
+						obj.get("order").getAsCharacter(),
+						sepElem != null ? sepElem.getAsString() : ".",
+						context.deserialize( obj.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType()));
+			} catch (Exception e) {
+				return null;
+			}
+		}
+
 	}
 }

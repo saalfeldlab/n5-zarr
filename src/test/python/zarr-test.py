@@ -31,9 +31,13 @@ from pathlib import Path
 import numpy as np
 import zarr
 from numcodecs import Zlib, GZip, BZ2
+import sys
+import os
 
-test_path = Path.home() / 'tmp' / 'zarr-test.zarr'
-group_path = 'test/data'
+test_path = sys.argv[1]
+group_path = os.path.join('test', 'data')
+
+sys.stderr.write(test_path)
 
 store = zarr.DirectoryStore(str(test_path))
 root = zarr.group(store=store, overwrite=True)
@@ -46,13 +50,13 @@ array_30x20_c = np.arange(0,30*20).reshape(20,30)
 array_30x20_f = np.asfortranarray(array_30x20_c)
 
 group.array(
-  name='3x2_c_|u1',
+  name='3x2_c_u1',
   dtype='|u1',
   data=array_3x2_c,
   chunks=(2, 3),
   overwrite=True)
 group.array(
-  name='3x2_f_|u1',
+  name='3x2_f_u1',
   dtype='|u1',
   data=array_3x2_f,
   chunks=(2, 3),
@@ -60,76 +64,80 @@ group.array(
   overwrite=True)
 
 group.array(
-  name='3x2_c_<i8',
+  name='3x2_c_i8',
+  data=array_3x2_c,
+  dtype='<i8',
+  chunks=(2, 3),
+  overwrite=True)
+group.array(
+  name='3x2_f_i8',
+  data=array_3x2_f,
+  dtype='<i8',
+  chunks=(2, 3),
+  order='F',
+  overwrite=True)
+group.array(
+  name='30x20_c_i8',
+  data=array_30x20_c,
+  dtype='<i8',
+  chunks=(7, 13),
+  overwrite=True)
+group.array(
+  name='30x20_f_i8',
+  data=array_30x20_f,
+  dtype='<i8',
+  chunks=(7, 13),
+  order='F',
+  overwrite=True)
+
+group.array(
+  name='3x2_c_u4',
+  dtype='>u4',
   data=array_3x2_c,
   chunks=(2, 3),
   overwrite=True)
 group.array(
-  name='3x2_f_<i8',
+  name='3x2_f_u4',
+  dtype='>u4',
   data=array_3x2_f,
   chunks=(2, 3),
   order='F',
   overwrite=True)
 group.array(
-  name='30x20_c_<i8',
+  name='30x20_c_u4',
+  dtype='>u4',
   data=array_30x20_c,
   chunks=(7, 13),
   overwrite=True)
 group.array(
-  name='30x20_f_<i8',
+  name='30x20_f_u4',
+  dtype='>u4',
   data=array_30x20_f,
   chunks=(7, 13),
   order='F',
   overwrite=True)
 
 group.array(
-  name='3x2_c_>u4',
-  dtype='>u4',
-  data=array_3x2_c,
-  chunks=(2, 3),
-  overwrite=True)
-group.array(
-  name='3x2_f_>u4',
-  dtype='>u4',
-  data=array_3x2_f,
-  chunks=(2, 3),
-  order='F',
-  overwrite=True)
-group.array(
-  name='30x20_c_>u4',
-  dtype='>u4',
-  data=array_30x20_c,
-  chunks=(7, 13),
-  overwrite=True)
-group.array(
-  name='30x20_f_>u4',
-  dtype='>u4',
-  data=array_30x20_f,
-  chunks=(7, 13),
-  order='F',
-  overwrite=True)
-
-group.array(
-  name='3x2_c_<f8',
+  name='3x2_c_f8',
   dtype='<f8',
   data=array_3x2_c,
   chunks=(2, 3),
   overwrite=True)
 group.array(
-  name='3x2_f_<f8',
+  name='3x2_f_f8',
   dtype='<f8',
   data=array_3x2_f,
   chunks=(2, 3),
   order='F',
   overwrite=True)
 group.array(
-  name='30x20_c_<f8',
+  name='30x20_c_f8',
   dtype='<f8',
   data=array_30x20_c,
   chunks=(7, 13),
   overwrite=True)
 group.array(
-  name='30x20_f_<f8',
+  name='30x20_f_f8',
   dtype='<f8',
   data=array_30x20_f,
   chunks=(7, 13),
@@ -137,26 +145,26 @@ group.array(
   overwrite=True)
 
 group.array(
-  name='3x2_c_>f4',
+  name='3x2_c_f4',
   dtype='>f4',
   data=array_3x2_c,
   chunks=(2, 3),
   overwrite=True)
 group.array(
-  name='3x2_f_>f4',
+  name='3x2_f_f4',
   dtype='>f4',
   data=array_3x2_f,
   chunks=(2, 3),
   order='F',
   overwrite=True)
 group.array(
-  name='30x20_c_>f4',
+  name='30x20_c_f4',
   dtype='>f4',
   data=array_30x20_c,
   chunks=(7, 13),
   overwrite=True)
 group.array(
-  name='30x20_f_>f4',
+  name='30x20_f_f4',
   dtype='>f4',
   data=array_30x20_f,
   chunks=(7, 13),
@@ -164,21 +172,21 @@ group.array(
   overwrite=True)
 
 group.array(
-  name='30x20_c_>u8_zlib',
+  name='30x20_c_u8_zlib',
   dtype='>u8',
   compressor=Zlib(level=6),
   data=array_30x20_c,
   chunks=(7, 13),
   overwrite=True)
 group.array(
-  name='30x20_c_>u8_gzip',
+  name='30x20_c_u8_gzip',
   dtype='>u8',
   compressor=GZip(level=6),
   data=array_30x20_c,
   chunks=(7, 13),
   overwrite=True)
 group.array(
-  name='30x20_c_>u8_bz2',
+  name='30x20_c_u8_bz2',
   dtype='>u8',
   compressor=BZ2(level=1),
   data=array_30x20_c,
@@ -186,14 +194,14 @@ group.array(
   overwrite=True)
 
 group.array(
-  name='3x2_c_>u4_f1',
+  name='3x2_c_u4_f1',
   dtype='>u4',
   data=array_3x2_c,
   chunks=(3, 2),
   fill_value="1",
   overwrite=True)
 group.array(
-  name='3x2_c_<f4_fnan',
+  name='3x2_c_f4_fnan',
   dtype='<f4',
   data=array_3x2_c,
   chunks=(3, 2),
