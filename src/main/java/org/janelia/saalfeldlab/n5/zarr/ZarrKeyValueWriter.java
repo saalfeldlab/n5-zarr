@@ -517,14 +517,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 																	// correct?
 
 		final String normalPath = N5URI.normalizeGroupPath(pathName);
-		final String path = keyValueAccess
-				.compose(
-						uri,
-						normalPath,
-						getZarrDataBlockPath(
-								dataBlock.getGridPosition(),
-								zarrDatasetAttributes.getDimensionSeparator(),
-								zarrDatasetAttributes.isRowMajor()).toString());
+		final String path = absoluteDataBlockPath( normalPath,zarrDatasetAttributes, dataBlock.getGridPosition());
 
 		final String[] components = keyValueAccess.components(path);
 		final String parent = keyValueAccess
@@ -551,17 +544,8 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			final long... gridPosition) throws N5Exception {
 
 		final String normPath = N5URI.normalizeGroupPath(path);
-		final ZarrDatasetAttributes zarrDatasetAttributes = getDatasetAttributes(normPath);
-		final String absolutePath = keyValueAccess
-				.compose(
-						uri,
-						normPath,
-						ZarrKeyValueReader
-								.getZarrDataBlockPath(
-										gridPosition,
-										zarrDatasetAttributes.getDimensionSeparator(),
-										zarrDatasetAttributes.isRowMajor()));
-
+		final String absolutePath = absoluteDataBlockPath( normPath, gridPosition);
+		
 		try {
 			if (keyValueAccess.exists(absolutePath))
 				keyValueAccess.delete(absolutePath);

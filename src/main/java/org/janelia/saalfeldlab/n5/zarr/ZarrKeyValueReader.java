@@ -605,6 +605,23 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		}
 	}
 
+
+	@Override
+	public String absoluteDataBlockPath(String normalPath, long... gridPosition) {
+
+		final ZarrDatasetAttributes datasetAttributes = getDatasetAttributes(normalPath);
+		return absoluteDataBlockPath(normalPath, datasetAttributes, gridPosition);
+	}
+
+	protected String absoluteDataBlockPath(String normalPath, ZarrDatasetAttributes datasetAttributes, long... gridPosition) {
+
+		final String zarrDataBlockPath = getZarrDataBlockPath(
+				gridPosition,
+				datasetAttributes.getDimensionSeparator(),
+				datasetAttributes.isRowMajor());
+		return getKeyValueAccess() .compose( getURI(), normalPath, zarrDataBlockPath);
+	}
+
 	@Override
 	public DataBlock<?> readBlock(
 			final String pathName,
@@ -617,14 +634,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		else
 			zarrDatasetAttributes = getDatasetAttributes(pathName);
 
-		final String absolutePath = keyValueAccess
-				.compose(
-						uri,
-						pathName,
-						getZarrDataBlockPath(
-								gridPosition,
-								zarrDatasetAttributes.getDimensionSeparator(),
-								zarrDatasetAttributes.isRowMajor()));
+		final String absolutePath = absoluteDataBlockPath( pathName,zarrDatasetAttributes, gridPosition);
 
 		if (!keyValueAccess.exists(absolutePath))
 			return null;
