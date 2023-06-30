@@ -321,6 +321,24 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	@Override
+	public boolean blockExists(final String dataset, final long[] blockPosition) {
+		if (!datasetExists(dataset))
+			return false;
+		final String dimensionSeparator = getDatasetAttributes(dataset).getDimensionSeparator();
+		final String path = getURI().getPath();
+		final String[] blockParts = new String[3];
+		blockParts[0] = path;
+		blockParts[1] = dataset;
+
+		blockParts[2] = Arrays.stream(blockPosition)
+				.mapToObj(it -> Long.toString(it))
+				.reduce((l, r) -> l + dimensionSeparator + r)
+				.get();
+		final String blockPath = getKeyValueAccess().compose(blockParts);
+		return getKeyValueAccess().exists(blockPath);
+	}
+
+	@Override
 	public boolean isDatasetFromContainer(final String normalPathName) throws N5Exception {
 
 		if (keyValueAccess.isFile(keyValueAccess.compose(uri, normalPathName, ZARRAY_FILE))) {
