@@ -86,7 +86,7 @@ public class ZarrJsonCache extends N5JsonCache {
 		}
 		else if (cacheInfo == emptyCacheInfo || cacheInfo.isGroup())
 			return cacheInfo.isDataset();
-		else if (!cacheInfo.attributesCache().containsKey(ZarrKeyValueReader.ZARRAY_FILE)) {
+		else if (!cacheInfo.containsKey(ZarrKeyValueReader.ZARRAY_FILE)) {
 			// if the cache info is not tracking .zarray, then we don't yet know
 			// if there is a dataset at this path key
 			updateCacheIsDataset(cacheInfo, container.isDatasetFromContainer(normalPathKey));
@@ -105,7 +105,7 @@ public class ZarrJsonCache extends N5JsonCache {
 		}
 		else if (cacheInfo == emptyCacheInfo || cacheInfo.isDataset())
 			return cacheInfo.isGroup();
-		else if (!cacheInfo.attributesCache().containsKey(ZarrKeyValueReader.ZGROUP_FILE)) {
+		else if (!cacheInfo.containsKey(ZarrKeyValueReader.ZGROUP_FILE)) {
 			// if the cache info is not tracking .zgroup, then we don't yet know
 			// if there is a group at this path key
 			updateCacheIsGroup(cacheInfo, container.isGroupFromContainer(normalPathKey));
