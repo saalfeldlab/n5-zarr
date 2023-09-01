@@ -15,9 +15,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 
+import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5CachedFSTest.TrackingStorage;
 import org.junit.Assert;
 import org.junit.Test;
@@ -61,6 +63,12 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 	}
 
 	@Override
+	protected N5Reader createN5Reader(final String location, final GsonBuilder gson) throws IOException {
+
+		return new N5ZarrReader(location, gson, true);
+	}
+
+	@Override
 	protected N5ZarrWriter createN5Writer(
 			final String location,
 			final GsonBuilder gsonBuilder,
@@ -77,6 +85,20 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 			return tmpFile.getCanonicalPath();
 		} catch (final Exception e) {
 			throw new RuntimeException(e);
+		}
+	}
+
+	@Test
+	public void cachedRootDatasetTest() throws IOException {
+
+		final String testDirPath = tmpPathName("zarr-cached-test-");
+		try (ZarrKeyValueWriter writer = (ZarrKeyValueWriter) createN5Writer( testDirPath, new GsonBuilder() )) {
+			writer.createDataset("/", dimensions, blockSize, DataType.UINT8, getCompressions()[0]);
+			assertTrue( writer.exists("/"));
+		}
+
+		try (ZarrKeyValueReader reader = (ZarrKeyValueReader) createN5Reader( testDirPath, new GsonBuilder() )) {
+			assertTrue( reader.exists("/"));
 		}
 	}
 
@@ -143,8 +165,8 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 
 		// expected backend method call counts
 		int expectedExistCount = 0;
-		int expectedGroupCount = 0;
-		int expectedDatasetCount = 0;
+		final int expectedGroupCount = 0;
+		final int expectedDatasetCount = 0;
 		int expectedAttributeCount = 0;
 		int expectedListCount = 0;
 
@@ -205,9 +227,9 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		assertEquals(expectedAttributeCount, n5.getAttrCallCount());
 		assertEquals(expectedListCount, n5.getListCallCount());
 
-		// zgroup is cached, but zattrs and zarry need updating herej
+		// zgroup is cached, but zattrs and zarry need updating here
 		n5.setAttribute(cachedGroup, "one", 1);
-		expectedAttributeCount += 2; 
+		expectedAttributeCount += 2;
 		assertEquals(expectedExistCount, n5.getExistCallCount());
 		assertEquals(expectedGroupCount, n5.getGroupCallCount());
 		assertEquals(expectedDatasetCount, n5.getDatasetCallCount());
@@ -423,7 +445,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 			return super.listFromContainer(key);
 		}
 
-		@Override public void writeAttributes(String normalGroupPath, JsonElement attributes) throws N5Exception {
+		@Override public void writeAttributes(final String normalGroupPath, final JsonElement attributes) throws N5Exception {
 			writeAttrCallCount++;
 			super.writeAttributes(normalGroupPath, attributes);
 		}
