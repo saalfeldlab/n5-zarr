@@ -27,6 +27,7 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -191,7 +192,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		// since the contents is null
 		try {
 			keyValueAccess.createDirectories(absoluteGroupPath(normalPath));
-		} catch (final IOException e) {
+		} catch (final IOException | UncheckedIOException e) {
 			throw new N5Exception.N5IOException("Failed to create group " + path, e);
 		}
 
@@ -244,7 +245,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final String absPath = absoluteGroupPath(normalPath);
 		try {
 			keyValueAccess.createDirectories(absPath);
-		} catch (final IOException e) {
+		} catch (final IOException | UncheckedIOException  e) {
 			throw new N5IOException("Failed to create directories " + absPath, e);
 		}
 
@@ -405,7 +406,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final String absolutePath = keyValueAccess.compose(uri, normalPath, jsonName);
 		try {
 			keyValueAccess.delete(absolutePath);
-		} catch (IOException e1) {
+		} catch (IOException | UncheckedIOException  e1) {
 			throw new N5IOException("Failed to delete " + absolutePath, e1);
 		}
 	}
@@ -421,7 +422,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final String absolutePath = keyValueAccess.compose(uri, normalPath, jsonName);
 		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
 			GsonUtils.writeAttributes(lock.newWriter(), attributes, gson);
-		} catch (final IOException e) {
+		} catch (final IOException | UncheckedIOException  e) {
 			throw new N5IOException("Failed to write " + absolutePath, e);
 		}
 	}
@@ -538,7 +539,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 						zarrDatasetAttributes,
 						dataBlock);
 			}
-		} catch (final IOException e) {
+		} catch (final IOException | UncheckedIOException  e) {
 			throw new N5IOException(
 					"Failed to write block " + Arrays.toString(dataBlock.getGridPosition()) + " into dataset " + path,
 					e);
@@ -565,7 +566,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		try {
 			if (keyValueAccess.exists(absolutePath))
 				keyValueAccess.delete(absolutePath);
-		} catch (final IOException e) {
+		} catch (final IOException | UncheckedIOException  e) {
 			throw new N5IOException(
 					"Failed to delete block " + Arrays.toString(gridPosition) + " from dataset " + path,
 					e);
