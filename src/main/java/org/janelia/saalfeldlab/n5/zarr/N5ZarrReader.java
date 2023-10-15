@@ -59,7 +59,6 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 	 * 	  If true, fields from .zgroup, .zarray, and .zattrs will be merged
 	 *    when calling getAttributes, and variants of getAttribute
 	 * @param cacheMeta cache attributes and meta data
-	 * @param cacheMeta cache attributes and meta data
 	 *    Setting this to true avoids frequent reading and parsing of JSON
 	 *    encoded attributes and other meta data that requires accessing the
 	 *    store. This is most interesting for high latency backends. Changes
