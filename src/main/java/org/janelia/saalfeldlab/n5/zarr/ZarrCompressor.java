@@ -76,7 +76,7 @@ public interface ZarrCompressor {
 			} else if (compression instanceof Bzip2Compression) {
 				return new Bz2((Bzip2Compression)compression);
 			} else {
-				return null;
+				return new Raw();
 			}
 		} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
 			return null;

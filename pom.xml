@@ -5,13 +5,13 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>33.2.0</version>
+		<version>36.0.0</version>
 		<relativePath />
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>n5-zarr</artifactId>
-	<version>0.0.9-SNAPSHOT</version>
+	<version>1.0.2-SNAPSHOT</version>
 
 	<name>N5 Zarr</name>
 	<description>Zarr filesystem backend for N5</description>
@@ -43,6 +43,30 @@
 				<role>maintainer</role>
 			</roles>
 		</developer>
+		<developer>
+			<id>bogovicj</id>
+			<name>John Bogovic</name>
+			<url>http://imagej.net/User:Bogovic</url>
+			<roles>
+				<role>lead</role>
+				<role>developer</role>
+				<role>debugger</role>
+				<role>reviewer</role>
+				<role>support</role>
+				<role>maintainer</role>
+			</roles>
+		</developer>
+		<developer>
+			<name>Caleb Hulbert</name>
+			<roles>
+				<role>lead</role>
+				<role>developer</role>
+				<role>debugger</role>
+				<role>reviewer</role>
+				<role>support</role>
+				<role>maintainer</role>
+			</roles>
+		</developer>
 	</developers>
 	<contributors>
 		<contributor>
@@ -50,6 +74,30 @@
 			<properties>
 				<id>axtimwalde</id>
 			</properties>
+		</contributor>
+		<contributor>
+			<name>John Bogovic</name>
+			<properties>
+				<id>bogovicj</id>
+			</properties>
+		</contributor>
+		<contributor>
+			<name>Caleb Hulbert</name>
+		</contributor>
+		<contributor>
+            <name>Marwan Zouinkhi</name>
+		</contributor>
+		<contributor>
+			<name>Philipp Hanslovsky</name>
+			<properties>
+				<id>hanslovsky</id>
+			</properties>
+		</contributor>
+		<contributor>
+            <name>Kevin Kozlowski</name>
+		</contributor>
+		<contributor>
+            <name>Chris Allan</name>
 		</contributor>
 	</contributors>
 
@@ -89,6 +137,8 @@
 		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
 
 		<json-simple.version>1.1.1</json-simple.version>
+
+		<n5.version>3.0.2</n5.version>
 	</properties>
 
 	<dependencies>
@@ -121,6 +171,12 @@
 			<groupId>com.googlecode.json-simple</groupId>
 			<artifactId>json-simple</artifactId>
 			<version>${json-simple.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>${commons-io.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
