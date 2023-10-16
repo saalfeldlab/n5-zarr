@@ -75,7 +75,7 @@ public class DType {
 		typestrs.put(DataType.UINT64, ">u8");
 		typestrs.put(DataType.FLOAT32, ">f4");
 		typestrs.put(DataType.FLOAT64, ">f8");
-		typestrs.put(DataType.VLENSTRING, "|O");
+		typestrs.put(DataType.STRING, "|O");
 	}
 
 	public static enum Primitive {
@@ -218,7 +218,7 @@ public class DType {
 			nBytes = 1;
 			nBits = 0;
 			dataBlockFactory = (blockSize, gridPosition, numElements) ->
-					new ZarrCompatibleVLenStringDataBlock(blockSize, gridPosition, new String[0]);
+					new ZarrCompatibleStringDataBlock(blockSize, gridPosition, new String[0]);
 			byteBlockFactory = (blockSize, gridPosition, numElements) ->
 					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			break;
@@ -344,7 +344,7 @@ public class DType {
 				return DataType.UINT8; // fallback
 			}
 		case OBJECT: // todo: this should also depend on filters!
-			return DataType.VLENSTRING;
+			return DataType.STRING;
 		default:
 			return DataType.UINT8; // fallback
 		}
@@ -363,9 +363,9 @@ public class DType {
 	 * @return list of filters
 	 */
 	public List<Filter> getFilters() {
-		if (dataType == DataType.VLENSTRING) {
+		if (dataType == DataType.STRING) {
 			ArrayList<Filter> filterSet = new ArrayList<>();
-			filterSet.add(new ZarrCompatibleVLenStringDataBlock.VLenStringFilter());
+			filterSet.add(new ZarrCompatibleStringDataBlock.VLenStringFilter());
 			return filterSet;
 		}
 		else

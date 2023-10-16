@@ -1,18 +1,18 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
-import org.janelia.saalfeldlab.n5.VLenStringDataBlock;
+import org.janelia.saalfeldlab.n5.StringDataBlock;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
 
-public class ZarrCompatibleVLenStringDataBlock extends VLenStringDataBlock {
+public class ZarrCompatibleStringDataBlock extends StringDataBlock {
 
-    public ZarrCompatibleVLenStringDataBlock(int[] size, long[] gridPosition, String[] data) {
+    public ZarrCompatibleStringDataBlock(int[] size, long[] gridPosition, String[] data) {
         super(size, gridPosition, data);
     }
 
-    public ZarrCompatibleVLenStringDataBlock(int[] size, long[] gridPosition, byte[] data) {
+    public ZarrCompatibleStringDataBlock(int[] size, long[] gridPosition, byte[] data) {
         super(size, gridPosition, data);
     }
 

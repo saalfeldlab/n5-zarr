@@ -61,8 +61,8 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.VLenStringDataBlock;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
+import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.json.simple.JSONObject;
@@ -393,7 +393,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Test
 	public void testWriteReadStringBlock() {
-		DataType dataType = DataType.VLENSTRING;
+		DataType dataType = DataType.STRING;
 		int[] blockSize = new int[]{3, 2, 1};
 		String[] stringBlock = new String[]{"", "a", "bc", "de", "fgh", ":-þ"};
 		Compression[] compressions = this.getCompressions();
@@ -404,11 +404,11 @@ public class N5ZarrTest extends AbstractN5Test {
 			try (final N5Writer n5 = createN5Writer()) {
 				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
 				DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
-				VLenStringDataBlock dataBlock = new ZarrCompatibleVLenStringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
+				StringDataBlock dataBlock = new ZarrCompatibleStringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
 				n5.writeBlock("/test/group/dataset", attributes, dataBlock);
 				DataBlock<?> loadedDataBlock = n5.readBlock("/test/group/dataset", attributes, 0L, 0L, 0L);
-				Assert.assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());
-				Assert.assertTrue(n5.remove("/test/group/dataset"));
+				assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());
+				assertTrue(n5.remove("/test/group/dataset"));
 			} catch (IOException e) {
 				e.printStackTrace();
 				Assert.fail("Block cannot be written.");

@@ -665,7 +665,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		final ByteArrayDataBlock byteBlock = dType.createByteBlock(blockSize, gridPosition);
 		final BlockReader reader = datasetAttributes.getCompression().getReader();
 
-		if (dType.getDataType() == DataType.VLENSTRING) {
+		if (dType.getDataType() == DataType.STRING) {
 			return readVLenStringBlock(in, reader, byteBlock);
 		}
 
@@ -686,9 +686,9 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		return dataBlock;
 	}
 
-	private static ZarrCompatibleVLenStringDataBlock readVLenStringBlock(InputStream in, BlockReader reader, ByteArrayDataBlock byteBlock) throws IOException {
+	private static ZarrCompatibleStringDataBlock readVLenStringBlock(InputStream in, BlockReader reader, ByteArrayDataBlock byteBlock) throws IOException {
 		// read whole chunk and deserialize; this should be improved
-		ZarrCompatibleVLenStringDataBlock dataBlock = new ZarrCompatibleVLenStringDataBlock(byteBlock.getSize(), byteBlock.getGridPosition(), new String[0]);
+		ZarrCompatibleStringDataBlock dataBlock = new ZarrCompatibleStringDataBlock(byteBlock.getSize(), byteBlock.getGridPosition(), new String[0]);
 		if (reader instanceof BloscCompression) {
 			// Blosc reader reads actual data and doesn't care about buffer size (but needs special treatment in data block)
 			reader.read(dataBlock, in);

@@ -60,7 +60,7 @@ public interface Filter {
             final String id = jsonId.getAsString();
             switch (id) {
             case "vlen-utf8":
-                return new ZarrCompatibleVLenStringDataBlock.VLenStringFilter();
+                return new ZarrCompatibleStringDataBlock.VLenStringFilter();
             default:
                 return null;
             }
