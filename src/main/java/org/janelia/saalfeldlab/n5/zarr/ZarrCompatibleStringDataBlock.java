@@ -53,12 +53,14 @@ public class ZarrCompatibleStringDataBlock extends StringDataBlock {
         if (rawBytes.length < 4)
             throw new RuntimeException("Corrupt buffer, data seems truncated.");
 
-        final int N = buf.getInt();
-        if (rawBytes.length < N)
+        final int n = buf.getInt();
+        if (rawBytes.length < n)
             throw new RuntimeException("Corrupt buffer, data seems truncated.");
 
-        final String[] strings = new String[N];
-        for (int i = 0; i < N; ++i) {
+        System.out.println(" *********** ZARR: read so many bytes: " + rawBytes.length + " and n = " + n);
+
+        final String[] strings = new String[n];
+        for (int i = 0; i < n; ++i) {
             final int length = buf.getInt();
             final byte[] encodedString = new byte[length];
             buf.get(encodedString);

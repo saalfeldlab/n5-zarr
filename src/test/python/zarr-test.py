@@ -45,6 +45,8 @@ group = root.create_group(group_path)
 
 array_3x2_c = np.arange(0,3*2).reshape(2,3)
 array_3x2_f = np.asfortranarray(array_3x2_c)
+array_3x2_str_c = np.array(["", "a", "bc", "de", "fgh", ":-þ"]).reshape(2,3)
+array_3x2_str_f = np.asfortranarray(array_3x2_str_c)
 
 array_30x20_c = np.arange(0,30*20).reshape(20,30)
 array_30x20_f = np.asfortranarray(array_30x20_c)
@@ -206,5 +208,40 @@ group.array(
   data=array_3x2_c,
   chunks=(3, 2),
   fill_value="NaN",
+  overwrite=True)
+
+group.array(
+  name='3x2_c_str',
+  dtype=str,
+  data=array_3x2_str_c,
+  chunks=(2, 3),
+  overwrite=True)
+group.array(
+  name='3x2_f_str',
+  dtype=str,
+  data=array_3x2_str_f,
+  chunks=(2, 3),
+  order='F',
+  overwrite=True)
+group.array(
+  name='3x2_str_c_u8_zlib',
+  dtype=str,
+  compressor=Zlib(level=6),
+  data=array_3x2_str_c,
+  chunks=(7, 13),
+  overwrite=True)
+group.array(
+  name='3x2_str_c_u8_gzip',
+  dtype=str,
+  compressor=GZip(level=6),
+  data=array_3x2_str_c,
+  chunks=(7, 13),
+  overwrite=True)
+group.array(
+  name='3x2_str_c_u8_bz2',
+  dtype=str,
+  compressor=BZ2(level=1),
+  data=array_3x2_str_c,
+  chunks=(2, 2),
   overwrite=True)
 
