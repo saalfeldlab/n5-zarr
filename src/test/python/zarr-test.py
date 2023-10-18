@@ -224,21 +224,21 @@ group.array(
   order='F',
   overwrite=True)
 group.array(
-  name='3x2_str_c_u8_zlib',
+  name='3x2_c_str_zlib',
   dtype=str,
   compressor=Zlib(level=6),
   data=array_3x2_str_c,
   chunks=(7, 13),
   overwrite=True)
 group.array(
-  name='3x2_str_c_u8_gzip',
+  name='3x2_c_str_gzip',
   dtype=str,
   compressor=GZip(level=6),
   data=array_3x2_str_c,
   chunks=(7, 13),
   overwrite=True)
 group.array(
-  name='3x2_str_c_u8_bz2',
+  name='3x2_c_str_bz2',
   dtype=str,
   compressor=BZ2(level=1),
   data=array_3x2_str_c,

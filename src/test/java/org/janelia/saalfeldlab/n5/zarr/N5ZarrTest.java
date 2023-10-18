@@ -634,6 +634,25 @@ public class N5ZarrTest extends AbstractN5Test {
 		raf.setPosition(shapef[1] - 5, 1);
 		assertTrue(Float.isNaN(raf.get().getRealFloat()));
 
+		/* strings */
+		String[] expected = {"", "a", "bc", "de", "fgh", ":-þ"}; // C-order
+		datasetName = testZarrDatasetName + "/3x2_c_str";
+		DatasetAttributes strAttributes = n5Zarr.getDatasetAttributes(datasetName);
+		DataBlock<?> loadedDataBlock = n5Zarr.readBlock(datasetName, strAttributes, 0L, 0L);
+		assertArrayEquals(expected, ((String[])loadedDataBlock.getData()));
+
+		expected = new String[] {"", "de", "a", "fgh", "bc", ":-þ"}; // F-order
+		datasetName = testZarrDatasetName + "/3x2_f_str";
+		strAttributes = n5Zarr.getDatasetAttributes(datasetName);
+		loadedDataBlock = n5Zarr.readBlock(datasetName, strAttributes, 0L, 0L);
+		assertArrayEquals(expected, ((String[])loadedDataBlock.getData()));
+
+		expected = new String[] {"bc", "", ":-þ", ""}; // chunked and compressed (second chunk)
+		datasetName = testZarrDatasetName + "/3x2_c_str_bz2";
+		strAttributes = n5Zarr.getDatasetAttributes(datasetName);
+		loadedDataBlock = n5Zarr.readBlock(datasetName, strAttributes, 1L, 0L);
+		assertArrayEquals(expected, ((String[])loadedDataBlock.getData()));
+
 		/* remove the container */
 		n5Zarr.remove();
 		n5Zarr.close();
