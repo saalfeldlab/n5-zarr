@@ -35,6 +35,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collection;
 
 import org.apache.commons.compress.utils.IOUtils;
 import org.janelia.saalfeldlab.n5.BlockReader;
@@ -503,8 +504,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 		attrs.add(DatasetAttributes.DIMENSIONS_KEY, attrs.get(ZArrayAttributes.shapeKey));
 		attrs.add(DatasetAttributes.BLOCK_SIZE_KEY, attrs.get(ZArrayAttributes.chunksKey));
-		attrs.addProperty(DatasetAttributes.DATA_TYPE_KEY,
-				new DType(attrs.get(ZArrayAttributes.dTypeKey).getAsString()).getDataType().toString());
+		attrs.addProperty(DatasetAttributes.DATA_TYPE_KEY, zattrs.getDType().getDataType().toString());
 
 		JsonElement e = attrs.get(ZArrayAttributes.compressorKey);
 		if (e == JsonNull.INSTANCE) {
