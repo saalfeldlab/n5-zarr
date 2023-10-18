@@ -45,6 +45,8 @@ import java.lang.reflect.Type;
  */
 public interface Filter {
 
+    public static JsonAdapter jsonAdapter = new Filter.JsonAdapter();
+
     class JsonAdapter implements JsonDeserializer<Filter> {
 
         @Override
