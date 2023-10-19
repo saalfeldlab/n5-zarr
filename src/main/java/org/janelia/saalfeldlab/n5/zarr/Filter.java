@@ -33,21 +33,45 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 
 import java.lang.reflect.Type;
 
 /**
- * Place holder interface for filters
+ * Filter types
  *
  * TODO implement some
  *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
+ * @author Michael Innerberger
  */
-public interface Filter {
+public enum Filter {
+    // Note: the JSON (de-)serializer below is very much tailored to this filter, which serializes to "{"id":"vlen-utf8"}"
+    // If additional filters are implemented, consider also changing the type adapter below
+    VLEN_UTF8("vlen-utf8");
 
-    public static JsonAdapter jsonAdapter = new Filter.JsonAdapter();
+    private final String id;
 
-    class JsonAdapter implements JsonDeserializer<Filter> {
+    Filter(final String id) {
+        this.id = id;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public static Filter fromString(final String id) {
+        for (final Filter filter : values())
+            if (filter.getId().equals(id))
+                return filter;
+        return null;
+    }
+
+    public static final JsonAdapter jsonAdapter = new JsonAdapter();
+
+    public static class JsonAdapter implements JsonDeserializer<Filter>, JsonSerializer<Filter> {
 
         @Override
         public Filter deserialize(
@@ -55,17 +79,23 @@ public interface Filter {
                 final Type typeOfT,
                 final JsonDeserializationContext context) throws JsonParseException {
 
-            final JsonObject jsonObject = json.getAsJsonObject();
-            final JsonElement jsonId = jsonObject.get("id");
+            final JsonElement jsonId = json.getAsJsonObject().get("id");
             if (jsonId == null)
                 return null;
-            final String id = jsonId.getAsString();
-            switch (id) {
-            case "vlen-utf8":
-                return new ZarrCompatibleStringDataBlock.VLenStringFilter();
-            default:
-                return null;
-            }
+
+            final String stringId = jsonId.getAsString();
+            return Filter.fromString(stringId);
+        }
+
+        @Override
+        public JsonElement serialize(
+                final Filter filter,
+                final Type typeOfSrc,
+                final JsonSerializationContext context) {
+
+            final JsonObject serialization = new JsonObject();
+            serialization.add("id", new JsonPrimitive(filter.getId()));
+            return serialization;
         }
     }
 }

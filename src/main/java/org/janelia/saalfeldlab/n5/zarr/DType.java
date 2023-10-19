@@ -28,13 +28,11 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
-import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
-import java.util.List;
 
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DataBlock;
@@ -45,13 +43,7 @@ import org.janelia.saalfeldlab.n5.IntArrayDataBlock;
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.ShortArrayDataBlock;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
+import static org.janelia.saalfeldlab.n5.zarr.Filter.VLEN_UTF8;
 
 /**
  * Enumerates available zarr data types as defined at
@@ -219,8 +211,15 @@ public class DType {
 		case OBJECT:
 			nBytes = 1;
 			nBits = 0;
-			dataBlockFactory = null;
-			byteBlockFactory = null;
+			if (filters.contains(VLEN_UTF8)) {
+				dataBlockFactory = (blockSize, gridPosition, numElements) ->
+						new ZarrCompatibleStringDataBlock(blockSize, gridPosition, new String[0]);
+				byteBlockFactory = (blockSize, gridPosition, numElements) ->
+						new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
+			} else {
+				dataBlockFactory = null;
+				byteBlockFactory = null;
+			}
 			break;
 //		case BOOLEAN:
 //		case OTHER:     // not sure about this
@@ -237,7 +236,7 @@ public class DType {
 					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 		}
 
-		dataType = getDataType(primitive, nBytes);
+		dataType = getDataType(primitive, nBytes, filters);
 	}
 
 	public DType(final DataType dataType, final int nPrimitives) {
@@ -279,6 +278,11 @@ public class DType {
 			break;
 //		case INT8:
 //		case UINT8:
+		case STRING:
+			nBytes = 1;
+			dataBlockFactory = (blockSize, gridPosition, numElements) ->
+					new ZarrCompatibleStringDataBlock(blockSize, gridPosition, new String[0]);
+			break;
 		default:
 			nBytes = nPrimitives;
 			dataBlockFactory = (blockSize, gridPosition, numElements) ->
@@ -300,7 +304,8 @@ public class DType {
 
 	protected final static DataType getDataType(
 			final Primitive primitive,
-			final int nBytes) {
+			final int nBytes,
+			final Collection<Filter> filters) {
 
 		switch (primitive) {
 		case INT:
@@ -344,7 +349,10 @@ public class DType {
 				return DataType.UINT8; // fallback
 			}
 		case OBJECT:
-			return DataType.OBJECT;
+			if (filters.contains(VLEN_UTF8))
+				return DataType.STRING;
+			else
+				return DataType.OBJECT;
 		default:
 			return DataType.UINT8; // fallback
 		}
@@ -362,10 +370,10 @@ public class DType {
 	 *
 	 * @return list of filters
 	 */
-	public List<Filter> getFilters() {
+	public Collection<Filter> getFilters() {
 		if (dataType == DataType.STRING) {
 			ArrayList<Filter> filterSet = new ArrayList<>();
-			filterSet.add(new ZarrCompatibleStringDataBlock.VLenStringFilter());
+			filterSet.add(VLEN_UTF8);
 			return filterSet;
 		}
 		else
