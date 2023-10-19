@@ -80,7 +80,6 @@ public class N5ZarrReader extends ZarrKeyValueReader {
 				new FileSystemKeyValueAccess(FileSystems.getDefault()),
 				basePath,
 				gsonBuilder
-					.registerTypeAdapter(DType.class, new DType.JsonAdapter())
 					.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter),
 				mapN5DatasetAttributes,
 				mergeAttributes,

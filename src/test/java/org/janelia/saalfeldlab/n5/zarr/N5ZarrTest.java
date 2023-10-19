@@ -46,6 +46,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -800,7 +801,9 @@ public class N5ZarrTest extends AbstractN5Test {
 			int[] blkN5 = n5.getAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, int[].class);
 			assertArrayEquals(blkZarr, blkN5);
 
-			DType dtype = n5.getAttribute(datasetName, ZArrayAttributes.dTypeKey, DType.class);
+			String typestr = n5.getAttribute(datasetName, ZArrayAttributes.dTypeKey, String.class);
+			Collection<Filter> filters = n5.getAttribute(datasetName, ZArrayAttributes.filtersKey, TypeToken.getParameterized(Collection.class, Filter.class).getType());
+			DType dtype = new DType(typestr, filters);
 			// read to a string because zarr may not have the N5 DataType deserializer
 			DataType n5DataType = DataType.fromString(n5.getAttribute(datasetName, DatasetAttributes.DATA_TYPE_KEY, String.class));
 			assertEquals(dtype.getDataType(), n5DataType);
@@ -828,7 +831,9 @@ public class N5ZarrTest extends AbstractN5Test {
 
 			n5.setAttribute(datasetName, DatasetAttributes.DATA_TYPE_KEY, newDtype.toString());
 
-			dtype = n5.getAttribute(datasetName, ZArrayAttributes.dTypeKey, DType.class);
+			typestr = n5.getAttribute(datasetName, ZArrayAttributes.dTypeKey, String.class);
+			filters = n5.getAttribute(datasetName, ZArrayAttributes.filtersKey, TypeToken.getParameterized(Collection.class, Filter.class).getType());
+			dtype = new DType(typestr, filters);
 			n5DataType = DataType.fromString(n5.getAttribute(datasetName, DatasetAttributes.DATA_TYPE_KEY, String.class));
 			assertEquals(newDtype, dtype.getDataType());
 			assertEquals(newDtype, n5DataType);

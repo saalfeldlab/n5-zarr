@@ -836,7 +836,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 	protected static GsonBuilder addTypeAdapters(final GsonBuilder gsonBuilder) {
 
-		gsonBuilder.registerTypeAdapter(DType.class, new DType.JsonAdapter());
 		gsonBuilder.registerTypeAdapter(DataType.class, new DataType.JsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter);
 		gsonBuilder.registerTypeHierarchyAdapter(Compression.class, CompressionAdapter.getJsonAdapter());

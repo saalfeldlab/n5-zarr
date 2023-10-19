@@ -32,6 +32,7 @@ import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 
@@ -76,6 +77,7 @@ public class DType {
 		typestrs.put(DataType.FLOAT32, ">f4");
 		typestrs.put(DataType.FLOAT64, ">f8");
 		typestrs.put(DataType.STRING, "|O");
+		typestrs.put(DataType.OBJECT, "|O");
 	}
 
 	public static enum Primitive {
@@ -131,7 +133,7 @@ public class DType {
 	/* the closest possible N5 DataType */
 	protected final DataType dataType;
 
-	public DType(final String typestr) {
+	public DType(final String typestr, final Collection<Filter> filters) {
 
 		this.typestr = typestr;
 
@@ -217,10 +219,8 @@ public class DType {
 		case OBJECT:
 			nBytes = 1;
 			nBits = 0;
-			dataBlockFactory = (blockSize, gridPosition, numElements) ->
-					new ZarrCompatibleStringDataBlock(blockSize, gridPosition, new String[0]);
-			byteBlockFactory = (blockSize, gridPosition, numElements) ->
-					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
+			dataBlockFactory = null;
+			byteBlockFactory = null;
 			break;
 //		case BOOLEAN:
 //		case OTHER:     // not sure about this
@@ -343,8 +343,8 @@ public class DType {
 			default:
 				return DataType.UINT8; // fallback
 			}
-		case OBJECT: // todo: this should also depend on filters!
-			return DataType.STRING;
+		case OBJECT:
+			return DataType.OBJECT;
 		default:
 			return DataType.UINT8; // fallback
 		}
@@ -431,27 +431,6 @@ public class DType {
 	private static interface ByteBlockFactory {
 
 		public ByteArrayDataBlock createByteBlock(final int[] blockSize, final long[] gridPosition, final int numElements);
-	}
-
-	static public class JsonAdapter implements JsonDeserializer<DType>, JsonSerializer<DType> {
-
-		@Override
-		public DType deserialize(
-				final JsonElement json,
-				final Type typeOfT,
-				final JsonDeserializationContext context) throws JsonParseException {
-
-			return new DType(json.getAsString());
-		}
-
-		@Override
-		public JsonElement serialize(
-				final DType src,
-				final Type typeOfSrc,
-				final JsonSerializationContext context) {
-
-			return new JsonPrimitive(src.toString());
-		}
 	}
 
 	public ByteOrder getOrder() {
