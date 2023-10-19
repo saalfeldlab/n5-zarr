@@ -47,31 +47,31 @@ import java.lang.reflect.Type;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  * @author Michael Innerberger
  */
-public enum Filter {
+public interface Filter {
+
+    String getId();
+
     // Note: the JSON (de-)serializer below is very much tailored to this filter, which serializes to "{"id":"vlen-utf8"}"
     // If additional filters are implemented, consider also changing the type adapter below
-    VLEN_UTF8("vlen-utf8");
+    Filter VLEN_UTF8 = new VLenStringFilter();
 
-    private final String id;
+    class VLenStringFilter implements Filter {
+        private static final String id = "vlen-utf8";
+        @Override
+        public String getId() {
+            return id;
+        }
+    };
 
-    Filter(final String id) {
-        this.id = id;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public static Filter fromString(final String id) {
-        for (final Filter filter : values())
-            if (filter.getId().equals(id))
-                return filter;
+    static Filter fromString(final String id) {
+        if (VLEN_UTF8.getId().equals(id))
+                return VLEN_UTF8;
         return null;
     }
 
-    public static final JsonAdapter jsonAdapter = new JsonAdapter();
+    JsonAdapter jsonAdapter = new JsonAdapter();
 
-    public static class JsonAdapter implements JsonDeserializer<Filter>, JsonSerializer<Filter> {
+    class JsonAdapter implements JsonDeserializer<Filter>, JsonSerializer<Filter> {
 
         @Override
         public Filter deserialize(

@@ -35,7 +35,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Collection;
 
 import org.apache.commons.compress.utils.IOUtils;
 import org.janelia.saalfeldlab.n5.BlockReader;
@@ -841,7 +840,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		gsonBuilder.registerTypeHierarchyAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZArrayAttributes.class, ZArrayAttributes.jsonAdapter);
-		gsonBuilder.registerTypeAdapter(Filter.class, Filter.jsonAdapter);
+		gsonBuilder.registerTypeHierarchyAdapter(Filter.class, Filter.jsonAdapter);
 		gsonBuilder.disableHtmlEscaping();
 		gsonBuilder.serializeNulls();
 
