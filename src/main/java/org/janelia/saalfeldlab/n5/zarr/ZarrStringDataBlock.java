@@ -6,13 +6,13 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
 
-public class ZarrCompatibleStringDataBlock extends StringDataBlock {
+public class ZarrStringDataBlock extends StringDataBlock {
 
-    public ZarrCompatibleStringDataBlock(int[] size, long[] gridPosition, String[] data) {
+    public ZarrStringDataBlock(int[] size, long[] gridPosition, String[] data) {
         super(size, gridPosition, data);
     }
 
-    public ZarrCompatibleStringDataBlock(int[] size, long[] gridPosition, byte[] data) {
+    public ZarrStringDataBlock(int[] size, long[] gridPosition, byte[] data) {
         super(size, gridPosition, data);
     }
 

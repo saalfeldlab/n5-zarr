@@ -405,7 +405,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			try (final N5Writer n5 = createN5Writer()) {
 				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
 				DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
-				StringDataBlock dataBlock = new ZarrCompatibleStringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
+				StringDataBlock dataBlock = new ZarrStringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
 				n5.writeBlock("/test/group/dataset", attributes, dataBlock);
 				DataBlock<?> loadedDataBlock = n5.readBlock("/test/group/dataset", attributes, 0L, 0L, 0L);
 				assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());

@@ -213,7 +213,7 @@ public class DType {
 			nBits = 0;
 			if (filters.contains(VLEN_UTF8)) {
 				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-						new ZarrCompatibleStringDataBlock(blockSize, gridPosition, new String[0]);
+						new ZarrStringDataBlock(blockSize, gridPosition, new String[0]);
 				byteBlockFactory = (blockSize, gridPosition, numElements) ->
 						new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			} else {
@@ -281,7 +281,7 @@ public class DType {
 		case STRING:
 			nBytes = 1;
 			dataBlockFactory = (blockSize, gridPosition, numElements) ->
-					new ZarrCompatibleStringDataBlock(blockSize, gridPosition, new String[0]);
+					new ZarrStringDataBlock(blockSize, gridPosition, new String[0]);
 			break;
 		default:
 			nBytes = nPrimitives;
