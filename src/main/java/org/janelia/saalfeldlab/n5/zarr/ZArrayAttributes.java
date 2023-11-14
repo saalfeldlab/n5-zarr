@@ -215,16 +215,20 @@ public class ZArrayAttributes {
 			final JsonObject obj = json.getAsJsonObject();
 			final JsonElement sepElem = obj.get("dimension_separator");
 			try {
+				final Collection<Filter> filters = context.deserialize(obj.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType());
+				final String typestr = context.deserialize(obj.get("dtype"), String.class);
+				final DType dType = new DType(typestr, filters);
+
 				return new ZArrayAttributes(
 						obj.get("zarr_format").getAsInt(),
 						context.deserialize( obj.get("shape"), long[].class),
 						context.deserialize( obj.get("chunks"), int[].class),
-						context.deserialize( obj.get("dtype"), DType.class), // fix
+						dType, // fix
 						context.deserialize( obj.get("compressor"), ZarrCompressor.class), // fix
 						obj.get("fill_value").getAsString(),
 						obj.get("order").getAsCharacter(),
 						sepElem != null ? sepElem.getAsString() : ".",
-						context.deserialize( obj.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType()));
+						filters);
 			} catch (Exception e) {
 				return null;
 			}

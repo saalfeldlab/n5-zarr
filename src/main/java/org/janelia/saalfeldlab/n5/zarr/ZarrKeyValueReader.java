@@ -25,6 +25,8 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -34,6 +36,7 @@ import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import org.apache.commons.compress.utils.IOUtils;
 import org.janelia.saalfeldlab.n5.BlockReader;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Reader;
@@ -42,6 +45,7 @@ import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.DefaultBlockReader;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
@@ -50,6 +54,7 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
 import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
 
@@ -498,8 +503,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 		attrs.add(DatasetAttributes.DIMENSIONS_KEY, attrs.get(ZArrayAttributes.shapeKey));
 		attrs.add(DatasetAttributes.BLOCK_SIZE_KEY, attrs.get(ZArrayAttributes.chunksKey));
-		attrs.addProperty(DatasetAttributes.DATA_TYPE_KEY,
-				new DType(attrs.get(ZArrayAttributes.dTypeKey).getAsString()).getDataType().toString());
+		attrs.addProperty(DatasetAttributes.DATA_TYPE_KEY, zattrs.getDType().getDataType().toString());
 
 		JsonElement e = attrs.get(ZArrayAttributes.compressorKey);
 		if (e == JsonNull.INSTANCE) {
@@ -659,6 +663,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 		final ByteArrayDataBlock byteBlock = dType.createByteBlock(blockSize, gridPosition);
 		final BlockReader reader = datasetAttributes.getCompression().getReader();
+
+		if (dType.getDataType() == DataType.STRING) {
+			return readVLenStringBlock(in, reader, byteBlock);
+		}
+
 		reader.read(byteBlock, in);
 
 		switch (dType.getDataType()) {
@@ -673,6 +682,26 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		byteBuffer.order(dType.getOrder());
 		dataBlock.readData(byteBuffer);
 
+		return dataBlock;
+	}
+
+	private static ZarrStringDataBlock readVLenStringBlock(InputStream in, BlockReader reader, ByteArrayDataBlock byteBlock) throws IOException {
+		// read whole chunk and deserialize; this should be improved
+		ZarrStringDataBlock dataBlock = new ZarrStringDataBlock(byteBlock.getSize(), byteBlock.getGridPosition(), new String[0]);
+		if (reader instanceof BloscCompression) {
+			// Blosc reader reads actual data and doesn't care about buffer size (but needs special treatment in data block)
+			reader.read(dataBlock, in);
+		} else if (reader instanceof DefaultBlockReader) {
+			try (final InputStream inflater = ((DefaultBlockReader) reader).getInputStream(in)) {
+				final DataInputStream dis = new DataInputStream(inflater);
+				final ByteArrayOutputStream out = new ByteArrayOutputStream();
+				IOUtils.copy(dis, out);
+				dataBlock.readData(ByteBuffer.wrap(out.toByteArray()));
+			}
+		}
+		else {
+			throw new UnsupportedOperationException("Only Blosc compression or algorithms that use DefaultBlockReader are supported.");
+		}
 		return dataBlock;
 	}
 
@@ -806,12 +835,12 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 	protected static GsonBuilder addTypeAdapters(final GsonBuilder gsonBuilder) {
 
-		gsonBuilder.registerTypeAdapter(DType.class, new DType.JsonAdapter());
 		gsonBuilder.registerTypeAdapter(DataType.class, new DataType.JsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter);
 		gsonBuilder.registerTypeHierarchyAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZArrayAttributes.class, ZArrayAttributes.jsonAdapter);
+		gsonBuilder.registerTypeHierarchyAdapter(Filter.class, Filter.jsonAdapter);
 		gsonBuilder.disableHtmlEscaping();
 		gsonBuilder.serializeNulls();
 

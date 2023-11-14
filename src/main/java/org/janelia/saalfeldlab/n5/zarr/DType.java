@@ -28,9 +28,10 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
-import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumMap;
 
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
@@ -42,13 +43,7 @@ import org.janelia.saalfeldlab.n5.IntArrayDataBlock;
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.ShortArrayDataBlock;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
+import static org.janelia.saalfeldlab.n5.zarr.Filter.VLEN_UTF8;
 
 /**
  * Enumerates available zarr data types as defined at
@@ -73,6 +68,8 @@ public class DType {
 		typestrs.put(DataType.UINT64, ">u8");
 		typestrs.put(DataType.FLOAT32, ">f4");
 		typestrs.put(DataType.FLOAT64, ">f8");
+		typestrs.put(DataType.STRING, "|O");
+		typestrs.put(DataType.OBJECT, "|O");
 	}
 
 	public static enum Primitive {
@@ -128,13 +125,13 @@ public class DType {
 	/* the closest possible N5 DataType */
 	protected final DataType dataType;
 
-	public DType(final String typestr) {
+	public DType(final String typestr, final Collection<Filter> filters) {
 
 		this.typestr = typestr;
 
 		order = typestr.charAt(0) == '<' ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
 		final Primitive primitive = Primitive.fromCode(typestr.charAt(1));
-		final int nB = Integer.parseInt(typestr.substring(2));
+		final int nB = (primitive == Primitive.OBJECT) ? 0 : Integer.parseInt(typestr.substring(2));
 
 		switch (primitive) {
 		case BIT:
@@ -211,8 +208,20 @@ public class DType {
 			byteBlockFactory = (blockSize, gridPosition, numElements) ->
 					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			break;
+		case OBJECT:
+			nBytes = 1;
+			nBits = 0;
+			if (filters.contains(VLEN_UTF8)) {
+				dataBlockFactory = (blockSize, gridPosition, numElements) ->
+						new ZarrStringDataBlock(blockSize, gridPosition, new String[0]);
+				byteBlockFactory = (blockSize, gridPosition, numElements) ->
+						new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
+			} else {
+				dataBlockFactory = null;
+				byteBlockFactory = null;
+			}
+			break;
 //		case BOOLEAN:
-//		case OBJECT:    // not sure about this
 //		case OTHER:     // not sure about this
 //		case STRING:    // not sure about this
 //		case UNICODE:   // not sure about this
@@ -227,7 +236,7 @@ public class DType {
 					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 		}
 
-		dataType = getDataType(primitive, nBytes);
+		dataType = getDataType(primitive, nBytes, filters);
 	}
 
 	public DType(final DataType dataType, final int nPrimitives) {
@@ -269,6 +278,11 @@ public class DType {
 			break;
 //		case INT8:
 //		case UINT8:
+		case STRING:
+			nBytes = 1;
+			dataBlockFactory = (blockSize, gridPosition, numElements) ->
+					new ZarrStringDataBlock(blockSize, gridPosition, new String[0]);
+			break;
 		default:
 			nBytes = nPrimitives;
 			dataBlockFactory = (blockSize, gridPosition, numElements) ->
@@ -290,7 +304,8 @@ public class DType {
 
 	protected final static DataType getDataType(
 			final Primitive primitive,
-			final int nBytes) {
+			final int nBytes,
+			final Collection<Filter> filters) {
 
 		switch (primitive) {
 		case INT:
@@ -333,6 +348,11 @@ public class DType {
 			default:
 				return DataType.UINT8; // fallback
 			}
+		case OBJECT:
+			if (filters.contains(VLEN_UTF8))
+				return DataType.STRING;
+			else
+				return DataType.OBJECT;
 		default:
 			return DataType.UINT8; // fallback
 		}
@@ -343,6 +363,21 @@ public class DType {
 	public String toString() {
 
 		return typestr;
+	}
+
+	/**
+	 * Returns a list of {@link Filter filters} for the corresponding {@link DType}.
+	 *
+	 * @return list of filters
+	 */
+	public Collection<Filter> getFilters() {
+		if (dataType == DataType.STRING) {
+			ArrayList<Filter> filterSet = new ArrayList<>();
+			filterSet.add(VLEN_UTF8);
+			return filterSet;
+		}
+		else
+			return null;
 	}
 
 	/**
@@ -404,27 +439,6 @@ public class DType {
 	private static interface ByteBlockFactory {
 
 		public ByteArrayDataBlock createByteBlock(final int[] blockSize, final long[] gridPosition, final int numElements);
-	}
-
-	static public class JsonAdapter implements JsonDeserializer<DType>, JsonSerializer<DType> {
-
-		@Override
-		public DType deserialize(
-				final JsonElement json,
-				final Type typeOfT,
-				final JsonDeserializationContext context) throws JsonParseException {
-
-			return new DType(json.getAsString());
-		}
-
-		@Override
-		public JsonElement serialize(
-				final DType src,
-				final Type typeOfSrc,
-				final JsonSerializationContext context) {
-
-			return new JsonPrimitive(src.toString());
-		}
 	}
 
 	public ByteOrder getOrder() {

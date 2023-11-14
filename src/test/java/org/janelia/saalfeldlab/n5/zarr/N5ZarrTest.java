@@ -33,12 +33,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -46,12 +46,14 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.AbstractN5Test;
 import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
+import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
@@ -61,6 +63,7 @@ import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
+import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.json.simple.JSONObject;
@@ -94,10 +97,10 @@ import net.imglib2.view.Views;
  */
 public class N5ZarrTest extends AbstractN5Test {
 
-	static private String testZarrDatasetName = "/test/data";
+	static private final String testZarrDatasetName = "/test/data";
 
 	@Override
-	protected String tempN5Location() throws URISyntaxException {
+	protected String tempN5Location() {
 
 		try {
 			return Files.createTempDirectory("n5-zarr-test").toUri().toString();
@@ -217,7 +220,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
-	public void testCreateDatasetNameSlash() throws IOException, URISyntaxException {
+	public void testCreateDatasetNameSlash() throws IOException {
 
 		try (final N5Writer n5 = createN5Writer()) {
 			n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
@@ -234,7 +237,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
-	public void testPadCrop() throws Exception {
+	public void testPadCrop() {
 
 		final byte[] src = new byte[]{1, 1, 1, 1}; // 2x2
 		final int[] srcBlockSize = new int[]{2, 2};
@@ -253,9 +256,9 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		try (final N5Writer writer = createN5Writer()) {
 
-			@SuppressWarnings("resource") final N5ZarrWriter zarr = (N5ZarrWriter)writer;
+			final N5ZarrWriter zarr = (N5ZarrWriter)writer;
 			final Version n5Version = writer.getVersion();
-			Assert.assertTrue(n5Version.equals(N5ZarrReader.VERSION));
+			assertEquals(n5Version, N5ZarrReader.VERSION);
 
 			final JsonObject bumpVersion = new JsonObject();
 			bumpVersion.add(ZarrKeyValueReader.ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor() + 1));
@@ -353,11 +356,11 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.setAttribute(datasetName2, "attr5", 5.4);
 
 			Map<String, Class<?>> attributesMap = n5.listAttributes(datasetName2);
-			assertTrue(attributesMap.get("attr1") == long[].class);
-			assertTrue(attributesMap.get("attr2") == String[].class);
-			assertTrue(attributesMap.get("attr3") == long.class);
-			assertTrue(attributesMap.get("attr4") == String.class);
-			assertTrue(attributesMap.get("attr5") == double.class);
+			assertSame(attributesMap.get("attr1"), long[].class);
+			assertSame(attributesMap.get("attr2"), String[].class);
+			assertSame(attributesMap.get("attr3"), long.class);
+			assertSame(attributesMap.get("attr4"), String.class);
+			assertSame(attributesMap.get("attr5"), double.class);
 
 			n5.createGroup(groupName2);
 			n5.setAttribute(groupName2, "attr1", new double[]{1, 2, 3});
@@ -367,11 +370,11 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.setAttribute(groupName2, "attr5", 5.4);
 
 			attributesMap = n5.listAttributes(datasetName2);
-			assertTrue(attributesMap.get("attr1") == long[].class);
-			assertTrue(attributesMap.get("attr2") == String[].class);
-			assertTrue(attributesMap.get("attr3") == long.class);
-			assertTrue(attributesMap.get("attr4") == String.class);
-			assertTrue(attributesMap.get("attr5") == double.class);
+			assertSame(attributesMap.get("attr1"), long[].class);
+			assertSame(attributesMap.get("attr2"), String[].class);
+			assertSame(attributesMap.get("attr3"), long.class);
+			assertSame(attributesMap.get("attr4"), String.class);
+			assertSame(attributesMap.get("attr5"), double.class);
 		}
 	}
 
@@ -386,6 +389,32 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	@Ignore("Zarr does not currently support mode 2 data blocks and serialized objects.")
 	public void testWriteReadSerializableBlock() {
+
+	}
+
+	@Test
+	public void testWriteReadStringBlock() {
+		DataType dataType = DataType.STRING;
+		int[] blockSize = new int[]{3, 2, 1};
+		String[] stringBlock = new String[]{"", "a", "bc", "de", "fgh", ":-þ"};
+		Compression[] compressions = this.getCompressions();
+
+		for (Compression compression : compressions) {
+			System.out.println("Testing " + compression.getType() + " " + dataType);
+
+			try (final N5Writer n5 = createN5Writer()) {
+				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
+				DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
+				StringDataBlock dataBlock = new ZarrStringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
+				n5.writeBlock("/test/group/dataset", attributes, dataBlock);
+				DataBlock<?> loadedDataBlock = n5.readBlock("/test/group/dataset", attributes, 0L, 0L, 0L);
+				assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());
+				assertTrue(n5.remove("/test/group/dataset"));
+			} catch (IOException e) {
+				e.printStackTrace();
+				Assert.fail("Block cannot be written.");
+			}
+		}
 
 	}
 
@@ -606,6 +635,25 @@ public class N5ZarrTest extends AbstractN5Test {
 		raf.setPosition(shapef[1] - 5, 1);
 		assertTrue(Float.isNaN(raf.get().getRealFloat()));
 
+		/* strings */
+		String[] expected = {"", "a", "bc", "de", "fgh", ":-þ"}; // C-order
+		datasetName = testZarrDatasetName + "/3x2_c_str";
+		DatasetAttributes strAttributes = n5Zarr.getDatasetAttributes(datasetName);
+		DataBlock<?> loadedDataBlock = n5Zarr.readBlock(datasetName, strAttributes, 0L, 0L);
+		assertArrayEquals(expected, ((String[])loadedDataBlock.getData()));
+
+		expected = new String[] {"", "de", "a", "fgh", "bc", ":-þ"}; // F-order
+		datasetName = testZarrDatasetName + "/3x2_f_str";
+		strAttributes = n5Zarr.getDatasetAttributes(datasetName);
+		loadedDataBlock = n5Zarr.readBlock(datasetName, strAttributes, 0L, 0L);
+		assertArrayEquals(expected, ((String[])loadedDataBlock.getData()));
+
+		expected = new String[] {"bc", "", ":-þ", ""}; // chunked and compressed (second chunk)
+		datasetName = testZarrDatasetName + "/3x2_c_str_bz2";
+		strAttributes = n5Zarr.getDatasetAttributes(datasetName);
+		loadedDataBlock = n5Zarr.readBlock(datasetName, strAttributes, 1L, 0L);
+		assertArrayEquals(expected, ((String[])loadedDataBlock.getData()));
+
 		/* remove the container */
 		n5Zarr.remove();
 		n5Zarr.close();
@@ -644,7 +692,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
-	public void testRawCompressorNullInZarray() throws IOException, FileNotFoundException, ParseException {
+	public void testRawCompressorNullInZarray() throws IOException, ParseException {
 
 		final String testZarrDirPath = tmpPathName("n5-zarr-test-");
 		final N5ZarrWriter n5 = new N5ZarrWriter(testZarrDirPath);
@@ -659,7 +707,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		try (FileReader freader = new FileReader(zArrayFile)) {
 			final JSONObject zarray = (JSONObject)jsonParser.parse(freader);
 			final JSONObject compressor = (JSONObject)zarray.get("compressor");
-			assertTrue(compressor == null);
+			assertNull(compressor);
 		} finally {
 			n5.remove();
 			n5.close();
@@ -705,8 +753,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			}.getType()));
 
 			// test the case where the resulting file becomes shorter
-			n5.setAttribute(groupName, "key1", new Integer(1));
-			n5.setAttribute(groupName, "key2", new Integer(2));
+			n5.setAttribute(groupName, "key1", 1);
+			n5.setAttribute(groupName, "key2", 2);
 
 			Assert.assertEquals(4, n5.listAttributes(groupName).size());
 			/* class interface */
@@ -753,7 +801,9 @@ public class N5ZarrTest extends AbstractN5Test {
 			int[] blkN5 = n5.getAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, int[].class);
 			assertArrayEquals(blkZarr, blkN5);
 
-			DType dtype = n5.getAttribute(datasetName, ZArrayAttributes.dTypeKey, DType.class);
+			String typestr = n5.getAttribute(datasetName, ZArrayAttributes.dTypeKey, String.class);
+			Collection<Filter> filters = n5.getAttribute(datasetName, ZArrayAttributes.filtersKey, TypeToken.getParameterized(Collection.class, Filter.class).getType());
+			DType dtype = new DType(typestr, filters);
 			// read to a string because zarr may not have the N5 DataType deserializer
 			DataType n5DataType = DataType.fromString(n5.getAttribute(datasetName, DatasetAttributes.DATA_TYPE_KEY, String.class));
 			assertEquals(dtype.getDataType(), n5DataType);
@@ -781,7 +831,9 @@ public class N5ZarrTest extends AbstractN5Test {
 
 			n5.setAttribute(datasetName, DatasetAttributes.DATA_TYPE_KEY, newDtype.toString());
 
-			dtype = n5.getAttribute(datasetName, ZArrayAttributes.dTypeKey, DType.class);
+			typestr = n5.getAttribute(datasetName, ZArrayAttributes.dTypeKey, String.class);
+			filters = n5.getAttribute(datasetName, ZArrayAttributes.filtersKey, TypeToken.getParameterized(Collection.class, Filter.class).getType());
+			dtype = new DType(typestr, filters);
 			n5DataType = DataType.fromString(n5.getAttribute(datasetName, DatasetAttributes.DATA_TYPE_KEY, String.class));
 			assertEquals(newDtype, dtype.getDataType());
 			assertEquals(newDtype, n5DataType);
@@ -804,7 +856,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	@Override
 	@Ignore
-	public void testNullAttributes() throws IOException, URISyntaxException {
+	public void testNullAttributes() throws IOException {
 
 		// serializeNulls must be on for Zarr to be able to write datasets with raw compression
 
@@ -854,7 +906,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	@Override
 	@Ignore
-	public void testRootLeaves() throws IOException {
+	public void testRootLeaves() {
 
 		// This tests serializing primitives, and arrays at the root of an n5's attributes,
 		// since .zattrs must be a json object, this would test invalide behavior for zarr,

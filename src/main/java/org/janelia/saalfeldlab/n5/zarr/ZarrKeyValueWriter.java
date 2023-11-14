@@ -368,17 +368,18 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		reorder(shape);
 		final int[] chunks = datasetAttributes.getBlockSize().clone();
 		reorder(chunks);
+		final DType dType = new DType(datasetAttributes.getDataType());
 
 		final ZArrayAttributes zArrayAttributes = new ZArrayAttributes(
 				N5ZarrReader.VERSION.getMajor(),
 				shape,
 				chunks,
-				new DType(datasetAttributes.getDataType()),
+				dType,
 				ZarrCompressor.fromCompression(datasetAttributes.getCompression()),
 				"0",
 				'C',
 				dimensionSeparator,
-				null);
+				dType.getFilters());
 
 		return zArrayAttributes;
 	}

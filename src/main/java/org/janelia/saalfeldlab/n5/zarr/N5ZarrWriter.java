@@ -208,5 +208,4 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 		this(basePath, new GsonBuilder());
 	}
 
-
 }
