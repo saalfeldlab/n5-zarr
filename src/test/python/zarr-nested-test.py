@@ -30,7 +30,7 @@
 from pathlib import Path
 import numpy as np
 import zarr
-from numcodecs import Zlib, GZip, BZ2
+from numcodecs import Zlib, GZip, BZ2, Zstd
 import sys
 import os
 

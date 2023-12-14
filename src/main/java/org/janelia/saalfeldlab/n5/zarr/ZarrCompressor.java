@@ -40,6 +40,7 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
+import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -55,6 +56,7 @@ public interface ZarrCompressor {
 
 	/* idiotic stream based initialization because Java cannot have static initialization code in interfaces */
 	public static Map<String, Class<? extends ZarrCompressor>> registry = Stream.of(
+			new SimpleImmutableEntry<>("zstd", Zstandard.class),
 			new SimpleImmutableEntry<>("blosc", Blosc.class),
 			new SimpleImmutableEntry<>("zlib", Zlib.class),
 			new SimpleImmutableEntry<>("gzip", Gzip.class),
@@ -84,6 +86,35 @@ public interface ZarrCompressor {
 	}
 
 	public Compression getCompression();
+
+	public static class Zstandard implements ZarrCompressor {
+
+		private final int level;
+		private final transient int nbWorkers;
+
+		public Zstandard(int level) {
+			this(level, 0);
+		}
+
+		public Zstandard(int level, int nbWorkers) {
+			this.level = level;
+			this.nbWorkers = nbWorkers;
+		}
+
+		public Zstandard(ZstandardCompression compression) {
+			this.level = compression.getLevel();
+			this.nbWorkers = compression.getNbWorkers();
+		}
+
+		@Override
+		public Compression getCompression() {
+			ZstandardCompression compression = new ZstandardCompression(level);
+			if(this.nbWorkers != 0)
+				compression.setNbWorkers(this.nbWorkers);
+			return compression;
+		}
+
+	}
 
 	public static class Blosc implements ZarrCompressor {
 
