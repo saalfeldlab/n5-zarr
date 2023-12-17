@@ -33,7 +33,7 @@ This implementation currently supports the following Zarr features
   <dt>Arbitrary meta-data</dt>
   <dd>stored as JSON for both groups and datasets.</dd>
   <dt>Compression</dt>
-  <dd>currently, only the most relevant compression schemes (Blosc, GZip, Zlib, and BZ2) are supported, we can add others later as necessary.</dd>
+  <dd>currently, only the most relevant compression schemes (Zstandard, Blosc, GZip, Zlib, and BZ2) are supported, we can add others later as necessary.</dd>
   <dt>Primitive types as little and big endian</dt>
   <dd>so far, I have tested unsigned and signed integers with 1, 2, 4 and 8 bytes, and floats with 4 and 8 bytes.  The behavior for other types is untested because I did not have meaningful examples.  Complex numbers should be mapped into the best matching primitive real type.  Other numpy data types such as strings, timedeltas, objects, dates, or others should come out as uncompressed bytes.</dd>
 </dl>
