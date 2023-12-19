@@ -91,6 +91,8 @@ public interface ZarrCompressor {
 
 	public static class Zstandard implements ZarrCompressor {
 
+		@SuppressWarnings("unused")
+		private final String id = "zstd";
 		private final int level;
 		private final transient int nbWorkers;
 
@@ -120,6 +122,7 @@ public interface ZarrCompressor {
 
 	public static class Blosc implements ZarrCompressor {
 
+		@SuppressWarnings("unused")
 		private final String id = "blosc";
 		private final String cname;
 		private final int clevel;
@@ -180,6 +183,7 @@ public interface ZarrCompressor {
 
 	public static class Zlib implements ZarrCompressor {
 
+		@SuppressWarnings("unused")
 		private final String id = "zlib";
 		private final int level;
 
@@ -207,6 +211,7 @@ public interface ZarrCompressor {
 
 	public static class Gzip implements ZarrCompressor {
 
+		@SuppressWarnings("unused")
 		private final String id = "gzip";
 		private final int level;
 
@@ -234,6 +239,7 @@ public interface ZarrCompressor {
 
 	public static class Bz2 implements ZarrCompressor {
 
+		@SuppressWarnings("unused")
 		private final String id = "bz2";
 		private final int level;
 
