@@ -77,6 +77,8 @@ public interface ZarrCompressor {
 				return useZlib != null && useZlib ? new Zlib((GzipCompression)compression) : new Gzip((GzipCompression)compression);
 			} else if (compression instanceof Bzip2Compression) {
 				return new Bz2((Bzip2Compression)compression);
+			} else if (compression instanceof ZstandardCompression) {
+				return new Zstandard((ZstandardCompression)compression);
 			} else {
 				return new Raw();
 			}
