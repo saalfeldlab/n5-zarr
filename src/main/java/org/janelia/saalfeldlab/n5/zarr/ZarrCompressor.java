@@ -40,6 +40,7 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
+import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -55,6 +56,7 @@ public interface ZarrCompressor {
 
 	/* idiotic stream based initialization because Java cannot have static initialization code in interfaces */
 	public static Map<String, Class<? extends ZarrCompressor>> registry = Stream.of(
+			new SimpleImmutableEntry<>("zstd", Zstandard.class),
 			new SimpleImmutableEntry<>("blosc", Blosc.class),
 			new SimpleImmutableEntry<>("zlib", Zlib.class),
 			new SimpleImmutableEntry<>("gzip", Gzip.class),
@@ -75,6 +77,8 @@ public interface ZarrCompressor {
 				return useZlib != null && useZlib ? new Zlib((GzipCompression)compression) : new Gzip((GzipCompression)compression);
 			} else if (compression instanceof Bzip2Compression) {
 				return new Bz2((Bzip2Compression)compression);
+			} else if (compression instanceof ZstandardCompression) {
+				return new Zstandard((ZstandardCompression)compression);
 			} else {
 				return new Raw();
 			}
@@ -85,8 +89,40 @@ public interface ZarrCompressor {
 
 	public Compression getCompression();
 
+	public static class Zstandard implements ZarrCompressor {
+
+		@SuppressWarnings("unused")
+		private final String id = "zstd";
+		private final int level;
+		private final transient int nbWorkers;
+
+		public Zstandard(int level) {
+			this(level, 0);
+		}
+
+		public Zstandard(int level, int nbWorkers) {
+			this.level = level;
+			this.nbWorkers = nbWorkers;
+		}
+
+		public Zstandard(ZstandardCompression compression) {
+			this.level = compression.getLevel();
+			this.nbWorkers = compression.getNbWorkers();
+		}
+
+		@Override
+		public Compression getCompression() {
+			ZstandardCompression compression = new ZstandardCompression(level);
+			if(this.nbWorkers != 0)
+				compression.setNbWorkers(this.nbWorkers);
+			return compression;
+		}
+
+	}
+
 	public static class Blosc implements ZarrCompressor {
 
+		@SuppressWarnings("unused")
 		private final String id = "blosc";
 		private final String cname;
 		private final int clevel;
@@ -147,6 +183,7 @@ public interface ZarrCompressor {
 
 	public static class Zlib implements ZarrCompressor {
 
+		@SuppressWarnings("unused")
 		private final String id = "zlib";
 		private final int level;
 
@@ -174,6 +211,7 @@ public interface ZarrCompressor {
 
 	public static class Gzip implements ZarrCompressor {
 
+		@SuppressWarnings("unused")
 		private final String id = "gzip";
 		private final int level;
 
@@ -201,6 +239,7 @@ public interface ZarrCompressor {
 
 	public static class Bz2 implements ZarrCompressor {
 
+		@SuppressWarnings("unused")
 		private final String id = "bz2";
 		private final int level;
 

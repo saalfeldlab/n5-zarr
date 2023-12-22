@@ -30,7 +30,7 @@
 from pathlib import Path
 import numpy as np
 import zarr
-from numcodecs import Zlib, GZip, BZ2
+from numcodecs import Zlib, GZip, BZ2, Zstd
 import sys
 import os
 
@@ -194,6 +194,13 @@ group.array(
   data=array_30x20_c,
   chunks=(7, 13),
   overwrite=True)
+group.array(
+  name='30x20_c_u8_zstd',
+  dtype='>u8',
+  compressor=Zstd(level=1),
+  data=array_30x20_c,
+  chunks=(7, 13),
+  overwrite=True)
 
 group.array(
   name='3x2_c_u4_f1',
@@ -244,4 +251,10 @@ group.array(
   data=array_3x2_str_c,
   chunks=(2, 2),
   overwrite=True)
-
+group.array(
+  name='3x2_c_str_zstd',
+  dtype=str,
+  compressor=Zstd(level=1),
+  data=array_3x2_str_c,
+  chunks=(2, 2),
+  overwrite=True)

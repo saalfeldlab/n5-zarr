@@ -66,6 +66,7 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -169,6 +170,10 @@ public class N5ZarrTest extends AbstractN5Test {
 				new GzipCompression(5, true),
 				new BloscCompression(),
 				new BloscCompression("lz4", 6, BloscCompression.BITSHUFFLE, 0, 4),
+				new ZstandardCompression(),
+				new ZstandardCompression(0),
+				new ZstandardCompression(-1),
+				//add new compressions here
 				new RawCompression()
 		};
 	}
