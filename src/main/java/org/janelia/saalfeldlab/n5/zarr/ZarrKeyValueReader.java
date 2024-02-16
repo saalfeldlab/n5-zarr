@@ -505,7 +505,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		attrs.add(DatasetAttributes.BLOCK_SIZE_KEY, attrs.get(ZArrayAttributes.chunksKey));
 		attrs.addProperty(DatasetAttributes.DATA_TYPE_KEY, zattrs.getDType().getDataType().toString());
 
-		JsonElement e = attrs.get(ZArrayAttributes.compressorKey);
+		final JsonElement e = attrs.get(ZArrayAttributes.compressorKey);
 		if (e == JsonNull.INSTANCE) {
 			attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(new RawCompression()));
 		} else {
@@ -636,7 +636,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
 			return readBlock(lockedChannel.newInputStream(), zarrDatasetAttributes, gridPosition);
-		} catch (final IOException | UncheckedIOException  e) {
+		} catch (final Throwable  e) {
 			throw new N5IOException(
 					"Failed to read block " + Arrays.toString(gridPosition) + " from dataset " + pathName,
 					e);
@@ -685,9 +685,9 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		return dataBlock;
 	}
 
-	private static ZarrStringDataBlock readVLenStringBlock(InputStream in, BlockReader reader, ByteArrayDataBlock byteBlock) throws IOException {
+	private static ZarrStringDataBlock readVLenStringBlock(final InputStream in, final BlockReader reader, final ByteArrayDataBlock byteBlock) throws IOException {
 		// read whole chunk and deserialize; this should be improved
-		ZarrStringDataBlock dataBlock = new ZarrStringDataBlock(byteBlock.getSize(), byteBlock.getGridPosition(), new String[0]);
+		final ZarrStringDataBlock dataBlock = new ZarrStringDataBlock(byteBlock.getSize(), byteBlock.getGridPosition(), new String[0]);
 		if (reader instanceof BloscCompression) {
 			// Blosc reader reads actual data and doesn't care about buffer size (but needs special treatment in data block)
 			reader.read(dataBlock, in);

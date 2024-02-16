@@ -27,7 +27,6 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -45,9 +44,9 @@ import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
-import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -137,6 +136,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		}
 	}
 
+	@Override
 	public void setVersion(final String path) throws N5Exception {
 
 		setVersion(path, false);
@@ -192,7 +192,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		// since the contents is null
 		try {
 			keyValueAccess.createDirectories(absoluteGroupPath(normalPath));
-		} catch (final IOException | UncheckedIOException e) {
+		} catch (final Throwable e) {
 			throw new N5Exception.N5IOException("Failed to create group " + path, e);
 		}
 
@@ -245,7 +245,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final String absPath = absoluteGroupPath(normalPath);
 		try {
 			keyValueAccess.createDirectories(absPath);
-		} catch (final IOException | UncheckedIOException  e) {
+		} catch (final Throwable e) {
 			throw new N5IOException("Failed to create directories " + absPath, e);
 		}
 
@@ -386,8 +386,8 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 	/**
 	 * Write the contents of the attributes argument to the .zarray file at
-	 * the given pathName. Overwrites and existing .zarray. 
-	 * 
+	 * the given pathName. Overwrites and existing .zarray.
+	 *
 	 * @param pathName the group / dataset path
 	 * @param attributes ZArray attributes
 	 * @throws N5Exception the exception
@@ -407,7 +407,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final String absolutePath = keyValueAccess.compose(uri, normalPath, jsonName);
 		try {
 			keyValueAccess.delete(absolutePath);
-		} catch (IOException | UncheckedIOException  e1) {
+		} catch (final Throwable e1) {
 			throw new N5IOException("Failed to delete " + absolutePath, e1);
 		}
 	}
@@ -423,7 +423,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final String absolutePath = keyValueAccess.compose(uri, normalPath, jsonName);
 		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
 			GsonUtils.writeAttributes(lock.newWriter(), attributes, gson);
-		} catch (final IOException | UncheckedIOException  e) {
+		} catch (final Throwable e) {
 			throw new N5IOException("Failed to write " + absolutePath, e);
 		}
 	}
@@ -540,7 +540,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 						zarrDatasetAttributes,
 						dataBlock);
 			}
-		} catch (final IOException | UncheckedIOException  e) {
+		} catch (final Throwable e) {
 			throw new N5IOException(
 					"Failed to write block " + Arrays.toString(dataBlock.getGridPosition()) + " into dataset " + path,
 					e);
@@ -567,7 +567,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		try {
 			if (keyValueAccess.exists(absolutePath))
 				keyValueAccess.delete(absolutePath);
-		} catch (final IOException | UncheckedIOException  e) {
+		} catch (final Throwable e) {
 			throw new N5IOException(
 					"Failed to delete block " + Arrays.toString(gridPosition) + " from dataset " + path,
 					e);
@@ -730,7 +730,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 	 * <p>
 	 * Used when re-directing attributes to the appropriate zarr metadata files according to
 	 * attribute keys.
-	 * 
+	 *
 	 * @param obj the json attributes object
 	 * @param gson the json
 	 * @param mapN5Attributes if true, map n5 attribute keys to corresponding zarr attribute keys
@@ -856,5 +856,4 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			array.set(j, a);
 		}
 	}
-
 }
