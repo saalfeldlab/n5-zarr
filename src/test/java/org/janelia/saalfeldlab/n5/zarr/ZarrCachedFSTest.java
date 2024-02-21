@@ -21,6 +21,7 @@ import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5CachedFSTest.TrackingStorage;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -30,9 +31,19 @@ import com.google.gson.JsonElement;
 public class ZarrCachedFSTest extends N5ZarrTest {
 
 	@Override
+	protected String tempN5Location() {
+
+		try {
+			return Files.createTempDirectory("n5-zarr-cached-test").toUri().toString();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Override
 	protected N5ZarrWriter createN5Writer() throws IOException {
 
-		final String testDirPath = tmpPathName("zarr-cached-test-");
+		final String testDirPath = tempN5Location();
 		return new N5ZarrWriter(testDirPath, new GsonBuilder(), ".", true, true) {
 			@Override public void close() {
 
@@ -42,7 +53,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		};
 	}
 
-	protected N5ZarrWriter createN5Writer(final boolean cacheAttributes) throws IOException {
+	protected N5Writer createN5Writer(final boolean cacheAttributes) throws IOException {
 
 		if( cacheAttributes )
 			return createN5Writer(tempN5PathName(), new GsonBuilder(), ".", true);
@@ -91,7 +102,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 	@Test
 	public void cachedRootDatasetTest() throws IOException {
 
-		final String testDirPath = tmpPathName("zarr-cached-test-");
+		final String testDirPath = tempN5Location();
 		try (ZarrKeyValueWriter writer = (ZarrKeyValueWriter) createN5Writer( testDirPath, new GsonBuilder() )) {
 			writer.createDataset("/", dimensions, blockSize, DataType.UINT8, getCompressions()[0]);
 			assertTrue( writer.exists("/"));
