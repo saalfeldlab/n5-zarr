@@ -35,6 +35,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.gson.JsonNull;
+import com.google.gson.JsonSerializer;
 import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
@@ -265,12 +267,12 @@ public interface ZarrCompressor {
 		}
 	}
 
-	public static class Raw extends RawCompression implements ZarrCompressor {
-
+	class Raw implements ZarrCompressor {
+		public Raw() {}
 		@Override
 		public RawCompression getCompression() {
 
-			return this;
+			return new RawCompression();
 		}
 	}
 
@@ -294,4 +296,6 @@ public interface ZarrCompressor {
 			return context.deserialize(json, compressorClass);
 		}
 	}
+
+	JsonSerializer<Raw> rawNullAdapter = (src, typeOfSrc, context) -> JsonNull.INSTANCE;
 }
