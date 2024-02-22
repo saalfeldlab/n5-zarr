@@ -41,7 +41,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 	}
 
 	@Override
-	protected N5ZarrWriter createN5Writer() throws IOException {
+	protected N5ZarrWriter createN5Writer() {
 
 		final String testDirPath = tempN5Location();
 		return new N5ZarrWriter(testDirPath, new GsonBuilder(), ".", true, true) {
