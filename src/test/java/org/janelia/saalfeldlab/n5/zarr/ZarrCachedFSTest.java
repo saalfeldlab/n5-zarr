@@ -34,7 +34,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 	protected String tempN5Location() {
 
 		try {
-			return Files.createTempDirectory("n5-zarr-cached-test").toUri().toString();
+			return Files.createTempDirectory("n5-zarr-cached-test").toUri().getPath();
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
