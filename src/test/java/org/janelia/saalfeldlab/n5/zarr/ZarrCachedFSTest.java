@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 
@@ -44,33 +43,24 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 	protected N5ZarrWriter createN5Writer() {
 
 		final String testDirPath = tempN5Location();
-		return new N5ZarrWriter(testDirPath, new GsonBuilder(), ".", true, true) {
-			@Override public void close() {
-
-				assertTrue(remove());
-				super.close();
-			}
-		};
+		return new N5ZarrWriter(testDirPath, new GsonBuilder(), ".", true, true);
 	}
 
-	protected N5Writer createN5Writer(final boolean cacheAttributes) throws IOException {
+	protected N5Writer createTempN5Writer(final boolean cacheAttributes) throws IOException {
 
-		if( cacheAttributes )
-			return createN5Writer(tempN5PathName(), new GsonBuilder(), ".", true);
-		else
-			return super.createN5Writer(tempN5PathName(), new GsonBuilder(), ".", true);
+		return createTempN5Writer(tempN5PathName(), new GsonBuilder(), ".", true,  cacheAttributes);
 	}
 
 	@Override
 	protected N5ZarrWriter createN5Writer(final String location, final GsonBuilder gsonBuilder) throws IOException {
 
-		return createN5Writer(location, gsonBuilder, ".", true);
+		return createTempN5Writer(location, gsonBuilder, ".", true);
 	}
 
 	@Override
-	protected N5ZarrWriter createN5Writer(final String location, final String dimensionSeparator) throws IOException {
+	protected N5ZarrWriter createTempN5Writer(final String location, final String dimensionSeparator) throws IOException {
 
-		return createN5Writer(location, new GsonBuilder(), dimensionSeparator, true);
+		return createTempN5Writer(location, new GsonBuilder(), dimensionSeparator, true);
 	}
 
 	@Override
@@ -80,7 +70,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 	}
 
 	@Override
-	protected N5ZarrWriter createN5Writer(
+	protected N5ZarrWriter createTempN5Writer(
 			final String location,
 			final GsonBuilder gsonBuilder,
 			final String dimensionSeparator,
@@ -114,12 +104,12 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 	}
 
 	@Test
-	public void cacheTest() throws IOException {
+	public void cacheTest() throws IOException, URISyntaxException {
 		/* Test the cache by setting many attributes, then manually deleting the underlying file.
 		* The only possible way for the test to succeed is if it never again attempts to read the file, and relies on the cache. */
 
 		final String cachedGroup = "cachedGroup";
-		try (ZarrKeyValueWriter zarr = (ZarrKeyValueWriter) createN5Writer()) {
+		try (ZarrKeyValueWriter zarr = (ZarrKeyValueWriter) createTempN5Writer()) {
 			zarr.createGroup(cachedGroup);
 			final String attributesPath = new File(zarr.getURI()).toPath()
 					.resolve(cachedGroup)
@@ -135,7 +125,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 			runTests(zarr, tests);
 		}
 
-		try (final ZarrKeyValueWriter zarr = (ZarrKeyValueWriter) createN5Writer(false)) {
+		try (final ZarrKeyValueWriter zarr = (ZarrKeyValueWriter) createTempN5Writer(false)) {
 			zarr.createGroup(cachedGroup);
 
 			final String attributesPath = new File(zarr.getURI()).toPath()
@@ -168,7 +158,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		}
 	}
 
-	public static void zarrCacheBehaviorHelper(final TrackingStorage n5) throws IOException, URISyntaxException {
+	public static void zarrCacheBehaviorHelper(final TrackingStorage n5) {
 
 		// non existant group
 		final String groupA = "groupA";
@@ -409,7 +399,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		public int writeAttrCallCount = 0;
 
 		public ZarrTrackingStorage(final KeyValueAccess keyValueAccess, final String basePath,
-				final GsonBuilder gsonBuilder, final boolean cacheAttributes) throws IOException {
+				final GsonBuilder gsonBuilder, final boolean cacheAttributes) {
 
 			super(keyValueAccess, basePath, gsonBuilder, true, true, ".", cacheAttributes);
 		}

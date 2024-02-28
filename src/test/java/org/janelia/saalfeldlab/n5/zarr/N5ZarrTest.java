@@ -118,42 +118,45 @@ public class N5ZarrTest extends AbstractN5Test {
 	protected N5Writer createN5Writer()  {
 
 		final String testDirPath = tempN5Location();
-		return new ZarrKeyValueWriter(createKeyValueAccess(), testDirPath, new GsonBuilder(), true, true, ".",false) {
-
-			@Override public void close() {
-
-				assertTrue(remove());
-				super.close();
-			}
-		};
+		return new ZarrKeyValueWriter(createKeyValueAccess(), testDirPath, new GsonBuilder(), true, true, ".",false);
 	}
 
 	@Override
 	protected N5Writer createN5Writer(final String location, final GsonBuilder gsonBuilder) throws IOException {
 
-		return createN5Writer(location, gsonBuilder, ".", true);
+		return createTempN5Writer(location, gsonBuilder, ".", true);
 	}
 
-	protected N5Writer createN5Writer(final String location, final String dimensionSeparator) throws IOException {
+	protected N5Writer createTempN5Writer(final String location, final String dimensionSeparator) throws IOException {
 
-		return createN5Writer(location, new GsonBuilder(), dimensionSeparator, true);
+		return createTempN5Writer(location, new GsonBuilder(), dimensionSeparator, true);
 	}
 
 
-	protected N5Writer createN5Writer(final String location, final String dimensionSeparator, final boolean cacheAttributes) throws IOException {
+	protected N5Writer createTempN5Writer(final String location, final String dimensionSeparator, final boolean cacheAttributes) throws IOException {
 
-
-		return new ZarrKeyValueWriter(createKeyValueAccess(), location, new GsonBuilder(), true, true, dimensionSeparator, cacheAttributes);
+		return createTempN5Writer(location, new GsonBuilder(), dimensionSeparator,true, cacheAttributes);
 	}
 
-	protected N5Writer createN5Writer(
+	protected N5Writer createTempN5Writer(
 			final String location,
 			final GsonBuilder gsonBuilder,
 			final String dimensionSeparator,
 			final boolean mapN5DatasetAttributes) throws IOException {
 
+		return createTempN5Writer(location, new GsonBuilder(), dimensionSeparator,true, false);
+	}
 
-		return new ZarrKeyValueWriter(createKeyValueAccess(), location, gsonBuilder, mapN5DatasetAttributes, true, dimensionSeparator, false);
+	protected N5Writer createTempN5Writer(
+			final String location,
+			final GsonBuilder gsonBuilder,
+			final String dimensionSeparator,
+			final boolean mapN5DatasetAttributes,
+			final boolean cacheAttributes) {
+
+		final ZarrKeyValueWriter tempWriter = new ZarrKeyValueWriter(createKeyValueAccess(), location, gsonBuilder, mapN5DatasetAttributes, true, dimensionSeparator, cacheAttributes);
+		tempWriters.add(tempWriter);
+		return tempWriter;
 	}
 
 	@Override
@@ -181,10 +184,10 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Override
 	@Test
-	public void testCreateDataset() throws IOException {
+	public void testCreateDataset()  {
 
 		final DatasetAttributes info;
-		try (N5Writer n5 = createN5Writer()) {
+		try (N5Writer n5 = createTempN5Writer()) {
 			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 
 			assertTrue("Dataset does not exist", n5.exists(datasetName));
@@ -203,7 +206,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		final String datasetName = "/test/nested/data";
 
 		final String testDirPath = tempN5Location();
-		final ZarrKeyValueWriter n5Nested = (ZarrKeyValueWriter) createN5Writer(testDirPath, "/");
+		final ZarrKeyValueWriter n5Nested = (ZarrKeyValueWriter) createTempN5Writer(testDirPath, "/");
 
 		n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 		assertEquals("/", n5Nested.getZArrayAttributes(datasetName).getDimensionSeparator());
@@ -216,27 +219,27 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
-	public void testCreateDatasetNameEmpty() throws IOException, URISyntaxException {
+	public void testCreateDatasetNameEmpty()  {
 
 		final String testDirPath = tempN5Location();
-		final N5Writer n5 = createN5Writer(testDirPath);
+		final N5Writer n5 = createTempN5Writer(testDirPath);
 		n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 		n5.remove();
 		n5.close();
 	}
 
 	@Test
-	public void testCreateDatasetNameSlash() throws IOException {
+	public void testCreateDatasetNameSlash()  {
 
-		try (final N5Writer n5 = createN5Writer()) {
+		try (final N5Writer n5 = createTempN5Writer()) {
 			n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 		}
 	}
 
 	@Test
-	public void testGetDatasetAttributesNull() throws IOException {
+	public void testGetDatasetAttributesNull()  {
 
-		try (final N5Writer n5 = createN5Writer()) {
+		try (final N5Writer n5 = createTempN5Writer()) {
 			final DatasetAttributes attributes = n5.getDatasetAttributes("");
 			assertNull(attributes);
 		}
@@ -258,9 +261,9 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Override
 	@Test
-	public void testVersion() throws NumberFormatException, IOException {
+	public void testVersion() throws NumberFormatException, IOException, URISyntaxException {
 
-		try (final N5Writer writer = createN5Writer()) {
+		try (final N5Writer writer = createTempN5Writer()) {
 
 			final ZarrKeyValueWriter zarr = (ZarrKeyValueWriter)writer;
 			final Version n5Version = writer.getVersion();
@@ -274,7 +277,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertFalse(N5ZarrReader.VERSION.isCompatible(version));
 
 			// check that writer creation fails for incompatible version
-			assertThrows(N5Exception.N5IOException.class, () -> createN5Writer(writer.getURI().toString()));
+			assertThrows(N5Exception.N5IOException.class, () -> createTempN5Writer(writer.getURI().toString()));
 
 			//			final Version compatibleVersion = new Version(N5ZarrReader.VERSION.getMajor(), N5ZarrReader.VERSION.getMinor(), N5Reader.VERSION.getPatch());
 			//			writer.setAttribute("/", ZarrUtils.ZARR_FORMAT_KEY, compatibleVersion.toString());
@@ -286,7 +289,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	public void testReaderCreation() throws IOException, URISyntaxException {
 
 		final String canonicalPath = tempN5Location();
-		try (N5Writer writer = createN5Writer(canonicalPath)) {
+		try (N5Writer writer = createTempN5Writer(canonicalPath)) {
 
 			final N5Reader n5r = createN5Reader(canonicalPath);
 			assertNotNull(n5r);
@@ -319,13 +322,13 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Override
 	@Test
-	public void testExists() throws IOException {
+	public void testExists()  {
 
 		final String groupName2 = groupName + "-2";
 		final String datasetName2 = datasetName + "-2";
 		final String notExists = groupName + "-notexists";
 
-		try (N5Writer n5 = createN5Writer()) {
+		try (N5Writer n5 = createTempN5Writer()) {
 
 			n5.createDataset(datasetName2, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 			assertTrue(n5.exists(datasetName2));
@@ -345,12 +348,12 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Override
 	@Test
-	public void testListAttributes() throws IOException {
+	public void testListAttributes()  {
 
 		final String groupName2 = groupName + "-2";
 		final String datasetName2 = datasetName + "-2";
 
-		try (N5Writer n5 = createN5Writer()) {
+		try (N5Writer n5 = createTempN5Writer()) {
 
 			n5.createDataset(datasetName2, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 			n5.setAttribute(datasetName2, "attr1", new double[]{1, 2, 3});
@@ -398,7 +401,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Test
 	@Override
-	public void testWriteReadStringBlock() {
+	public void testWriteReadStringBlock()  {
 		DataType dataType = DataType.STRING;
 		int[] blockSize = new int[]{3, 2, 1};
 		String[] stringBlock = new String[]{"", "a", "bc", "de", "fgh", ":-þ"};
@@ -407,7 +410,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		for (Compression compression : compressions) {
 			System.out.println("Testing " + compression.getType() + " " + dataType);
 
-			try (final N5Writer n5 = createN5Writer()) {
+			try (final N5Writer n5 = createTempN5Writer()) {
 				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
 				DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
 				StringDataBlock dataBlock = new ZarrStringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
@@ -471,8 +474,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			return;
 		}
 
-		final ZarrKeyValueWriter n5Zarr = (ZarrKeyValueWriter)createN5Writer(testZarrDirPath, ".");
-		final ZarrKeyValueWriter n5ZarrWithoutMapping = (ZarrKeyValueWriter)createN5Writer(testZarrDirPath, new GsonBuilder(), ".", false);
+		final ZarrKeyValueWriter n5Zarr = (ZarrKeyValueWriter)createTempN5Writer(testZarrDirPath, ".");
+		final ZarrKeyValueWriter n5ZarrWithoutMapping = (ZarrKeyValueWriter)createTempN5Writer(testZarrDirPath, new GsonBuilder(), ".", false);
 
 		/* groups */
 		assertTrue(n5Zarr.exists(testZarrDatasetName) && !n5Zarr.datasetExists(testZarrDatasetName));
@@ -672,7 +675,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			return;
 		}
 
-		final ZarrKeyValueWriter n5Zarr = (ZarrKeyValueWriter) createN5Writer(testZarrNestedDirPath, ".", true);
+		final ZarrKeyValueWriter n5Zarr = (ZarrKeyValueWriter) createTempN5Writer(testZarrNestedDirPath, ".", true);
 
 		/* groups */
 		assertTrue(n5Zarr.exists(testZarrDatasetName) && !n5Zarr.datasetExists(testZarrDatasetName));
@@ -693,9 +696,9 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
-	public void testRawCompressorNullInZarray() throws IOException, ParseException {
+	public void testRawCompressorNullInZarray() throws IOException, ParseException, URISyntaxException {
 
-		final ZarrKeyValueWriter n5 = (ZarrKeyValueWriter) createN5Writer();
+		final ZarrKeyValueWriter n5 = (ZarrKeyValueWriter) createTempN5Writer();
 		n5.createDataset(
 				testZarrDatasetName,
 				new long[]{1, 2, 3},
@@ -717,9 +720,9 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	@Test
 	@Override
-	public void testAttributes() throws IOException {
+	public void testAttributes()  {
 
-		try (final N5Writer n5 = createN5Writer()) {
+		try (final N5Writer n5 = createTempN5Writer()) {
 			n5.createGroup(groupName);
 
 			n5.setAttribute(groupName, "key1", "value1");
@@ -786,10 +789,10 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
-	public void testAttributeMapping() throws IOException {
+	public void testAttributeMapping()  {
 
 		// attribute mapping on by default
-		try (final N5Writer n5 = createN5Writer()) {
+		try (final N5Writer n5 = createTempN5Writer()) {
 
 			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 
@@ -856,12 +859,12 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	@Override
 	@Ignore
-	public void testNullAttributes() throws IOException {
+	public void testNullAttributes()  {
 
 		// serializeNulls must be on for Zarr to be able to write datasets with raw compression
 
 		/* serializeNulls*/
-		try (N5Writer writer = createN5Writer(tempN5Location(), new GsonBuilder().serializeNulls())) {
+		try (N5Writer writer = createTempN5Writer(tempN5Location(), new GsonBuilder().serializeNulls())) {
 
 			writer.createGroup(groupName);
 			writer.setAttribute(groupName, "nullValue", null);
