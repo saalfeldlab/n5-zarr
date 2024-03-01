@@ -212,10 +212,6 @@ public class N5ZarrTest extends AbstractN5Test {
 		assertEquals("/", n5Nested.getZArrayAttributes(datasetName).getDimensionSeparator());
 
 		// TODO test that parents of nested dataset are groups
-
-		n5Nested.remove(datasetName);
-		n5Nested.remove();
-		n5Nested.close();
 	}
 
 	@Test
@@ -224,8 +220,6 @@ public class N5ZarrTest extends AbstractN5Test {
 		final String testDirPath = tempN5Location();
 		final N5Writer n5 = createTempN5Writer(testDirPath);
 		n5.createDataset("", dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-		n5.remove();
-		n5.close();
 	}
 
 	@Test
@@ -408,7 +402,6 @@ public class N5ZarrTest extends AbstractN5Test {
 		Compression[] compressions = this.getCompressions();
 
 		for (Compression compression : compressions) {
-			System.out.println("Testing " + compression.getType() + " " + dataType);
 
 			try (final N5Writer n5 = createTempN5Writer()) {
 				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
@@ -657,11 +650,6 @@ public class N5ZarrTest extends AbstractN5Test {
 		strAttributes = n5Zarr.getDatasetAttributes(datasetName);
 		loadedDataBlock = n5Zarr.readBlock(datasetName, strAttributes, 1L, 0L);
 		assertArrayEquals(expected, ((String[])loadedDataBlock.getData()));
-
-		/* remove the container */
-		n5Zarr.remove();
-		n5Zarr.close();
-		n5ZarrWithoutMapping.close();
 	}
 
 	@Test
@@ -689,10 +677,6 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		final UnsignedByteType refUnsignedByte = new UnsignedByteType();
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_u1"), refUnsignedByte);
-
-		/* remove the container */
-		n5Zarr.remove();
-		n5Zarr.close();
 	}
 
 	@Test
@@ -712,9 +696,6 @@ public class N5ZarrTest extends AbstractN5Test {
 			final JSONObject zarray = (JSONObject)jsonParser.parse(reader);
 			final JSONObject compressor = (JSONObject)zarray.get("compressor");
 			assertNull(compressor);
-		} finally {
-			n5.remove();
-			n5.close();
 		}
 	}
 
@@ -901,8 +882,6 @@ public class N5ZarrTest extends AbstractN5Test {
 			writer.setAttribute(groupName, "existingValue", null);
 			assertThrows(N5ClassCastException.class, () -> writer.getAttribute(groupName, "existingValue", Integer.class));
 			assertEquals(JsonNull.INSTANCE, writer.getAttribute(groupName, "existingValue", JsonElement.class));
-
-			writer.remove();
 		}
 	}
 
