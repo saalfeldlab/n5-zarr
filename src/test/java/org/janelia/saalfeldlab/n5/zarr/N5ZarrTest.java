@@ -144,7 +144,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			final String dimensionSeparator,
 			final boolean mapN5DatasetAttributes) throws IOException {
 
-		return createTempN5Writer(location, new GsonBuilder(), dimensionSeparator,true, false);
+		return createTempN5Writer(location, new GsonBuilder(), dimensionSeparator, mapN5DatasetAttributes, false);
 	}
 
 	protected N5Writer createTempN5Writer(
