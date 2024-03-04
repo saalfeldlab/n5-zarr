@@ -149,6 +149,21 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			final boolean cacheMeta)
 			throws N5Exception {
 
+		this(checkVersion, keyValueAccess, basePath, gsonBuilder, mapN5DatasetAttributes, mergeAttributes, cacheMeta, true);
+	}
+
+	protected ZarrKeyValueReader(
+			final boolean checkVersion,
+			final KeyValueAccess keyValueAccess,
+			final String basePath,
+			final GsonBuilder gsonBuilder,
+			final boolean mapN5DatasetAttributes,
+			final boolean mergeAttributes,
+			final boolean cacheMeta,
+			final boolean checkRootExists
+	) {
+
+
 		this.keyValueAccess = keyValueAccess;
 		this.gson = registerGson(gsonBuilder);
 		this.cacheMeta = cacheMeta;
@@ -169,6 +184,10 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			cache = newCache();
 		else
 			cache = null;
+
+ 		if( checkRootExists && !exists("/"))
+			throw new N5Exception.N5IOException("No container exists at " + basePath );
+
 	}
 
 	/**
@@ -837,6 +856,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 		gsonBuilder.registerTypeAdapter(DataType.class, new DataType.JsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter);
+		gsonBuilder.registerTypeAdapter(ZarrCompressor.Raw.class, ZarrCompressor.rawNullAdapter);
 		gsonBuilder.registerTypeHierarchyAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZArrayAttributes.class, ZArrayAttributes.jsonAdapter);

@@ -120,7 +120,8 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 				gsonBuilder,
 				mapN5DatasetAttributes,
 				mergeAttributes,
-				cacheAttributes);
+				cacheAttributes,
+				false);
 		this.dimensionSeparator = dimensionSeparator;
 		Version version = null;
 		if (exists("/")) {
