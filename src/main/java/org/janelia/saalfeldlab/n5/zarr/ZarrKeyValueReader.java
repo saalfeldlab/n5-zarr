@@ -619,7 +619,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			final String normalResourcePath) throws N5Exception {
 
 		final String absolutePath = keyValueAccess.compose(uri, normalResourceParent, normalResourcePath);
-		if (!keyValueAccess.exists(absolutePath))
+
+		if (!keyValueAccess.isFile(absolutePath))
 			return null;
 
 		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
