@@ -141,6 +141,9 @@ public class ZArrayAttributes {
 
 	private static JsonElement parseFillValue(String fillValue, DataType dtype) {
 
+		if (fillValue == null || fillValue.isEmpty())
+			return JsonNull.INSTANCE;
+
 		switch (dtype) {
 		case INT8:
 		case UINT8:
