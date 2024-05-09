@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
+import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.RawCompression;
 
 import com.google.gson.JsonDeserializationContext;
@@ -42,6 +43,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
 import com.google.gson.reflect.TypeToken;
 
 
@@ -74,7 +76,7 @@ public class ZArrayAttributes {
 	private final int[] chunks;
 	private final DType dtype;
 	private final ZarrCompressor compressor;
-	private final String fill_value;
+	private final JsonElement fill_value;
 	private final char order;
 	private final String dimensionSeparator;
 	private final List<Filter> filters = new ArrayList<>();
@@ -95,7 +97,7 @@ public class ZArrayAttributes {
 		this.chunks = chunks;
 		this.dtype = dtype;
 		this.compressor = compressor == null ? new ZarrCompressor.Raw() : compressor;
-		this.fill_value = fill_value;
+		this.fill_value = parseFillValue(fill_value, dtype.getDataType());
 		this.order = order;
 		this.dimensionSeparator = dimensionSeparator;
 		if (filters != null)
@@ -133,8 +135,25 @@ public class ZArrayAttributes {
 				dtype,
 				compressor.getCompression(),
 				isRowMajor,
-				fill_value,
+				fill_value.getAsString(),
 				dimensionSeparator);
+	}
+
+	private static JsonElement parseFillValue(String fillValue, DataType dtype) {
+
+		switch (dtype) {
+		case INT8:
+		case UINT8:
+		case INT16:
+		case UINT16:
+		case INT32:
+		case UINT32:
+		case INT64:
+		case UINT64:
+			return new JsonPrimitive(Long.parseLong(fillValue));
+		default:
+			return new JsonPrimitive(Double.parseDouble(fillValue));
+		}
 	}
 
 	public long[] getShape() {
@@ -178,7 +197,7 @@ public class ZArrayAttributes {
 
 	public String getFillValue() {
 
-		return fill_value;
+		return fill_value.getAsString();
 	}
 
 	public HashMap<String, Object> asMap() {
@@ -229,7 +248,7 @@ public class ZArrayAttributes {
 						obj.get("order").getAsCharacter(),
 						sepElem != null ? sepElem.getAsString() : ".",
 						filters);
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				return null;
 			}
 		}
