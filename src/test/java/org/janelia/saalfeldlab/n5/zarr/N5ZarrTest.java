@@ -197,6 +197,9 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertArrayEquals(blockSize, info.getBlockSize());
 			assertEquals(DataType.UINT64, info.getDataType());
 			assertEquals(getCompressions()[0].getClass(), info.getCompression().getClass());
+
+			final JsonElement elem = n5.getAttribute(datasetName, "/", JsonElement.class);
+			assertTrue(elem.getAsJsonObject().get("fill_value").getAsJsonPrimitive().isNumber());
 		}
 	}
 
