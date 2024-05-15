@@ -28,23 +28,27 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.reflect.TypeToken;
-import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.LongType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
-import net.imglib2.type.numeric.integer.UnsignedIntType;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
-import net.imglib2.type.numeric.real.DoubleType;
-import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.view.Views;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.URISyntaxException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.janelia.saalfeldlab.n5.AbstractN5Test;
 import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
@@ -72,26 +76,24 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.net.URISyntaxException;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.reflect.TypeToken;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.type.numeric.real.DoubleType;
+import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.view.Views;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -109,7 +111,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		try {
 			return Files.createTempDirectory("n5-zarr-test").toUri().getPath();
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -197,6 +199,9 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertArrayEquals(blockSize, info.getBlockSize());
 			assertEquals(DataType.UINT64, info.getDataType());
 			assertEquals(getCompressions()[0].getClass(), info.getCompression().getClass());
+
+			final JsonElement elem = n5.getAttribute(datasetName, "/", JsonElement.class);
+			assertTrue(elem.getAsJsonObject().get("fill_value").getAsJsonPrimitive().isNumber());
 		}
 	}
 
@@ -396,19 +401,19 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	@Override
 	public void testWriteReadStringBlock()  {
-		DataType dataType = DataType.STRING;
-		int[] blockSize = new int[]{3, 2, 1};
-		String[] stringBlock = new String[]{"", "a", "bc", "de", "fgh", ":-þ"};
-		Compression[] compressions = this.getCompressions();
+		final DataType dataType = DataType.STRING;
+		final int[] blockSize = new int[]{3, 2, 1};
+		final String[] stringBlock = new String[]{"", "a", "bc", "de", "fgh", ":-þ"};
+		final Compression[] compressions = this.getCompressions();
 
-		for (Compression compression : compressions) {
+		for (final Compression compression : compressions) {
 
 			try (final N5Writer n5 = createTempN5Writer()) {
 				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
-				DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
-				StringDataBlock dataBlock = new ZarrStringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
+				final DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
+				final StringDataBlock dataBlock = new ZarrStringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
 				n5.writeBlock("/test/group/dataset", attributes, dataBlock);
-				DataBlock<?> loadedDataBlock = n5.readBlock("/test/group/dataset", attributes, 0L, 0L, 0L);
+				final DataBlock<?> loadedDataBlock = n5.readBlock("/test/group/dataset", attributes, 0L, 0L, 0L);
 				assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());
 				assertTrue(n5.remove("/test/group/dataset"));
 			}
@@ -418,12 +423,12 @@ public class N5ZarrTest extends AbstractN5Test {
 	private boolean runPythonTest(final String script, final String containerPath) throws InterruptedException {
 
 		try {
-			Process process = Runtime.getRuntime().exec("poetry run python src/test/python/" + script + " " + containerPath);
+			final Process process = Runtime.getRuntime().exec("poetry run python src/test/python/" + script + " " + containerPath);
 			final int exitCode = process.waitFor();
 			new BufferedReader(new InputStreamReader(process.getErrorStream())).lines().forEach(System.out::println);
 			process.destroy();
 			return (exitCode == 0);
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			return false;
 		}
 
@@ -828,7 +833,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertEquals(rawCompression, n5Compression);
 			assertThrows(N5Exception.N5ClassCastException.class, () -> n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class));
 
-			GzipCompression gzipCompression = new GzipCompression();
+			final GzipCompression gzipCompression = new GzipCompression();
 			n5.setAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, gzipCompression);
 			zarrCompression = n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class);
 			n5Compression = n5.getAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, Compression.class);
