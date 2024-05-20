@@ -562,7 +562,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 * @throws N5Exception
 	 *             the exception
 	 */
-	protected JsonElement getZAttributes(final String path) throws N5Exception {
+	public JsonElement getZAttributes(final String path) throws N5Exception {
 
 		return getJsonResource(N5URI.normalizeGroupPath(path), ZATTRS_FILE);
 	}
