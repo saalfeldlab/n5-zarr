@@ -651,7 +651,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 								zarrDatasetAttributes.getDimensionSeparator(),
 								zarrDatasetAttributes.isRowMajor()));
 
-		if (!keyValueAccess.exists(absolutePath))
+		if (!keyValueAccess.isFile(absolutePath))
 			return null;
 
 		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
