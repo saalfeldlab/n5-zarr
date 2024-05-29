@@ -144,19 +144,12 @@ public class ZArrayAttributes {
 		if (fillValue == null || fillValue.isEmpty())
 			return JsonNull.INSTANCE;
 
-		switch (dtype) {
-		case INT8:
-		case UINT8:
-		case INT16:
-		case UINT16:
-		case INT32:
-		case UINT32:
-		case INT64:
-		case UINT64:
+		// Long is more than Double, so try that first
+		try {
 			return new JsonPrimitive(Long.parseLong(fillValue));
-		default:
-			return new JsonPrimitive(Double.parseDouble(fillValue));
-		}
+		} catch (final NumberFormatException ignore) {}
+
+		return new JsonPrimitive(Double.parseDouble(fillValue));
 	}
 
 	public long[] getShape() {
