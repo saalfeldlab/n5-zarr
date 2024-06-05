@@ -366,10 +366,24 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 	protected ZArrayAttributes createZArrayAttributes(final DatasetAttributes datasetAttributes) {
 
 		final long[] shape = datasetAttributes.getDimensions().clone();
-		reorder(shape);
 		final int[] chunks = datasetAttributes.getBlockSize().clone();
-		reorder(chunks);
 		final DType dType = new DType(datasetAttributes.getDataType());
+
+		final String fillValue;
+		final char order;
+		if (datasetAttributes instanceof ZarrDatasetAttributes) {
+			final ZarrDatasetAttributes zda = (ZarrDatasetAttributes)datasetAttributes;
+			fillValue = "0"; // TODO
+			order = zda.isRowMajor() ? 'C' : 'F';
+		} else {
+			fillValue = "0";
+			order = 'C';
+		}
+
+		if (order == 'C') {
+			reorder(shape);
+			reorder(chunks);
+		}
 
 		final ZArrayAttributes zArrayAttributes = new ZArrayAttributes(
 				N5ZarrReader.VERSION.getMajor(),
@@ -377,8 +391,8 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 				chunks,
 				dType,
 				ZarrCompressor.fromCompression(datasetAttributes.getCompression()),
-				"0",
-				'C',
+				fillValue,
+				order,
 				dimensionSeparator,
 				dType.getFilters());
 
@@ -515,9 +529,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		if (datasetAttributes instanceof ZarrDatasetAttributes)
 			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
 		else
-			zarrDatasetAttributes = getDatasetAttributes(pathName); // TODO is
-																	// this
-																	// correct?
+			zarrDatasetAttributes = getDatasetAttributes(pathName);
 
 		final String normalPath = N5URI.normalizeGroupPath(pathName);
 		final String path = keyValueAccess
