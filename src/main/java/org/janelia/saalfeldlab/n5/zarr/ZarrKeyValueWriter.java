@@ -442,7 +442,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		if (attributes == null)
 			return;
 
-		writeJsonResource(normalGroupPath, ZARRAY_FILE, attributes);
+		writeJsonResource(normalGroupPath, ZARRAY_FILE, gson.fromJson(attributes, ZArrayAttributes.class));
 		if (cacheMeta())
 			cache.updateCacheInfo(normalGroupPath, ZARRAY_FILE, attributes);
 	}

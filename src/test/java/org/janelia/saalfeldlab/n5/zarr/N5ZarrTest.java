@@ -831,8 +831,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.setAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, rawCompression);
 			n5Compression = n5.getAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, Compression.class);
 			assertEquals(rawCompression, n5Compression);
-			assertThrows(N5Exception.N5ClassCastException.class, () -> n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class));
-
+			assertNull(n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class));
 			final GzipCompression gzipCompression = new GzipCompression();
 			n5.setAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, gzipCompression);
 			zarrCompression = n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class);
