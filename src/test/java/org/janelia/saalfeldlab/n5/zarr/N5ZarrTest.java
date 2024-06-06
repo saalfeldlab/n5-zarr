@@ -778,7 +778,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	public void testAttributeMapping()  {
 
 		// attribute mapping on by default
-		try (final N5Writer n5 = createTempN5Writer()) {
+		try (final N5Writer n5 = createTempN5Writer(tempN5Location(), new GsonBuilder().serializeNulls())) {
 
 			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 
