@@ -34,6 +34,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.RawCompression;
 
@@ -222,7 +224,7 @@ public class ZArrayAttributes {
 
 	public static JsonAdapter jsonAdapter = new JsonAdapter();
 
-	public static class JsonAdapter implements JsonDeserializer<ZArrayAttributes> {
+	public static class JsonAdapter implements JsonDeserializer<ZArrayAttributes>, JsonSerializer<ZArrayAttributes> {
 
 		@Override
 		public ZArrayAttributes deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
@@ -249,5 +251,23 @@ public class ZArrayAttributes {
 			}
 		}
 
+		@Override
+		public JsonElement serialize(ZArrayAttributes src, Type typeOfSrc, JsonSerializationContext context) {
+
+			final JsonObject jsonObject = new JsonObject();
+
+			jsonObject.addProperty("zarr_format", src.getZarrFormat());
+			jsonObject.add("shape", context.serialize(src.getShape()));
+			jsonObject.add("chunks", context.serialize(src.getChunks()));
+
+			jsonObject.add("dtype", context.serialize(src.getDType().toString()));
+			jsonObject.add("compressor", context.serialize(src.getCompressor()));
+			jsonObject.addProperty("fill_value", src.getFillValue());
+			jsonObject.addProperty("order", src.getOrder());
+			jsonObject.addProperty("dimension_separator", src.getDimensionSeparator());
+			jsonObject.add("filters", context.serialize(src.getFilters()));
+
+			return jsonObject;
+		}
 	}
 }
