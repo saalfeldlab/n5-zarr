@@ -27,7 +27,9 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.Writer;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -258,8 +260,10 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		// These three lines are preferable to setDatasetAttributes because they
 		// are more efficient wrt caching
 		final ZArrayAttributes zarray = createZArrayAttributes(datasetAttributes);
-		final JsonElement attributes = gson.toJsonTree(zarray.asMap());
-		writeJsonResource(normalPath, ZARRAY_FILE, attributes);
+		final HashMap<String, Object> zarrayMap = zarray.asMap();
+		final JsonElement attributes = gson.toJsonTree(zarrayMap);
+		writeJsonResource(normalPath, ZARRAY_FILE, zarrayMap);
+
 		if( wasGroup )
 			deleteJsonResource(normalPath, ZGROUP_FILE );
 
@@ -416,14 +420,16 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 	protected void writeJsonResource(
 			final String normalPath,
 			final String jsonName,
-			final JsonElement attributes) throws N5Exception {
+			final Object attributes) throws N5Exception {
 
 		if (attributes == null)
 			return;
 
 		final String absolutePath = keyValueAccess.compose(uri, normalPath, jsonName);
 		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
-			GsonUtils.writeAttributes(lock.newWriter(), attributes, gson);
+			final Writer writer = lock.newWriter();
+			gson.toJson(attributes, writer);
+			writer.flush();
 		} catch (final Throwable e) {
 			throw new N5IOException("Failed to write " + absolutePath, e);
 		}
