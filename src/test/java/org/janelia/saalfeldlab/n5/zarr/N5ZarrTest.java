@@ -146,7 +146,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			final String dimensionSeparator,
 			final boolean mapN5DatasetAttributes) throws IOException {
 
-		return createTempN5Writer(location, new GsonBuilder(), dimensionSeparator, mapN5DatasetAttributes, false);
+		return createTempN5Writer(location, gsonBuilder, dimensionSeparator, mapN5DatasetAttributes, false);
 	}
 
 	protected N5Writer createTempN5Writer(
@@ -778,7 +778,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	public void testAttributeMapping()  {
 
 		// attribute mapping on by default
-		try (final N5Writer n5 = createTempN5Writer()) {
+		try (final N5Writer n5 = createTempN5Writer(tempN5Location(), new GsonBuilder().serializeNulls())) {
 
 			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 
@@ -832,7 +832,6 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5Compression = n5.getAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, Compression.class);
 			assertEquals(rawCompression, n5Compression);
 			assertThrows(N5Exception.N5ClassCastException.class, () -> n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class));
-
 			final GzipCompression gzipCompression = new GzipCompression();
 			n5.setAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, gzipCompression);
 			zarrCompression = n5.getAttribute(datasetName, ZArrayAttributes.compressorKey, ZarrCompressor.class);
