@@ -28,6 +28,7 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.AbstractMap.SimpleImmutableEntry;
@@ -35,8 +36,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.google.gson.JsonNull;
-import com.google.gson.JsonSerializer;
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
@@ -297,5 +299,18 @@ public interface ZarrCompressor {
 		}
 	}
 
-	JsonSerializer<Raw> rawNullAdapter = (src, typeOfSrc, context) -> JsonNull.INSTANCE;
+	TypeAdapter<Raw> rawNullAdapter = new TypeAdapter<Raw>() {
+
+		@Override public void write(JsonWriter out, Raw value) throws IOException {
+			final boolean serializeNull = out.getSerializeNulls();
+			out.setSerializeNulls(true);
+			out.nullValue();
+			out.setSerializeNulls(serializeNull);
+		}
+
+		@Override public Raw read(JsonReader in) {
+
+			return new Raw();
+		}
+	};
 }

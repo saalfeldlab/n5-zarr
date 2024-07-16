@@ -525,7 +525,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		attrs.addProperty(DatasetAttributes.DATA_TYPE_KEY, zattrs.getDType().getDataType().toString());
 
 		final JsonElement e = attrs.get(ZArrayAttributes.compressorKey);
-		if (e == JsonNull.INSTANCE) {
+		if (e == JsonNull.INSTANCE || e == null) {
 			attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(new RawCompression()));
 		} else {
 			attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(
@@ -862,7 +862,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		gsonBuilder.registerTypeAdapter(ZArrayAttributes.class, ZArrayAttributes.jsonAdapter);
 		gsonBuilder.registerTypeHierarchyAdapter(Filter.class, Filter.jsonAdapter);
 		gsonBuilder.disableHtmlEscaping();
-		gsonBuilder.serializeNulls();
 
 		return gsonBuilder;
 	}
