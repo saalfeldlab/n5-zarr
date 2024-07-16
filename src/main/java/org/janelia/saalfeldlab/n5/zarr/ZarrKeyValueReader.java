@@ -651,11 +651,10 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 								zarrDatasetAttributes.getDimensionSeparator(),
 								zarrDatasetAttributes.isRowMajor()));
 
-		if (!keyValueAccess.isFile(absolutePath))
-			return null;
-
 		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
 			return readBlock(lockedChannel.newInputStream(), zarrDatasetAttributes, gridPosition);
+		} catch (final N5Exception.N5NoSuchKeyException e) {
+			return null;
 		} catch (final Throwable  e) {
 			throw new N5IOException(
 					"Failed to read block " + Arrays.toString(gridPosition) + " from dataset " + pathName,
