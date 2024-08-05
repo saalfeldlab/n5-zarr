@@ -36,6 +36,11 @@ import org.janelia.saalfeldlab.n5.zarr.ZarrCompressor;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
+import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
+import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
+import org.janelia.saalfeldlab.n5.zarr.serialization.ChunkGridAdapter;
+import org.janelia.saalfeldlab.n5.zarr.serialization.ChunkKeyEncodingAdapter;
 
 public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
@@ -152,10 +157,9 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 			final boolean cacheMeta,
 			final boolean checkRootExists) {
 
-		super(checkVersion, keyValueAccess, basePath, gsonBuilder, cacheMeta, checkRootExists);
+		super(checkVersion, keyValueAccess, basePath, addTypeAdapters(gsonBuilder), cacheMeta, checkRootExists);
 		this.mergeAttributes = mergeAttributes;
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
-
 	}
 
 	@Override
@@ -183,6 +187,9 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		gsonBuilder.registerTypeHierarchyAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		// gsonBuilder.registerTypeAdapter(ZArrayV3Attributes2.class, ZArrayV3Attributes2.jsonAdapter);
+		gsonBuilder.registerTypeHierarchyAdapter(ChunkGrid.class, ChunkGridAdapter.getJsonAdapter());
+		gsonBuilder.registerTypeHierarchyAdapter(ChunkKeyEncoding.class, ChunkKeyEncodingAdapter.getJsonAdapter());
+		gsonBuilder.registerTypeHierarchyAdapter(ChunkAttributes.class, ChunkAttributes.getJsonAdapter());
 		gsonBuilder.registerTypeHierarchyAdapter(Filter.class, Filter.jsonAdapter);
 		gsonBuilder.disableHtmlEscaping();
 

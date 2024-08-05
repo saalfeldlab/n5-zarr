@@ -39,6 +39,7 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.saalfeldlab.n5.zarr.DType;
+import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
@@ -80,8 +81,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 	protected final int zarrFormat;
 	protected final long[] shape;
-	protected final RegularChunkGrid chunkGrid; // only support regular chunk grids for now
-	protected final DefaultChunkKeyEncoding chunkKeyEncoding;
+	protected final ChunkAttributes chunkAttributes; // only support regular chunk grids for now
 	protected final DType dtype;
 	protected final JsonElement fillValue;
 	protected final byte[] fillBytes;
@@ -91,20 +91,19 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	public ZarrV3DatasetAttributes(
 			final int zarrFormat,
 			final long[] shape,
-			final RegularChunkGrid chunkGrid,
+			final ChunkAttributes chunkAttributes,
 			final DType dtype,
 			final String fillValue,
-			final DefaultChunkKeyEncoding chunkKeyEncoding,
+			final String chunkKeyEncoding,
 			final Collection<Codec> codecs) {
 
-		super(shape, chunkGrid.chunkShape, dtype.getDataType(), codecsToCompression(codecs));
+		super(shape, chunkAttributes.getGrid().getShape(), dtype.getDataType(), codecsToCompression(codecs));
 		this.zarrFormat = zarrFormat;
 		this.shape = shape;
-		this.chunkGrid = chunkGrid;
+		this.chunkAttributes = chunkAttributes;
 		this.dtype = dtype;
 		this.fillValue = parseFillValue(fillValue, dtype.getDataType());
 		this.fillBytes = dtype.createFillBytes(fillValue);
-		this.chunkKeyEncoding = chunkKeyEncoding;
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -116,7 +115,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final DefaultChunkKeyEncoding chunkKeyEncoding,
 			final Collection<Codec> codecs) {
 
-		this(zarrFormat, shape, new RegularChunkGrid(chunkShape), dtype, fillValue, chunkKeyEncoding, codecs);
+		this(zarrFormat, shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dtype, fillValue, codecs);
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -135,13 +134,13 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	public ZarrV3DatasetAttributes(
 			final int zarrFormat,
 			final long[] shape,
-			final int[] chunkShape,
+			final ChunkAttributes chunkAttributes,
 			final DType dtype,
 			final String fillValue,
 			final Collection<Codec> codecs) {
 
 		// empty dimensionSeparator so that the reader's separator is used
-		this(zarrFormat, shape, chunkShape, dtype, fillValue, "/", codecs);
+		this(zarrFormat, shape, chunkAttributes, dtype, fillValue, "/", codecs);
 	}
 
 	private static JsonElement parseFillValue(String fillValue, DataType dtype) {
@@ -168,14 +167,9 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return shape.length;
 	}
 
-	public ChunkGrid getChunkGrid() {
+	public ChunkAttributes getChunkAttributes() {
 
-		return chunkGrid;
-	}
-
-	public ChunkKeyEncoding getChunkKeyEncoding() {
-
-		return chunkKeyEncoding;
+		return chunkAttributes;
 	}
 
 	public DType getDType() {
@@ -207,8 +201,8 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		map.put(NodeType.key(), NodeType.ARRAY.serializeString());
 		map.put(SHAPE_KEY, shape);
 		map.put(DATA_TYPE_KEY, dtype.toString());
-		map.put(CHUNK_GRID_KEY, chunkGrid);
-		map.put(CHUNK_KEY_ENCODING_KEY, chunkKeyEncoding);
+		map.put(CHUNK_GRID_KEY, getChunkAttributes().getGrid());
+		map.put(CHUNK_KEY_ENCODING_KEY, getChunkAttributes().getKeyEncoding());
 
 		map.put(FILL_VALUE_KEY, fillValue);
 		map.put(CODECS_KEY, codecs);
@@ -243,24 +237,28 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 				// TODO make this work with codecs
 				// final DType dType = new DType(typestr, codecs);
-				final String typestr = context.deserialize(obj.get("dtype"), String.class);
-				final DType dType = new DType(typestr, null);
+				final String typestr = obj.getAsJsonPrimitive("data_type").getAsString();
+				final String parsedType = DType.getTypeStr(typestr);
+				final DType dType;
+				if (parsedType != null)
+					dType = new DType(parsedType, null);
+				else
+					dType = new DType(typestr, null);
+
 
 				final int zarrFormat = obj.get("zarr_format").getAsInt();
 				final long[] shape = context.deserialize(obj.get("shape"), long[].class);
-				final RegularChunkGrid chunkGrid = RegularChunkGrid.deserialize(context, obj.get(CHUNK_GRID_KEY));
-				final DefaultChunkKeyEncoding chunkKeyEncoding = DefaultChunkKeyEncoding.deserialize(context,
-						obj.get(CHUNK_KEY_ENCODING_KEY));
+				final ChunkAttributes chunkAttributes = context.deserialize(obj, ChunkAttributes.class);
 
 				return new ZarrV3DatasetAttributes(
 						zarrFormat,
 						shape,
-						chunkGrid,
+						chunkAttributes,
 						dType, // fix
 						obj.get("fill_value").getAsString(),
-						chunkKeyEncoding,
 						codecs);
 			} catch (final Exception e) {
+				e.printStackTrace();
 				return null;
 			}
 		}
@@ -273,8 +271,8 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			jsonObject.addProperty(ZARR_FORMAT_KEY, src.getZarrFormat());
 			jsonObject.add(SHAPE_KEY, context.serialize(src.getShape()));
 
-			jsonObject.add(CHUNK_KEY_ENCODING_KEY, DefaultChunkKeyEncoding.serialize(context, src.chunkKeyEncoding));
-			jsonObject.add(CHUNK_GRID_KEY, RegularChunkGrid.serialize(context, src.chunkGrid));
+			final JsonObject chunkAttrs = context.serialize(src.chunkAttributes).getAsJsonObject();
+			chunkAttrs.entrySet().forEach(entry -> jsonObject.add(entry.getKey(), entry.getValue()));
 
 			jsonObject.add("dtype", context.serialize(src.getDType().toString()));
 

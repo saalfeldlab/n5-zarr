@@ -33,6 +33,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
+import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DataBlock;
@@ -57,7 +58,7 @@ import static org.janelia.saalfeldlab.n5.zarr.Filter.VLEN_UTF8;
 public class DType {
 
 	private static final EnumMap<DataType, String> typestrs = new EnumMap<>(DataType.class);
-	{
+	static {
 		typestrs.put(DataType.INT8, "|i1");
 		typestrs.put(DataType.UINT8, "|u1");
 		typestrs.put(DataType.INT16, ">i2");
@@ -237,6 +238,15 @@ public class DType {
 		}
 
 		dataType = getDataType(primitive, nBytes, filters);
+	}
+
+	public static String getTypeStr(String typestr) {
+
+		for (Map.Entry<DataType, String> entry : typestrs.entrySet()) {
+			if (entry.getKey().name().toLowerCase().equals(typestr.toLowerCase()))
+				return entry.getValue();
+		}
+		return null;
 	}
 
 	public DType(final DataType dataType, final int nPrimitives) {

@@ -509,7 +509,7 @@ public class ZarrV3KeyValueWriter_eZarrKVW extends ZarrKeyValueWriter {
 
 		final String normalPath = N5URI.normalizeGroupPath(pathName);
 		final String path = keyValueAccess.compose(uri, normalPath,
-				zarrDatasetAttributes.chunkKeyEncoding.getChunkPath(dataBlock.getGridPosition()));
+				zarrDatasetAttributes.getChunkAttributes().getChunkPath(dataBlock.getGridPosition()));
 
 		final String[] components = keyValueAccess.components(path);
 		final String parent = keyValueAccess
@@ -538,7 +538,7 @@ public class ZarrV3KeyValueWriter_eZarrKVW extends ZarrKeyValueWriter {
 		final String normPath = N5URI.normalizeGroupPath(path);
 		final ZarrV3DatasetAttributes zarrDatasetAttributes = (ZarrV3DatasetAttributes)getDatasetAttributes(normPath);
 		final String absolutePath = keyValueAccess.compose(uri, normPath,
-				zarrDatasetAttributes.chunkKeyEncoding.getChunkPath(gridPosition));
+				zarrDatasetAttributes.getChunkAttributes().getChunkPath(gridPosition));
 
 		try {
 			if (keyValueAccess.exists(absolutePath))
