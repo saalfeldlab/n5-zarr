@@ -6,13 +6,13 @@
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -34,8 +34,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.RawCompression;
 
@@ -46,6 +44,8 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 
 
@@ -73,15 +73,15 @@ public class ZArrayAttributes {
 			fillValueKey, filtersKey, orderKey, dimensionSeparatorKey
 	};
 
-	private final int zarr_format;
-	private final long[] shape;
-	private final int[] chunks;
-	private final DType dtype;
-	private final ZarrCompressor compressor;
-	private final JsonElement fill_value;
-	private final char order;
-	private final String dimensionSeparator;
-	private final List<Filter> filters = new ArrayList<>();
+	protected final int zarr_format;
+	protected final long[] shape;
+	protected final int[] chunks;
+	protected final DType dtype;
+	protected final ZarrCompressor compressor;
+	protected final JsonElement fill_value;
+	protected final char order;
+	protected final String dimensionSeparator;
+	protected final List<Filter> filters = new ArrayList<>();
 
 	public ZArrayAttributes(
 			final int zarr_format,
