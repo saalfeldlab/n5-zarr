@@ -33,6 +33,7 @@ import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.Filter;
 import org.janelia.saalfeldlab.n5.zarr.ZarrCompressor;
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -166,6 +167,12 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	public String getAttributesKey() {
 
 		return ZARR_KEY;
+	}
+
+	@Override
+	public boolean isGroupFromContainer(final String normalPath) {
+
+		return NodeType.isGroup(getAttribute(normalPath, ZarrV3DatasetAttributes.NODE_TYPE_KEY, String.class));
 	}
 
 	@Override

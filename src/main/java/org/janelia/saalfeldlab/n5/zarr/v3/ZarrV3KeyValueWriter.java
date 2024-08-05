@@ -25,11 +25,22 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.stream.Collectors;
+
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
+import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
+import org.janelia.saalfeldlab.n5.N5URI;
+import org.janelia.saalfeldlab.n5.zarr.DType;
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 
 /**
  * Zarr {@link KeyValueWriter} implementation.
@@ -55,6 +66,8 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 				mapN5DatasetAttributes, mergeAttributes,
 				cacheAttributes, false);
 
+		this.dimensionSeparator = dimensionSeparator;
+
 		Version version = null;
 		try {
 			version = getVersion();
@@ -67,7 +80,127 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			createGroup("/");
 			setVersion("/");
 		}
-		this.dimensionSeparator = dimensionSeparator;
+	}
+
+	@Override
+	public void setVersion(final String path) throws N5Exception {
+
+		final String normalPath = N5URI.normalizeGroupPath(path);
+		final Version version = getVersion();
+		if (!ZarrV3KeyValueReader.VERSION.isCompatible(version))
+			throw new N5IOException(
+					"Incompatible version " + version + " (this is " + ZarrV3KeyValueReader.VERSION + ").");
+
+		// This writer may only write zarr v3
+		if (!ZarrV3KeyValueReader.VERSION.equals(version))
+			setAttribute(normalPath, ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, 3);
+	}
+
+	@Override
+	public void createGroup(final String path) {
+
+		final String normalPath = N5URI.normalizeGroupPath(path);
+		CachedGsonKeyValueN5Writer.super.createGroup(normalPath);
+
+		// TODO possible to optimize by writing once
+		setVersion(normalPath);
+		setAttribute(normalPath, ZarrV3Node.NODE_TYPE_KEY, NodeType.GROUP.toString());
+	}
+
+	@Override
+	public void createDataset(
+			final String path,
+			final DatasetAttributes datasetAttributes) throws N5Exception {
+
+		final String normalPath = N5URI.normalizeGroupPath(path);
+		boolean wasGroup = false;
+		if (cacheMeta()) {
+			if (getCache().isDataset(normalPath, getAttributesKey()))
+				return;
+			else if (getCache().isGroup(normalPath, getAttributesKey())) {
+				wasGroup = true;
+				// TODO tests currently require that we can make a dataset on a group
+				// throw new N5Exception("Can't make a group on existing path.");
+			}
+		}
+
+		// Overriding because CachedGsonKeyValueWriter calls createGroup.
+		// Not correct for zarr, since groups and datasets are mutually
+		// exclusive
+		final String absPath = absoluteGroupPath(normalPath);
+		try {
+			keyValueAccess.createDirectories(absPath);
+		} catch (final Throwable e) {
+			throw new N5IOException("Failed to create directories " + absPath, e);
+		}
+
+		// create parent group
+		final String[] pathParts = keyValueAccess.components(normalPath);
+		final String parent = Arrays.stream(pathParts).limit(pathParts.length - 1).collect(Collectors.joining("/"));
+		createGroup(parent);
+
+		// These three lines are preferable to setDatasetAttributes because they
+		// are more efficient wrt caching
+		final ZarrV3DatasetAttributes zarray = createZArrayAttributes(datasetAttributes);
+		final HashMap<String, Object> zarrayMap = zarray.asMap();
+		final JsonElement attributes = gson.toJsonTree(zarrayMap);
+		writeAttributes(normalPath, attributes);
+	}
+
+	protected ZarrV3DatasetAttributes createZArrayAttributes(final DatasetAttributes datasetAttributes) {
+
+		final long[] shape = datasetAttributes.getDimensions().clone();
+		reorder(shape);
+		final int[] chunkShape = datasetAttributes.getBlockSize().clone();
+		reorder(chunkShape);
+		final DType dType = new DType(datasetAttributes.getDataType());
+
+		final ZarrV3DatasetAttributes zArrayAttributes = new ZarrV3DatasetAttributes(
+				ZarrV3KeyValueReader.VERSION.getMajor(),
+				shape,
+				chunkShape,
+				dType,
+				"0",
+				dimensionSeparator,
+				datasetAttributes.getCodecs());
+
+		return zArrayAttributes;
+	}
+
+	private static void reorder(final long[] array) {
+
+		long a;
+		final int max = array.length - 1;
+		for (int i = (max - 1) / 2; i >= 0; --i) {
+			final int j = max - i;
+			a = array[i];
+			array[i] = array[j];
+			array[j] = a;
+		}
+	}
+
+	private static void reorder(final int[] array) {
+
+		int a;
+		final int max = array.length - 1;
+		for (int i = (max - 1) / 2; i >= 0; --i) {
+			final int j = max - i;
+			a = array[i];
+			array[i] = array[j];
+			array[j] = a;
+		}
+	}
+
+	private static void reorder(final JsonArray array) {
+
+		JsonElement a;
+		final int max = array.size() - 1;
+		for (int i = (max - 1) / 2; i >= 0; --i) {
+			final int j = max - i;
+			a = array.get(i);
+			array.set(i, array.get(j));
+			array.set(j, a);
+		}
 	}
 
 }

@@ -8,15 +8,33 @@ public interface ZarrV3Node {
 
 		GROUP, ARRAY;
 
-		public String serializeString() {
+		@Override
+		public String toString() {
 
-			return toString().toLowerCase();
+			switch (this) {
+			case GROUP:
+				return "group";
+			case ARRAY:
+				return "array";
+			}
+			return "";
+		}
+
+		public static boolean isGroup(final String type) {
+
+			return type.equals(GROUP.toString());
+		}
+
+		public static boolean isArray(final String type) {
+
+			return type.equals(ARRAY.toString());
 		}
 
 		public static String key() {
 
 			return NODE_TYPE_KEY;
 		}
+
 	};
 
 	public NodeType getType();
