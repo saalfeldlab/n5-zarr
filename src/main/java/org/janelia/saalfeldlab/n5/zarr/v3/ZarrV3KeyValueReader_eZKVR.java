@@ -435,7 +435,7 @@ public class ZarrV3KeyValueReader_eZKVR extends ZarrKeyValueReader {
 			zarrDatasetAttributes = (ZarrV3DatasetAttributes)getDatasetAttributes(pathName);
 
 		final String absolutePath = keyValueAccess.compose(uri, pathName,
-				zarrDatasetAttributes.chunkKeyEncoding.getChunkPath(gridPosition));
+				zarrDatasetAttributes.getChunkAttributes().getChunkPath(gridPosition));
 
 		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
 			return readBlock(lockedChannel.newInputStream(), zarrDatasetAttributes, gridPosition);

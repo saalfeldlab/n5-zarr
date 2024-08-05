@@ -111,7 +111,7 @@
 	<scm>
 		<connection>scm:git:git://github.com/saalfeldlab/n5-zarr</connection>
 		<developerConnection>scm:git:git@github.com:saalfeldlab/n5-zarr</developerConnection>
-		<tag>n5-zarr-1.3.4</tag>
+		<tag>HEAD</tag>
 		<url>https://github.com/saalfeldlab/n5-zarr</url>
 	</scm>
 	<issueManagement>
@@ -184,6 +184,22 @@
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
 			<version>${commons-io.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-universe</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>org.janelia.saalfeldlab</groupId>
+					<artifactId>n5-zarr</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.janelia.saalfeldlab</groupId>
+					<artifactId>n5</artifactId>
+				</exclusion>
+			</exclusions>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

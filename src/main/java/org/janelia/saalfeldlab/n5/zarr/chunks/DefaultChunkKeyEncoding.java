@@ -1,65 +1,66 @@
 package org.janelia.saalfeldlab.n5.zarr.chunks;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSerializationContext;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-public class DefaultChunkKeyEncoding extends AbstractChunkKeyEncoding {
+@ChunkKeyEncoding.Name("default")
+public class DefaultChunkKeyEncoding implements ChunkKeyEncoding {
+
+	public static Set<String> VALID_SEPARATORS = Collections.unmodifiableSet(
+			Arrays.stream(new String[]{".", "/"}).collect(Collectors.toSet())
+	);
+
+	@ChunkKeyEncoding.Parameter
+	private final Config configuration;
+
+	private DefaultChunkKeyEncoding() {
+
+		this.configuration = null;
+	}
+
+	private DefaultChunkKeyEncoding(final Config config) {
+
+		assert (VALID_SEPARATORS.contains(config.separator));
+		this.configuration = config;
+	}
 
 	public DefaultChunkKeyEncoding(final String separator) {
 
-		super("default", "c", separator, true);
+		this.configuration = new Config(separator);
+	}
+
+	public String getSeparator() {
+
+		return configuration.separator;
+	}
+
+	private static class Config {
+
+		final String separator;
+
+		private Config(String separator) {
+
+			this.separator = separator;
+		}
 	}
 
 	@Override
 	public String getChunkPath(final long[] gridPosition) {
 
 		final StringBuilder pathStringBuilder = new StringBuilder();
-		pathStringBuilder.append(prefix);
 		pathStringBuilder.append(gridPosition[gridPosition.length - 1]);
 		for (int i = gridPosition.length - 2; i >= 0; --i) {
-			pathStringBuilder.append(separator);
+			pathStringBuilder.append(getSeparator());
 			pathStringBuilder.append(gridPosition[i]);
 		}
 
 		return pathStringBuilder.toString();
 	}
 
-	/**
-	 * Quick and dirty, not meant to stick around for long. Please make this better, more extensible, and safer.
-	 *
-	 * @param json
-	 *            a json element
-	 * @return the chunk key encoding
-	 */
-	public static DefaultChunkKeyEncoding deserialize(final JsonDeserializationContext context,
-			final JsonElement json) {
+	@Override public String toString() {
 
-		if (!json.isJsonObject())
-			return null;
-
-		final JsonObject jsonObj = json.getAsJsonObject();
-		final String name = jsonObj.get("name").getAsString();
-		if (!name.equals("default"))
-			return null;
-
-		final String separator = jsonObj.get("configuration").getAsJsonObject().get("separator")
-				.getAsString();
-		return new DefaultChunkKeyEncoding(separator);
+		return String.format("%s[separator=%s]", getClass().getSimpleName(), getSeparator());
 	}
-
-	public static JsonObject serialize(JsonSerializationContext context,
-			final DefaultChunkKeyEncoding cke) {
-
-		final JsonObject out = new JsonObject();
-		out.addProperty("name", "default");
-
-		final JsonObject config = new JsonObject();
-		config.addProperty("separator", cke.separator);
-		out.add("configuration", config);
-
-		return out;
-	}
-
 }
