@@ -6,44 +6,29 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @ChunkKeyEncoding.Name("default")
-public class DefaultChunkKeyEncoding implements ChunkKeyEncoding {
+public class DefaultChunkKeyEncoding extends ChunkKeyEncoding {
 
 	public static Set<String> VALID_SEPARATORS = Collections.unmodifiableSet(
 			Arrays.stream(new String[]{".", "/"}).collect(Collectors.toSet())
 	);
 
 	@ChunkKeyEncoding.Parameter
-	private final Config configuration;
+	final String separator;
 
-	private DefaultChunkKeyEncoding() {
+	protected DefaultChunkKeyEncoding() {
 
-		this.configuration = null;
-	}
-
-	private DefaultChunkKeyEncoding(final Config config) {
-
-		assert (VALID_SEPARATORS.contains(config.separator));
-		this.configuration = config;
+		this.separator = null;
 	}
 
 	public DefaultChunkKeyEncoding(final String separator) {
 
-		this.configuration = new Config(separator);
+		assert (VALID_SEPARATORS.contains(separator));
+		this.separator = separator;
 	}
 
 	public String getSeparator() {
 
-		return configuration.separator;
-	}
-
-	private static class Config {
-
-		final String separator;
-
-		private Config(String separator) {
-
-			this.separator = separator;
-		}
+		return separator;
 	}
 
 	@Override
