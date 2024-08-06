@@ -28,19 +28,22 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.Filter;
 import org.janelia.saalfeldlab.n5.zarr.ZarrCompressor;
-import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.serialization.ZarrNameConfigAdapter;
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 
 public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
@@ -50,9 +53,9 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
 	public static final String ZARR_KEY = "zarr.json";
 
-	final protected boolean mapN5DatasetAttributes;
+	protected final boolean mapN5DatasetAttributes;
 
-	final protected boolean mergeAttributes;
+	protected final boolean mergeAttributes;
 
 	/**
 	 * Opens an {@link ZarrV3KeyValueReader} at a given base path with a custom
@@ -169,9 +172,38 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	}
 
 	@Override
+	public Version getVersion() throws N5Exception {
+
+		return getVersion(getAttribute("/", ZarrV3Node.ZARR_FORMAT_KEY, JsonElement.class));
+	}
+
+	private static Version getVersion(final JsonElement json) {
+
+		if (json == null)
+			return ZarrKeyValueReader.VERSION_ZERO;
+
+		if (json.isJsonPrimitive())
+			return new Version(json.getAsInt(), 0, 0);
+
+		return null;
+	}
+
+	@Override
 	public boolean isGroupFromContainer(final String normalPath) {
 
 		return NodeType.isGroup(getAttribute(normalPath, ZarrV3DatasetAttributes.NODE_TYPE_KEY, String.class));
+	}
+
+	@Override
+	public DatasetAttributes createDatasetAttributes(final JsonElement attributes) {
+
+		return gson.fromJson(attributes, ZarrV3DatasetAttributes.class);
+	}
+
+	public JsonElement getZarrAttributes(final String path) {
+
+		// TODO decide how attributes work
+		return getAttribute(ZARR_KEY, ZarrV3Node.ATTRIBUTES_KEY, JsonElement.class);
 	}
 
 	@Override
@@ -195,6 +227,7 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkGrid.class, ZarrNameConfigAdapter.getJsonAdapter(ChunkGrid.class));
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkKeyEncoding.class, ZarrNameConfigAdapter.getJsonAdapter(ChunkKeyEncoding.class));
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkAttributes.class, ChunkAttributes.getJsonAdapter());
+		gsonBuilder.registerTypeHierarchyAdapter(ZarrV3DatasetAttributes.class, ZarrV3DatasetAttributes.jsonAdapter);
 		gsonBuilder.registerTypeHierarchyAdapter(Filter.class, Filter.jsonAdapter);
 		gsonBuilder.disableHtmlEscaping();
 

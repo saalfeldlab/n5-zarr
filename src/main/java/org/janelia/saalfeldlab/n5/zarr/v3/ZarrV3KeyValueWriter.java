@@ -39,7 +39,6 @@ import org.janelia.saalfeldlab.n5.zarr.DType;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 
 /**
@@ -52,13 +51,14 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 	protected String dimensionSeparator;
 
+
 	public ZarrV3KeyValueWriter(
 			final KeyValueAccess keyValueAccess,
 			final String basePath,
 			final GsonBuilder gsonBuilder,
-			final String dimensionSeparator,
 			final boolean mapN5DatasetAttributes,
 			final boolean mergeAttributes,
+			final String dimensionSeparator,
 			final boolean cacheAttributes)
 			throws N5Exception {
 
@@ -167,6 +167,57 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		return zArrayAttributes;
 	}
 
+	@Override
+	public <T> void setAttribute(
+			final String groupPath,
+			final String attributePath,
+			final T attribute) throws N5Exception {
+
+		CachedGsonKeyValueN5Writer.super.setAttribute(groupPath, mapAttributeKey(attributePath),
+				attribute);
+	}
+
+	/**
+	 * Converts an attribute path
+	 *
+	 * @param attributePath
+	 * @return
+	 */
+	private String mapAttributeKey(final String attributePath) {
+
+		final String key = mapN5DatasetAttributes ? n5AttributeKeyToZarr(attributePath) : attributePath;
+		return isAttributes(key) ? ZarrV3Node.ATTRIBUTES_KEY + "/" + key : key;
+	}
+
+	private String n5AttributeKeyToZarr(final String attributePath) {
+
+		switch (attributePath) {
+		case DatasetAttributes.DIMENSIONS_KEY:
+			return ZarrV3DatasetAttributes.SHAPE_KEY;
+		case DatasetAttributes.BLOCK_SIZE_KEY:
+			return ZarrV3DatasetAttributes.CHUNK_GRID_KEY + "/configuration/chunk_shape"; // TODO gross
+		case DatasetAttributes.DATA_TYPE_KEY:
+			return ZarrV3DatasetAttributes.DATA_TYPE_KEY;
+		case DatasetAttributes.CODEC_KEY:
+			return ZarrV3DatasetAttributes.CODECS_KEY;
+		default:
+			return attributePath;
+		}
+	}
+
+	private boolean isAttributes(final String attributePath) {
+
+		if (!Arrays.stream(ZarrV3DatasetAttributes.requiredKeys).anyMatch(attributePath::equals))
+			return false;
+
+		if (mapN5DatasetAttributes &&
+				!Arrays.stream(DatasetAttributes.N5_DATASET_ATTRIBUTES).anyMatch(attributePath::equals)) {
+			return false;
+		}
+
+		return true;
+	}
+
 	private static void reorder(final long[] array) {
 
 		long a;
@@ -188,18 +239,6 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			a = array[i];
 			array[i] = array[j];
 			array[j] = a;
-		}
-	}
-
-	private static void reorder(final JsonArray array) {
-
-		JsonElement a;
-		final int max = array.size() - 1;
-		for (int i = (max - 1) / 2; i >= 0; --i) {
-			final int j = max - i;
-			a = array.get(i);
-			array.set(i, array.get(j));
-			array.set(j, a);
 		}
 	}
 

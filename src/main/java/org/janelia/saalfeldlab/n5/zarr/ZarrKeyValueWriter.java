@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.BlockWriter;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
@@ -49,10 +50,10 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
+import org.janelia.saalfeldlab.n5.zarr.serialization.JsonArrayUtils;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
@@ -375,9 +376,9 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 	protected ZArrayAttributes createZArrayAttributes(final DatasetAttributes datasetAttributes) {
 
 		final long[] shape = datasetAttributes.getDimensions().clone();
-		reorder(shape);
+		ArrayUtils.reverse(shape);
 		final int[] chunks = datasetAttributes.getBlockSize().clone();
-		reorder(chunks);
+		ArrayUtils.reverse(chunks);
 		final DType dType = new DType(datasetAttributes.getDataType());
 
 		final ZArrayAttributes zArrayAttributes = new ZArrayAttributes(
@@ -681,7 +682,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			if (dsetAttrs != null) {
 				final JsonElement e = src.get(srcKey);
 				if (e.isJsonArray() && dsetAttrs.isRowMajor())
-					reorder(e.getAsJsonArray());
+					JsonArrayUtils.reverse(e.getAsJsonArray());
 
 				zarrElems.getOrMakeZarray().add(destKey, e);
 				src.remove(srcKey);
@@ -700,7 +701,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			if (dsetAttrs != null) {
 				final JsonElement e = src.get(srcKey);
 				if (e.isJsonArray() && dsetAttrs.isRowMajor())
-					reorder(e.getAsJsonArray());
+					JsonArrayUtils.reverse(e.getAsJsonArray());
 
 				zarrElems.getOrMakeZarray().add(destKey, e);
 				src.remove(srcKey);
@@ -831,39 +832,4 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 	}
 
-	protected static void reorder(final long[] array) {
-
-		long a;
-		final int max = array.length - 1;
-		for (int i = (max - 1) / 2; i >= 0; --i) {
-			final int j = max - i;
-			a = array[i];
-			array[i] = array[j];
-			array[j] = a;
-		}
-	}
-
-	protected static void reorder(final int[] array) {
-
-		int a;
-		final int max = array.length - 1;
-		for (int i = (max - 1) / 2; i >= 0; --i) {
-			final int j = max - i;
-			a = array[i];
-			array[i] = array[j];
-			array[j] = a;
-		}
-	}
-
-	protected static void reorder(final JsonArray array) {
-
-		JsonElement a;
-		final int max = array.size() - 1;
-		for (int i = (max - 1) / 2; i >= 0; --i) {
-			final int j = max - i;
-			a = array.get(i);
-			array.set(i, array.get(j));
-			array.set(j, a);
-		}
-	}
 }

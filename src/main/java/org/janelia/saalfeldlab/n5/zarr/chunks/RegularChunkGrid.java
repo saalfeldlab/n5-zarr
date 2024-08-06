@@ -9,6 +9,7 @@ public class RegularChunkGrid extends ChunkGrid {
 	private final int[] shape;
 
 	protected RegularChunkGrid() {
+
 		shape = null;
 	}
 
@@ -19,10 +20,12 @@ public class RegularChunkGrid extends ChunkGrid {
 
 	@Override
 	public int[] getShape() {
+
 		return shape;
 	}
 
-	@Override public String toString() {
+	@Override
+	public String toString() {
 
 		return String.format("%s[shape=%s]", getClass().getSimpleName(), Arrays.toString(getShape()));
 	}

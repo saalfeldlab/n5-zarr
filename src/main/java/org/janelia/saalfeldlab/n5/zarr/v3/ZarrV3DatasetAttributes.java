@@ -55,7 +55,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 	private static final long serialVersionUID = 6926530453545002018L;
 
-	public static final String ZARR_FORMAT_KEY = "zarr_format";
 	public static final String SHAPE_KEY = "shape";
 	public static final String DIMENSION_SEPARATOR_KEYS = "dimension_separator";
 	public static final String FILL_VALUE_KEY = "fill_value";
@@ -64,11 +63,8 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	public static final String CHUNK_KEY_ENCODING_KEY = "chunk_key_encoding";
 	public static final String CODECS_KEY = "codecs";
 
-	// optional
-	public static final String ATTRIBUTES_KEY = "attributes";
-
 	public static final String[] requiredKeys = new String[]{
-			ZARR_FORMAT_KEY, ZarrV3Node.NODE_TYPE_KEY,
+			ZARR_FORMAT_KEY, NODE_TYPE_KEY,
 			SHAPE_KEY, DATA_TYPE_KEY, CHUNK_GRID_KEY, CHUNK_KEY_ENCODING_KEY,
 			FILL_VALUE_KEY, CODECS_KEY,
 	};
@@ -78,9 +74,8 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	protected final ChunkAttributes chunkAttributes; // only support regular chunk grids for now
 	protected final DType dtype;
 	protected final JsonElement fillValue;
-	protected final byte[] fillBytes;
 
-	protected final Codec[] codecs;
+	protected transient final byte[] fillBytes;
 
 	public ZarrV3DatasetAttributes(
 			final int zarrFormat,
@@ -91,14 +86,13 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final String chunkKeyEncoding,
 			final Codec[] codecs) {
 
-		super(shape, chunkAttributes.getGrid().getShape(), dtype.getDataType(), codecsToCompression(codecs));
+		super(shape, chunkAttributes.getGrid().getShape(), dtype.getDataType(), null, codecs);
 		this.zarrFormat = zarrFormat;
 		this.shape = shape;
 		this.chunkAttributes = chunkAttributes;
 		this.dtype = dtype;
 		this.fillValue = parseFillValue(fillValue, dtype.getDataType());
 		this.fillBytes = dtype.createFillBytes(fillValue);
-		this.codecs = codecs;
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -200,15 +194,9 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		map.put(CHUNK_KEY_ENCODING_KEY, getChunkAttributes().getKeyEncoding());
 
 		map.put(FILL_VALUE_KEY, fillValue);
-		map.put(CODECS_KEY, codecs);
+		map.put(CODECS_KEY, getCodecs());
 
 		return map;
-	}
-
-	@Override
-	public Codec[] getCodecs() {
-
-		return codecs;
 	}
 
 	@Override

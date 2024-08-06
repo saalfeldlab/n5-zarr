@@ -57,6 +57,7 @@ import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
 import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
+import org.janelia.saalfeldlab.n5.zarr.serialization.JsonArrayUtils;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -448,11 +449,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		if (attrs.get(ZArrayAttributes.orderKey).getAsString().equals("C")) {
 
 			final JsonArray shape = attrs.get(ZArrayAttributes.shapeKey).getAsJsonArray();
-			ZarrKeyValueWriter.reorder(shape);
+			JsonArrayUtils.reverse(shape);
 			attrs.add(ZArrayAttributes.shapeKey, shape);
 
 			final JsonArray chunkSize = attrs.get(ZArrayAttributes.chunksKey).getAsJsonArray();
-			ZarrKeyValueWriter.reorder(chunkSize);
+			JsonArrayUtils.reverse(chunkSize);
 			attrs.add(ZArrayAttributes.chunksKey, chunkSize);
 		}
 		return attrs;
