@@ -3,38 +3,23 @@ package org.janelia.saalfeldlab.n5.zarr.chunks;
 import java.util.Arrays;
 
 @ChunkGrid.Name("regular")
-public class RegularChunkGrid implements ChunkGrid {
+public class RegularChunkGrid extends ChunkGrid {
 
-	@ChunkGrid.Parameter
-	private final Configuration configuration;
+	@ChunkGrid.Parameter(value = "chunk_shape")
+	private final int[] shape;
 
-	private RegularChunkGrid() {
-		this.configuration = null;
-	}
-
-	private RegularChunkGrid(final Configuration config) {
-
-		this.configuration = config;
+	protected RegularChunkGrid() {
+		shape = null;
 	}
 
 	public RegularChunkGrid(final int[] shape) {
 
-		this.configuration = new Configuration(shape);
+		this.shape = shape;
 	}
 
 	@Override
 	public int[] getShape() {
-		return configuration.chunk_shape;
-	}
-
-	private static class Configuration {
-
-		private final int[] chunk_shape;
-
-		private Configuration(int[] shape) {
-
-			this.chunk_shape = shape;
-		}
+		return shape;
 	}
 
 	@Override public String toString() {

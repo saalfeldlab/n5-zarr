@@ -9,8 +9,7 @@ import org.janelia.saalfeldlab.n5.universe.N5Factory;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
-import org.janelia.saalfeldlab.n5.zarr.serialization.ChunkGridAdapter;
-import org.janelia.saalfeldlab.n5.zarr.serialization.ChunkKeyEncodingAdapter;
+import org.janelia.saalfeldlab.n5.zarr.serialization.ZarrNameConfigAdapter;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes;
 import org.junit.Test;
 
@@ -23,8 +22,10 @@ public class ZarrV3Test {
 		gsonBuilder.registerTypeHierarchyAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		 gsonBuilder.registerTypeAdapter(ZarrV3DatasetAttributes.class, ZarrV3DatasetAttributes.jsonAdapter);
-		gsonBuilder.registerTypeHierarchyAdapter(ChunkGrid.class, ChunkGridAdapter.getJsonAdapter());
-		gsonBuilder.registerTypeHierarchyAdapter(ChunkKeyEncoding.class, ChunkKeyEncodingAdapter.getJsonAdapter());
+
+		gsonBuilder.registerTypeHierarchyAdapter(ChunkGrid.class, ZarrNameConfigAdapter.getJsonAdapter(ChunkGrid.class));
+		gsonBuilder.registerTypeHierarchyAdapter(ChunkKeyEncoding.class, ZarrNameConfigAdapter.getJsonAdapter(ChunkKeyEncoding.class));
+
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkAttributes.class, ChunkAttributes.getJsonAdapter());
 		gsonBuilder.registerTypeHierarchyAdapter(Filter.class, Filter.jsonAdapter);
 		gsonBuilder.disableHtmlEscaping();

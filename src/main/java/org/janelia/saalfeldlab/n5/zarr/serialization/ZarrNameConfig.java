@@ -14,6 +14,13 @@ public interface ZarrNameConfig extends Serializable {
 	@Retention(RetentionPolicy.RUNTIME)
 	@Inherited
 	@Target(ElementType.TYPE)
+	@interface Prefix {
+		String value();
+	}
+
+	@Retention(RetentionPolicy.RUNTIME)
+	@Inherited
+	@Target(ElementType.TYPE)
 	@Indexable
 	@interface Name {
 		String value();
@@ -22,7 +29,9 @@ public interface ZarrNameConfig extends Serializable {
 	@Retention(RetentionPolicy.RUNTIME)
 	@Inherited
 	@Target(ElementType.FIELD)
-	@interface Parameter {}
+	@interface Parameter {
+		String value() default "";
+	}
 
 	default String getType() {
 
