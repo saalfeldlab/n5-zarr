@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.RawCompression;
 
@@ -127,8 +128,8 @@ public class ZArrayAttributes {
 		final int[] blockSize = chunks.clone();
 
 		if (isRowMajor) {
-			ZarrKeyValueWriter.reorder(dimensions);
-			ZarrKeyValueWriter.reorder(blockSize);
+			ArrayUtils.reverse(dimensions);
+			ArrayUtils.reverse(blockSize);
 		}
 
 		return new ZarrDatasetAttributes(
