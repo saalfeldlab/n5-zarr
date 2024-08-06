@@ -5,6 +5,7 @@ import java.util.Arrays;
 @ChunkGrid.Name("regular")
 public class RegularChunkGrid extends ChunkGrid {
 
+	@ReverseArray
 	@ChunkGrid.Parameter(value = "chunk_shape")
 	private final int[] shape;
 

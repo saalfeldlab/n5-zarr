@@ -9,7 +9,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-public interface ZarrNameConfig extends Serializable {
+public interface ZarrNameConfig extends Serializable, ZarrAnnotations {
 
 	@Retention(RetentionPolicy.RUNTIME)
 	@Inherited

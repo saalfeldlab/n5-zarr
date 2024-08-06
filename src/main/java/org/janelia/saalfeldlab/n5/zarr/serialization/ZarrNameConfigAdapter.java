@@ -25,6 +25,7 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.serialization;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
@@ -61,7 +62,7 @@ public class ZarrNameConfigAdapter<T extends ZarrNameConfig> implements JsonDese
 
 	private final HashMap<String, Constructor<? extends T>> chunkGridConstructors = new HashMap<>();
 	private final HashMap<String, HashMap<String, String>> chunkGridParameterNames = new HashMap<>();
-	private final HashMap<String, HashMap<String, Class<?>>> chunkGridParameters = new HashMap<>();
+	private final HashMap<String, HashMap<String, Field>> chunkGridParameters = new HashMap<>();
 
 	private ZarrNameConfigAdapter() {
 
@@ -91,7 +92,7 @@ public class ZarrNameConfigAdapter<T extends ZarrNameConfig> implements JsonDese
 
 				final Constructor<T> constructor = clazz.getDeclaredConstructor();
 
-				final HashMap<String, Class<?>> parameters = new HashMap<>();
+				final HashMap<String, Field> parameters = new HashMap<>();
 				final HashMap<String, String> parameterNames = new HashMap<>();
 				final ArrayList<Field> fields = getDeclaredFields(clazz);
 				for (final Field field : fields) {
@@ -106,7 +107,7 @@ public class ZarrNameConfigAdapter<T extends ZarrNameConfig> implements JsonDese
 
 						parameterNames.put(field.getName(), parameterName);
 
-						parameters.put(field.getName(), field.getType());
+						parameters.put(field.getName(), field);
 					}
 				}
 
@@ -134,17 +135,23 @@ public class ZarrNameConfigAdapter<T extends ZarrNameConfig> implements JsonDese
 		final JsonObject configuration = new JsonObject();
 		chunkGridJson.add("configuration", configuration);
 
-		final HashMap<String, Class<?>> parameterTypes = chunkGridParameters.get(type);
+		final HashMap<String, Field> parameterTypes = chunkGridParameters.get(type);
 		final HashMap<String, String> parameterNames = chunkGridParameterNames.get(type);
 		try {
-			for (final Entry<String, Class<?>> parameterType : parameterTypes.entrySet()) {
+			for (final Entry<String, Field> parameterType : parameterTypes.entrySet()) {
 				final String fieldName = parameterType.getKey();
 				final Field field = clazz.getDeclaredField(fieldName);
 				final boolean isAccessible = field.isAccessible();
 				field.setAccessible(true);
 				final Object value = field.get(object);
 				field.setAccessible(isAccessible);
-				configuration.add(parameterNames.get(fieldName), context.serialize(value));
+				final JsonElement serialized = context.serialize(value);
+				if (field.getAnnotation(ZarrAnnotations.ReverseArray.class) != null) {
+					JsonArray reversedArray = reverseJsonArray(serialized.getAsJsonArray());
+					configuration.add(parameterNames.get(fieldName), reversedArray);
+				} else
+					configuration.add(parameterNames.get(fieldName), serialized);
+
 			}
 		} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
 			e.printStackTrace(System.err);
@@ -177,14 +184,20 @@ public class ZarrNameConfigAdapter<T extends ZarrNameConfig> implements JsonDese
 		final T chunkGrid;
 		try {
 			chunkGrid = constructor.newInstance();
-			final HashMap<String, Class<?>> parameterTypes = chunkGridParameters.get(type);
+			final HashMap<String, Field> parameterTypes = chunkGridParameters.get(type);
 			final HashMap<String, String> parameterNames = chunkGridParameterNames.get(type);
-			for (final Entry<String, Class<?>> parameterType : parameterTypes.entrySet()) {
+			for (final Entry<String, Field> parameterType : parameterTypes.entrySet()) {
 				final String fieldName = parameterType.getKey();
 				final String paramName = parameterNames.get(fieldName);
 				final JsonElement paramJson = configuration.get(paramName);
 				if (paramJson != null) {
-					final Object parameter = context.deserialize(paramJson, parameterType.getValue());
+					final Field field = parameterType.getValue();
+					final Object parameter;
+					if (field.getAnnotation(ZarrAnnotations.ReverseArray.class) != null) {
+						JsonArray reversedArray = reverseJsonArray(paramJson);
+						parameter = context.deserialize(reversedArray, field.getType());
+					} else
+						parameter = context.deserialize(paramJson, field.getType());
 					ReflectionUtils.setFieldValue(chunkGrid, fieldName, parameter);
 				}
 			}
@@ -195,6 +208,15 @@ public class ZarrNameConfigAdapter<T extends ZarrNameConfig> implements JsonDese
 		}
 
 		return chunkGrid;
+	}
+
+	private static JsonArray reverseJsonArray(JsonElement paramJson) {
+
+		final JsonArray reversedJson = new JsonArray(paramJson.getAsJsonArray().size());
+		for (int i = paramJson.getAsJsonArray().size() - 1; i >= 0; i--) {
+			reversedJson.add(paramJson.getAsJsonArray().get(i));
+		}
+		return reversedJson;
 	}
 
 	public static <T extends ZarrNameConfig> ZarrNameConfigAdapter<T> getJsonAdapter(Class<T> cls) {
