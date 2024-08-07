@@ -25,17 +25,6 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.serialization;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
-import org.scijava.annotations.Index;
-import org.scijava.annotations.IndexItem;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -44,6 +33,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map.Entry;
+
+import org.scijava.annotations.Index;
+import org.scijava.annotations.IndexItem;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 
 /**
  * T adapter, auto-discovers annotated T implementations in the classpath.
@@ -60,9 +61,9 @@ public class ZarrNameConfigAdapter<T extends ZarrNameConfig> implements JsonDese
 		update(adapters.get(cls));
 	}
 
-	private final HashMap<String, Constructor<? extends T>> chunkGridConstructors = new HashMap<>();
-	private final HashMap<String, HashMap<String, String>> chunkGridParameterNames = new HashMap<>();
-	private final HashMap<String, HashMap<String, Field>> chunkGridParameters = new HashMap<>();
+	private final HashMap<String, Constructor<? extends T>> constructors = new HashMap<>();
+	private final HashMap<String, HashMap<String, Field>> parameters = new HashMap<>();
+	private final HashMap<String, HashMap<String, String>> parameterNames = new HashMap<>();
 
 	private ZarrNameConfigAdapter() {
 
@@ -111,9 +112,9 @@ public class ZarrNameConfigAdapter<T extends ZarrNameConfig> implements JsonDese
 					}
 				}
 
-				adapter.chunkGridConstructors.put(type, constructor);
-				adapter.chunkGridParameters.put(type, parameters);
-				adapter.chunkGridParameterNames.put(type, parameterNames);
+				adapter.constructors.put(type, constructor);
+				adapter.parameters.put(type, parameters);
+				adapter.parameterNames.put(type, parameterNames);
 			} catch (final ClassNotFoundException | NoSuchMethodException | ClassCastException
 						   | UnsatisfiedLinkError e) {
 				System.err.println("T '" + item.className() + "' could not be registered");
@@ -127,16 +128,19 @@ public class ZarrNameConfigAdapter<T extends ZarrNameConfig> implements JsonDese
 			final Type typeOfSrc,
 			final JsonSerializationContext context) {
 
-		final String type = object.getType();
+		// final String type = object.getType();
 		final Class<T> clazz = (Class<T>)object.getClass();
+		final String name = clazz.getAnnotation(T.Name.class).value();
+		final String prefix = clazz.getAnnotation(ZarrNameConfig.Prefix.class).value();
+		final String type = prefix + "." + name;
 
-		final JsonObject chunkGridJson = new JsonObject();
-		chunkGridJson.addProperty("name", type);
+		final JsonObject json = new JsonObject();
+		json.addProperty("name", name);
 		final JsonObject configuration = new JsonObject();
-		chunkGridJson.add("configuration", configuration);
+		json.add("configuration", configuration);
 
-		final HashMap<String, Field> parameterTypes = chunkGridParameters.get(type);
-		final HashMap<String, String> parameterNames = chunkGridParameterNames.get(type);
+		final HashMap<String, Field> parameterTypes = parameters.get(type);
+		final HashMap<String, String> parameterNameMap = parameterNames.get(type);
 		try {
 			for (final Entry<String, Field> parameterType : parameterTypes.entrySet()) {
 				final String fieldName = parameterType.getKey();
@@ -147,10 +151,10 @@ public class ZarrNameConfigAdapter<T extends ZarrNameConfig> implements JsonDese
 				field.setAccessible(isAccessible);
 				final JsonElement serialized = context.serialize(value);
 				if (field.getAnnotation(ZarrAnnotations.ReverseArray.class) != null) {
-					JsonArray reversedArray = reverseJsonArray(serialized.getAsJsonArray());
-					configuration.add(parameterNames.get(fieldName), reversedArray);
+					final JsonArray reversedArray = reverseJsonArray(serialized.getAsJsonArray());
+					configuration.add(parameterNameMap.get(fieldName), reversedArray);
 				} else
-					configuration.add(parameterNames.get(fieldName), serialized);
+					configuration.add(parameterNameMap.get(fieldName), serialized);
 
 			}
 		} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
@@ -158,7 +162,7 @@ public class ZarrNameConfigAdapter<T extends ZarrNameConfig> implements JsonDese
 			return null;
 		}
 
-		return chunkGridJson;
+		return json;
 	}
 
 	@Override
@@ -167,7 +171,7 @@ public class ZarrNameConfigAdapter<T extends ZarrNameConfig> implements JsonDese
 			final Type typeOfT,
 			final JsonDeserializationContext context) throws JsonParseException {
 
-		String prefix =((Class<T>)typeOfT).getAnnotation(ZarrNameConfig.Prefix.class).value();
+		final String prefix =((Class<T>)typeOfT).getAnnotation(ZarrNameConfig.Prefix.class).value();
 
 		final JsonObject chunkGridJson = json.getAsJsonObject();
 		final String name = chunkGridJson.getAsJsonPrimitive("name").getAsString();
@@ -179,22 +183,22 @@ public class ZarrNameConfigAdapter<T extends ZarrNameConfig> implements JsonDese
 
 		final String type = prefix + "." + name;
 
-		final Constructor<? extends T> constructor = chunkGridConstructors.get(type);
+		final Constructor<? extends T> constructor = constructors.get(type);
 		constructor.setAccessible(true);
 		final T chunkGrid;
 		try {
 			chunkGrid = constructor.newInstance();
-			final HashMap<String, Field> parameterTypes = chunkGridParameters.get(type);
-			final HashMap<String, String> parameterNames = chunkGridParameterNames.get(type);
+			final HashMap<String, Field> parameterTypes = parameters.get(type);
+			final HashMap<String, String> parameterNameMap = parameterNames.get(type);
 			for (final Entry<String, Field> parameterType : parameterTypes.entrySet()) {
 				final String fieldName = parameterType.getKey();
-				final String paramName = parameterNames.get(fieldName);
+				final String paramName = parameterNameMap.get(fieldName);
 				final JsonElement paramJson = configuration.get(paramName);
 				if (paramJson != null) {
 					final Field field = parameterType.getValue();
 					final Object parameter;
 					if (field.getAnnotation(ZarrAnnotations.ReverseArray.class) != null) {
-						JsonArray reversedArray = reverseJsonArray(paramJson);
+						final JsonArray reversedArray = reverseJsonArray(paramJson);
 						parameter = context.deserialize(reversedArray, field.getType());
 					} else
 						parameter = context.deserialize(paramJson, field.getType());
