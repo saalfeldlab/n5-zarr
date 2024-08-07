@@ -36,6 +36,9 @@ import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.zarr.DType;
+import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
+import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
+import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 
 import com.google.gson.GsonBuilder;
@@ -150,18 +153,19 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 	protected ZarrV3DatasetAttributes createZArrayAttributes(final DatasetAttributes datasetAttributes) {
 
 		final long[] shape = datasetAttributes.getDimensions().clone();
-		reorder(shape);
 		final int[] chunkShape = datasetAttributes.getBlockSize().clone();
-		reorder(chunkShape);
+		final ChunkAttributes chunkAttrs = new ChunkAttributes(
+				new RegularChunkGrid(chunkShape),
+				new DefaultChunkKeyEncoding(dimensionSeparator));
+
 		final DType dType = new DType(datasetAttributes.getDataType());
 
 		final ZarrV3DatasetAttributes zArrayAttributes = new ZarrV3DatasetAttributes(
 				ZarrV3KeyValueReader.VERSION.getMajor(),
 				shape,
-				chunkShape,
+				chunkAttrs,
 				dType,
 				"0",
-				dimensionSeparator,
 				datasetAttributes.getCodecs());
 
 		return zArrayAttributes;
@@ -216,30 +220,6 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		}
 
 		return true;
-	}
-
-	private static void reorder(final long[] array) {
-
-		long a;
-		final int max = array.length - 1;
-		for (int i = (max - 1) / 2; i >= 0; --i) {
-			final int j = max - i;
-			a = array[i];
-			array[i] = array[j];
-			array[j] = a;
-		}
-	}
-
-	private static void reorder(final int[] array) {
-
-		int a;
-		final int max = array.length - 1;
-		for (int i = (max - 1) / 2; i >= 0; --i) {
-			final int j = max - i;
-			a = array[i];
-			array[i] = array[j];
-			array[j] = a;
-		}
 	}
 
 }
