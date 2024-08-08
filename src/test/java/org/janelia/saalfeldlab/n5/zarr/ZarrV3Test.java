@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
-import com.google.gson.GsonBuilder;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataType;
@@ -13,15 +12,18 @@ import org.janelia.saalfeldlab.n5.zarr.serialization.ZarrNameConfigAdapter;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes;
 import org.junit.Test;
 
+import com.google.gson.GsonBuilder;
+
 public class ZarrV3Test {
 
 	private static GsonBuilder addZarrAdapters(GsonBuilder gsonBuilder) {
+
 		gsonBuilder.registerTypeAdapter(DataType.class, new DataType.JsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter);
 		gsonBuilder.registerTypeAdapter(ZarrCompressor.Raw.class, ZarrCompressor.rawNullAdapter);
 		gsonBuilder.registerTypeHierarchyAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
-		 gsonBuilder.registerTypeAdapter(ZarrV3DatasetAttributes.class, ZarrV3DatasetAttributes.jsonAdapter);
+		gsonBuilder.registerTypeAdapter(ZarrV3DatasetAttributes.class, ZarrV3DatasetAttributes.jsonAdapter);
 
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkGrid.class, ZarrNameConfigAdapter.getJsonAdapter(ChunkGrid.class));
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkKeyEncoding.class, ZarrNameConfigAdapter.getJsonAdapter(ChunkKeyEncoding.class));
@@ -50,4 +52,5 @@ public class ZarrV3Test {
 		final ZarrV3DatasetAttributes attrs = n5.getAttribute("/", "/", ZarrV3DatasetAttributes.class);
 		System.out.println(attrs);
 	}
+
 }

@@ -8,6 +8,8 @@ import java.util.stream.Collectors;
 @ChunkKeyEncoding.Name("default")
 public class DefaultChunkKeyEncoding extends ChunkKeyEncoding {
 
+	private static final long serialVersionUID = 2215709434854968911L;
+
 	public static Set<String> VALID_SEPARATORS = Collections.unmodifiableSet(
 			Arrays.stream(new String[]{".", "/"}).collect(Collectors.toSet())
 	);
