@@ -6,13 +6,13 @@
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -29,6 +29,8 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.AbstractMap.SimpleImmutableEntry;
@@ -36,9 +38,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.google.gson.TypeAdapter;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
+import org.janelia.saalfeldlab.n5.BlockReader;
+import org.janelia.saalfeldlab.n5.BlockWriter;
 import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
@@ -51,12 +52,15 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  *
  */
-public interface ZarrCompressor {
+public interface ZarrCompressor extends Compression {
 
 	/* idiotic stream based initialization because Java cannot have static initialization code in interfaces */
 	public static Map<String, Class<? extends ZarrCompressor>> registry = Stream.of(
@@ -91,6 +95,30 @@ public interface ZarrCompressor {
 		}
 	}
 
+	@Override
+	default BlockReader getReader() {
+
+		return getCompression().getReader();
+	}
+
+	@Override
+	default BlockWriter getWriter() {
+
+		return getCompression().getWriter();
+	}
+
+	@Override
+	default InputStream decode(final InputStream in) throws IOException {
+
+		return getCompression().decode(in);
+	}
+
+	@Override
+	default OutputStream encode(OutputStream out) throws IOException {
+
+		return getCompression().encode(out);
+	}
+
 	public Compression getCompression();
 
 	public static class Zstandard implements ZarrCompressor {
@@ -116,7 +144,7 @@ public interface ZarrCompressor {
 
 		@Override
 		public Compression getCompression() {
-			ZstandardCompression compression = new ZstandardCompression(level);
+			final ZstandardCompression compression = new ZstandardCompression(level);
 			if(this.nbWorkers != 0)
 				compression.setNbWorkers(this.nbWorkers);
 			return compression;

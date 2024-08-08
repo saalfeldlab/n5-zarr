@@ -34,9 +34,9 @@ import java.util.HashMap;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.saalfeldlab.n5.zarr.DType;
+import org.janelia.saalfeldlab.n5.zarr.ZarrCompressor;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
@@ -83,16 +83,28 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final ChunkAttributes chunkAttributes,
 			final DType dtype,
 			final String fillValue,
-			final String chunkKeyEncoding,
+			final Compression compression,
 			final Codec[] codecs) {
 
-		super(shape, chunkAttributes.getGrid().getShape(), dtype.getDataType(), null, codecs);
+		super(shape, chunkAttributes.getGrid().getShape(), dtype.getDataType(), compression,
+				appendCompression(codecs, compression));
 		this.zarrFormat = zarrFormat;
 		this.shape = shape;
 		this.chunkAttributes = chunkAttributes;
 		this.dtype = dtype;
 		this.fillValue = parseFillValue(fillValue, dtype.getDataType());
 		this.fillBytes = dtype.createFillBytes(fillValue);
+	}
+
+	public ZarrV3DatasetAttributes(
+			final int zarrFormat,
+			final long[] shape,
+			final ChunkAttributes chunkAttributes,
+			final DType dtype,
+			final String fillValue,
+			final Codec[] codecs) {
+
+		this(zarrFormat, shape, chunkAttributes, dtype, fillValue, null, codecs);
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -120,17 +132,19 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				new DefaultChunkKeyEncoding(dimensionSeparator), codecs);
 	}
 
-	public ZarrV3DatasetAttributes(
-			final int zarrFormat,
-			final long[] shape,
-			final ChunkAttributes chunkAttributes,
-			final DType dtype,
-			final String fillValue,
-			final Codec[] codecs) {
+	private static Codec[] appendCompression(Codec[] codecs, Compression compression) {
 
-		// empty dimensionSeparator so that the reader's separator is used
-		this(zarrFormat, shape, chunkAttributes, dtype, fillValue, "/", codecs);
+		if (compression == null)
+			return codecs;
+		else if (codecs == null)
+			return new Codec[]{compression};
+
+		final Codec[] out = new Codec[codecs.length + 1];
+		System.arraycopy(codecs, 0, out, 0, codecs.length);
+		out[codecs.length] = compression;
+		return out;
 	}
+
 
 	private static JsonElement parseFillValue(String fillValue, DataType dtype) {
 
@@ -194,9 +208,21 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		map.put(CHUNK_KEY_ENCODING_KEY, getChunkAttributes().getKeyEncoding());
 
 		map.put(FILL_VALUE_KEY, fillValue);
-		map.put(CODECS_KEY, getCodecs());
+		map.put(CODECS_KEY, codecsToZarrCompressors(getCodecs()));
 
 		return map;
+	}
+
+	private Codec[] codecsToZarrCompressors(Codec[] codecs) {
+
+		final Codec[] out = new Codec[codecs.length];
+		for (int i = 0; i < out.length; i++) {
+			if (codecs[i] instanceof Compression)
+				out[i] = ZarrCompressor.fromCompression((Compression)codecs[i]);
+			else
+				out[i] = codecs[i];
+		}
+		return out;
 	}
 
 	@Override
@@ -240,7 +266,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 						obj.get("fill_value").getAsString(),
 						codecs);
 			} catch (final Exception e) {
-				e.printStackTrace();
 				return null;
 			}
 		}
@@ -255,7 +280,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final JsonObject chunkAttrs = context.serialize(src.chunkAttributes).getAsJsonObject();
 			chunkAttrs.entrySet().forEach(entry -> jsonObject.add(entry.getKey(), entry.getValue()));
 
-			jsonObject.add("dtype", context.serialize(src.getDType().toString()));
+			jsonObject.add("data_type", context.serialize(src.getDType().toString()));
 
 			jsonObject.addProperty(FILL_VALUE_KEY, src.getFillValue());
 			jsonObject.add(CODECS_KEY, context.serialize(src.getCodecs()));
@@ -264,9 +289,4 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		}
 	}
 
-	public static Compression codecsToCompression(Codec[] codecs) {
-
-		// TODO implement me
-		return new RawCompression();
-	}
 }

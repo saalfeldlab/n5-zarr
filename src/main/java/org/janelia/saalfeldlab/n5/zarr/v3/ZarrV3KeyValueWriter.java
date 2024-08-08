@@ -166,6 +166,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 				chunkAttrs,
 				dType,
 				"0",
+				datasetAttributes.getCompression(),
 				datasetAttributes.getCodecs());
 
 		return zArrayAttributes;
