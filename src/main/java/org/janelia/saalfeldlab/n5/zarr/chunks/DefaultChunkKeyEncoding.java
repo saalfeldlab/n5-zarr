@@ -1,12 +1,14 @@
 package org.janelia.saalfeldlab.n5.zarr.chunks;
 
+import org.janelia.saalfeldlab.n5.serialization.NameConfig;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@ChunkKeyEncoding.Name("default")
-public class DefaultChunkKeyEncoding extends ChunkKeyEncoding {
+@NameConfig.Name("default")
+public class DefaultChunkKeyEncoding implements ChunkKeyEncoding {
 
 	private static final long serialVersionUID = 2215709434854968911L;
 
@@ -14,7 +16,7 @@ public class DefaultChunkKeyEncoding extends ChunkKeyEncoding {
 			Arrays.stream(new String[]{".", "/"}).collect(Collectors.toSet())
 	);
 
-	@ChunkKeyEncoding.Parameter
+	@NameConfig.Parameter
 	final String separator;
 
 	protected DefaultChunkKeyEncoding() {

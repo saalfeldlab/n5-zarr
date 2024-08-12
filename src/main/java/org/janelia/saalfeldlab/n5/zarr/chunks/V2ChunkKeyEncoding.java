@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.n5.zarr.chunks;
 
-@ChunkKeyEncoding.Name("v2")
+import org.janelia.saalfeldlab.n5.serialization.NameConfig;
+
+@NameConfig.Name("v2")
 public class V2ChunkKeyEncoding extends DefaultChunkKeyEncoding {
 
 	private V2ChunkKeyEncoding() {

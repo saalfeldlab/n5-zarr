@@ -4,11 +4,11 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.universe.N5Factory;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
-import org.janelia.saalfeldlab.n5.zarr.serialization.ZarrNameConfigAdapter;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes;
 import org.junit.Test;
 
@@ -25,8 +25,8 @@ public class ZarrV3Test {
 		gsonBuilder.registerTypeAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZarrV3DatasetAttributes.class, ZarrV3DatasetAttributes.jsonAdapter);
 
-		gsonBuilder.registerTypeHierarchyAdapter(ChunkGrid.class, ZarrNameConfigAdapter.getJsonAdapter(ChunkGrid.class));
-		gsonBuilder.registerTypeHierarchyAdapter(ChunkKeyEncoding.class, ZarrNameConfigAdapter.getJsonAdapter(ChunkKeyEncoding.class));
+		gsonBuilder.registerTypeHierarchyAdapter(ChunkGrid.class, NameConfigAdapter.getJsonAdapter(ChunkGrid.class));
+		gsonBuilder.registerTypeHierarchyAdapter(ChunkKeyEncoding.class, NameConfigAdapter.getJsonAdapter(ChunkKeyEncoding.class));
 
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkAttributes.class, ChunkAttributes.getJsonAdapter());
 		gsonBuilder.registerTypeHierarchyAdapter(Filter.class, Filter.jsonAdapter);
@@ -44,13 +44,12 @@ public class ZarrV3Test {
 
 		final ChunkGrid chunkGrid = n5.getAttribute("/", "chunk_grid", ChunkGrid.class);
 		System.out.println(chunkGrid);
+
 		final ChunkKeyEncoding chunkKeyEncoding = n5.getAttribute("/", "chunk_key_encoding", ChunkKeyEncoding.class);
 		System.out.println(chunkKeyEncoding);
+
 		final ChunkAttributes chunkAttributes = n5.getAttribute("/", "/", ChunkAttributes.class);
 		System.out.println(chunkAttributes);
-
-		final ZarrV3DatasetAttributes attrs = n5.getAttribute("/", "/", ZarrV3DatasetAttributes.class);
-		System.out.println(attrs);
 	}
 
 }
