@@ -1,12 +1,15 @@
 package org.janelia.saalfeldlab.n5.zarr.chunks;
 
+import org.janelia.saalfeldlab.n5.serialization.N5Annotations;
+import org.janelia.saalfeldlab.n5.serialization.NameConfig;
+
 import java.util.Arrays;
 
-@ChunkGrid.Name("regular")
-public class RegularChunkGrid extends ChunkGrid {
+@NameConfig.Name("regular")
+public class RegularChunkGrid implements ChunkGrid {
 
-	@ReverseArray
-	@ChunkGrid.Parameter(value = "chunk_shape")
+	@N5Annotations.ReverseArray
+	@NameConfig.Parameter(value = "chunk_shape")
 	private final int[] shape;
 
 	protected RegularChunkGrid() {

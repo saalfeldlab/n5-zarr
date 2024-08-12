@@ -56,8 +56,8 @@ import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
+import org.janelia.saalfeldlab.n5.serialization.JsonArrayUtils;
 import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
-import org.janelia.saalfeldlab.n5.zarr.serialization.JsonArrayUtils;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

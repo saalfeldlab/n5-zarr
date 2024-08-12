@@ -1,9 +1,9 @@
 package org.janelia.saalfeldlab.n5.zarr.chunks;
 
-import org.janelia.saalfeldlab.n5.zarr.serialization.ZarrNameConfig;
+import org.janelia.saalfeldlab.n5.serialization.NameConfig;
 
-@ChunkGrid.Prefix("chunk_grid")
-public abstract class ChunkGrid implements ZarrNameConfig {
+@NameConfig.Prefix("chunk_grid")
+public interface ChunkGrid {
 
 	public abstract int[] getShape();
 }
