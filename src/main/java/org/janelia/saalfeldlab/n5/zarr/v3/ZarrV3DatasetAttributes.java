@@ -34,6 +34,7 @@ import java.util.HashMap;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.saalfeldlab.n5.zarr.DType;
 import org.janelia.saalfeldlab.n5.zarr.ZarrCompressor;
@@ -104,7 +105,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final String fillValue,
 			final Codec[] codecs) {
 
-		this(zarrFormat, shape, chunkAttributes, dtype, fillValue, null, codecs);
+		this(zarrFormat, shape, chunkAttributes, dtype, fillValue, inferCompression(codecs), codecs);
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -143,6 +144,15 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		System.arraycopy(codecs, 0, out, 0, codecs.length);
 		out[codecs.length] = compression;
 		return out;
+	}
+
+	private static Compression inferCompression(Codec[] codecs) {
+
+		final Codec lastCodec = codecs[codecs.length - 1];
+		if (lastCodec instanceof Compression)
+			return (Compression)lastCodec;
+		else
+			return new RawCompression();
 	}
 
 
@@ -208,7 +218,8 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		map.put(CHUNK_KEY_ENCODING_KEY, getChunkAttributes().getKeyEncoding());
 
 		map.put(FILL_VALUE_KEY, fillValue);
-		map.put(CODECS_KEY, codecsToZarrCompressors(getCodecs()));
+		// map.put(CODECS_KEY, codecsToZarrCompressors(getCodecs()));
+		map.put(CODECS_KEY, getCodecs());
 
 		return map;
 	}
@@ -253,7 +264,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				else
 					dType = new DType(typestr, null);
 
-
 				final int zarrFormat = obj.get("zarr_format").getAsInt();
 				final long[] shape = context.deserialize(obj.get("shape"), long[].class);
 				final ChunkAttributes chunkAttributes = context.deserialize(obj, ChunkAttributes.class);
@@ -266,6 +276,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 						obj.get("fill_value").getAsString(),
 						codecs);
 			} catch (final Exception e) {
+				e.printStackTrace();
 				return null;
 			}
 		}

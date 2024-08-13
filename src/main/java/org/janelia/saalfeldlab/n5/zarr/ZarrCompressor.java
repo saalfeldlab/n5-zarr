@@ -96,6 +96,12 @@ public interface ZarrCompressor extends Compression {
 	}
 
 	@Override
+	public default String getType() {
+
+		return getCompression().getType();
+	}
+
+	@Override
 	default BlockReader getReader() {
 
 		return getCompression().getReader();
