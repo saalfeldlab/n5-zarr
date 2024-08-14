@@ -1,11 +1,11 @@
 package org.janelia.saalfeldlab.n5.zarr.chunks;
 
-import org.janelia.saalfeldlab.n5.serialization.NameConfig;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.janelia.saalfeldlab.n5.serialization.NameConfig;
 
 @NameConfig.Name("default")
 public class DefaultChunkKeyEncoding implements ChunkKeyEncoding {
@@ -39,6 +39,8 @@ public class DefaultChunkKeyEncoding implements ChunkKeyEncoding {
 	public String getChunkPath(final long[] gridPosition) {
 
 		final StringBuilder pathStringBuilder = new StringBuilder();
+		pathStringBuilder.append("c");
+		pathStringBuilder.append(getSeparator());
 		pathStringBuilder.append(gridPosition[gridPosition.length - 1]);
 		for (int i = gridPosition.length - 2; i >= 0; --i) {
 			pathStringBuilder.append(getSeparator());

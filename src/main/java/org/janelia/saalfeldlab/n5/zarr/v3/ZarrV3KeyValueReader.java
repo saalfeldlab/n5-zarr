@@ -55,8 +55,6 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
 	protected final boolean mergeAttributes;
 
-	protected final Gson gson;
-
 	/**
 	 * Opens an {@link ZarrV3KeyValueReader} at a given base path with a custom
 	 * {@link GsonBuilder} to support custom attributes.
@@ -160,22 +158,24 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 			final boolean cacheMeta,
 			final boolean checkRootExists) {
 
-		super(checkVersion, keyValueAccess, basePath, new GsonBuilder(), cacheMeta, checkRootExists);
-		this.gson = addTypeAdapters(gsonBuilder).create();
+		super(checkVersion, keyValueAccess, basePath, addTypeAdapters(gsonBuilder), cacheMeta, checkRootExists);
 		this.mergeAttributes = mergeAttributes;
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
-	}
-
-	@Override
-	public Gson getGson() {
-
-		return this.gson;
 	}
 
 	@Override
 	public String getAttributesKey() {
 
 		return ZARR_KEY;
+	}
+
+	@Override
+	public String absoluteDataBlockPath(
+			final String normalPath,
+			final long... gridPosition) {
+
+		final ZarrV3DatasetAttributes attrs = (ZarrV3DatasetAttributes)getDatasetAttributes(normalPath);
+		return getKeyValueAccess().compose(getURI(), normalPath, attrs.getChunkAttributes().getChunkPath(gridPosition));
 	}
 
 	@Override
