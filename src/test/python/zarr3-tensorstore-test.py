@@ -29,17 +29,98 @@
 
 from pathlib import Path
 import numpy as np
-from numcodecs import Zlib, GZip, BZ2, Zstd
+#from numcodecs import Zlib, GZip, BZ2, Zstd
 import sys
 import os
+import tempfile
 import tensorstore as ts
 
 test_path = sys.argv[1]
+
+if test_path == "test":
+    test_path = tempfile.mkdtemp(".zarr", "zarr3-tensorstore-test_python_")
+
 print("Test_path: " + test_path)
 group_path = os.path.join('test', 'data')
 print("Group_path: " + group_path)
 
-sys.stderr.write(test_path)
+sys.stderr.write(test_path + "\n")
+
+# Function to create Zarr2 dataset with TensorStore
+def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=None, level=1, fill_value=None):
+    """
+    Function to create a Zarr2 dataset using TensorStore.
+
+    - zarr2_path: Path where the Zarr2 dataset will be stored.
+    - data: Numpy array with the data to be stored in the Zarr2 format.
+    - chunk_shape: Tuple specifying the shape of the chunks.
+    - compression: Type of compression to apply (e.g., 'gzip', 'zstd', 'blosc', 'bz2').
+    - level: Compression level, relevant if compression is used.
+    - fill_value: Default value to use for uninitialized chunks.
+    """
+    
+    print(f"Creating a new Zarr2 store at {zarr2_path}.")
+
+    if chunk_shape is None:
+        if data is None:
+            chunk_shape = (16, 16)
+        else:
+            chunk_shape = data.shape
+
+    if data is None:
+        data = np.arange(np.prod(chunk_shape)).reshape(chunk_shape)
+
+    zarr2_store_spec = {
+        'driver': 'zarr',
+        'kvstore': {
+            'driver': 'file',
+            'path': zarr2_path},
+        'metadata': {
+            'shape': data.shape,
+            'chunks': chunk_shape,
+            'dtype': data.dtype.name,
+            'compressor': None,
+            'fill_value': fill_value,
+            'order': 'C'
+        }
+    }
+
+    if compression == "gzip":
+        compression = "zlib"
+
+    if compression is None:
+        pass
+    elif compression == 'zlib':
+        zarr2_store_spec['metadata']['compressor'] = {
+            "id": "zlib",
+            "level": level
+        }
+    elif compression == 'zstd':
+        zarr2_store_spec['metadata']['compressor'] = {
+            "id": "zstd",
+            "level": level
+        }
+    elif compression == 'blosc':
+        zarr2_store_spec['metadata']['compressor'] = {
+            "id": "blosc",
+            "cname": "lz4", 
+            "clevel": level,
+            "shuffle": 1
+        }
+    elif compression == 'bz2':
+        zarr2_store_spec['metadata']['compressor'] = {
+            "id": "bz2",
+            "level": level
+        }
+    else:
+        raise Exception("Unknown or unsupported compression name: " + compression)
+
+    zarr2_store = ts.open(zarr2_store_spec, create=True, delete_existing=True).result()
+    zarr2_store.write(data).result()
+            
+    print("Zarr2 store has been updated.")
+    return zarr2_store
+
 
 # Function to create Zarr3 dataset with TensorStore
 def ts_create_zarr3_test(zarr3_path, data=None, chunk_shape=None, shard_shape=None, compression=None, level=1, fill_value=None):
@@ -300,7 +381,36 @@ if zarr_format == 3:
 
 else:
     # For Zarr2
-    pass
+    #pass
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_u1'), data=array_3x2_c.astype("|u1"), chunk_shape=(2, 3))
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_u1'), data=array_3x2_f.astype("|u1"), chunk_shape=(2, 3))
+
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_i8'), data=array_3x2_c.astype("<i8"), chunk_shape=(2, 3))
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_i8'), data=array_3x2_f.astype("<i8"), chunk_shape=(2, 3))
+
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_i8'), data=array_30x20_c.astype("<i8"), chunk_shape=(7, 13))
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_f_i8'), data=array_30x20_f.astype("<i8"), chunk_shape=(7, 13))
+
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_u4'), data=array_3x2_c.astype(">u4"), chunk_shape=(2, 3))
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_u4'), data=array_3x2_f.astype(">u4"), chunk_shape=(2, 3))
+
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u4'), data=array_30x20_c.astype(">u4"), chunk_shape=(7, 13))
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_f_u4'), data=array_30x20_f.astype(">u4"), chunk_shape=(7, 13))
+
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_f8'), data=array_3x2_c.astype("<f8"), chunk_shape=(2, 3))
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_f8'), data=array_3x2_f.astype("<f8"), chunk_shape=(2, 3))
+
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_f8'), data=array_30x20_c.astype("<f8"), chunk_shape=(7, 13))
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_f_f8'), data=array_30x20_f.astype("<f8"), chunk_shape=(7, 13))
+
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_f4'), data=array_3x2_c.astype(">f4"), chunk_shape=(2, 3))
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_f4'), data=array_3x2_f.astype(">f4"), chunk_shape=(2, 3))
+
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_f4'), data=array_30x20_c.astype(">f4"), chunk_shape=(7, 13))
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_f_f4'), data=array_30x20_f.astype(">f4"), chunk_shape=(7, 13))
+
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u8_zlib'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='zlib')
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u8_gzip'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='gzip')
 
    
     
