@@ -35,17 +35,86 @@ import os
 import tempfile
 import tensorstore as ts
 
-test_path = sys.argv[1]
+def ts_create_n5_test(n5_path, data=None, chunk_shape=None, compression=None, level=1, resolution=None):
+    """
+    Function to create an N5 dataset using TensorStore.
 
-if test_path == "test":
-    test_path = tempfile.mkdtemp(".zarr", "zarr3-tensorstore-test_python_")
+    - n5_path: Path where the N5 dataset will be stored.
+    - data: Numpy array with the data to be stored in the N5 format.
+    - chunk_shape: Tuple specifying the shape of the chunks.
+    - compression: Type of compression to apply (e.g., 'gzip', 'zstd', 'blosc', 'bzip2', 'xz', 'raw').
+    - level: Compression level, relevant if compression is used.
+    - resolution: Resolution of the dataset, provided as a list of numbers.
+    """
 
-print("Test_path: " + test_path)
-group_path = os.path.join('test', 'data')
-print("Group_path: " + group_path)
+    print(f"Creating a new N5 store at {n5_path}.")
 
-sys.stderr.write(test_path + "\n")
+    if chunk_shape is None:
+        if data is None:
+            chunk_shape = (16, 16)
+        else:
+            chunk_shape = data.shape
 
+    if data is None:
+        data = np.arange(np.prod(chunk_shape)).reshape(chunk_shape)
+
+    # Set up the basic N5 store specification
+    n5_store_spec = {
+        'driver': 'n5',
+        'kvstore': {
+            'driver': 'file',
+            'path': n5_path
+        },
+        'metadata': {
+            'dimensions': list(data.shape),
+            'blockSize': list(chunk_shape),
+            'dataType': data.dtype.name
+        }
+    }
+
+    # Handle compression
+    if compression == "zlib":
+        compression = "gzip"
+        
+    if compression is not None:
+        if compression == 'gzip':
+            n5_store_spec['metadata']['compression'] = {
+                "type": "gzip",
+                "level": level
+            }
+        elif compression == 'blosc':
+            n5_store_spec['metadata']['compression'] = {
+                "type": "blosc",
+                "cname": "lz4",
+                "clevel": level,
+                "shuffle": 1
+            }
+        elif compression == 'bzip2':
+            n5_store_spec['metadata']['compression'] = {
+                "type": "bzip2",
+                "blockSize": level
+            }
+        elif compression == 'xz':
+            n5_store_spec['metadata']['compression'] = {
+                "type": "xz",
+                "preset": level
+            }
+        elif compression == 'raw':
+            n5_store_spec['metadata']['compression'] = {
+                "type": "raw"
+            }
+        else:
+            raise Exception(f"Unknown or unsupported compression type: {compression}")
+
+    # Handle resolution if provided
+    if resolution is not None:
+        n5_store_spec['metadata']['resolution'] = resolution
+
+    n5_store = ts.open(n5_store_spec, create=True, delete_existing=True).result()
+    n5_store.write(data).result()
+
+    print("N5 store has been updated.")
+   
 # Function to create Zarr2 dataset with TensorStore
 def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=None, level=1, fill_value=None):
     """
@@ -54,7 +123,7 @@ def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=No
     - zarr2_path: Path where the Zarr2 dataset will be stored.
     - data: Numpy array with the data to be stored in the Zarr2 format.
     - chunk_shape: Tuple specifying the shape of the chunks.
-    - compression: Type of compression to apply (e.g., 'gzip', 'zstd', 'blosc', 'bz2').
+    - compression: Type of compression to apply (e.g., 'zlib', 'gzip', 'zstd', 'blosc', 'bz2').
     - level: Compression level, relevant if compression is used.
     - fill_value: Default value to use for uninitialized chunks.
     """
@@ -70,15 +139,19 @@ def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=No
     if data is None:
         data = np.arange(np.prod(chunk_shape)).reshape(chunk_shape)
 
+    # TensorStore Zarr2 dtype
+    dtype_str = np.dtype(data.dtype).str
+
     zarr2_store_spec = {
         'driver': 'zarr',
         'kvstore': {
             'driver': 'file',
-            'path': zarr2_path},
+            'path': zarr2_path
+        },
         'metadata': {
-            'shape': data.shape,
-            'chunks': chunk_shape,
-            'dtype': data.dtype.name,
+            'shape': list(data.shape),
+            'chunks': list(chunk_shape),
+            'dtype': dtype_str,
             'compressor': None,
             'fill_value': fill_value,
             'order': 'C'
@@ -88,32 +161,31 @@ def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=No
     if compression == "gzip":
         compression = "zlib"
 
-    if compression is None:
-        pass
-    elif compression == 'zlib':
-        zarr2_store_spec['metadata']['compressor'] = {
-            "id": "zlib",
-            "level": level
-        }
-    elif compression == 'zstd':
-        zarr2_store_spec['metadata']['compressor'] = {
-            "id": "zstd",
-            "level": level
-        }
-    elif compression == 'blosc':
-        zarr2_store_spec['metadata']['compressor'] = {
-            "id": "blosc",
-            "cname": "lz4", 
-            "clevel": level,
-            "shuffle": 1
-        }
-    elif compression == 'bz2':
-        zarr2_store_spec['metadata']['compressor'] = {
-            "id": "bz2",
-            "level": level
-        }
-    else:
-        raise Exception("Unknown or unsupported compression name: " + compression)
+    if compression is not None:
+        if compression == 'zlib':
+            zarr2_store_spec['metadata']['compressor'] = {
+                "id": "zlib",
+                "level": level
+            }
+        elif compression == 'zstd':
+            zarr2_store_spec['metadata']['compressor'] = {
+                "id": "zstd",
+                "level": level
+            }
+        elif compression == 'blosc':
+            zarr2_store_spec['metadata']['compressor'] = {
+                "id": "blosc",
+                "cname": "lz4",
+                "clevel": level,
+                "shuffle": 1
+            }
+        elif compression == 'bz2':
+            zarr2_store_spec['metadata']['compressor'] = {
+                "id": "bz2",
+                "level": level
+            }
+        else:
+            raise Exception("Unknown or unsupported compression name: " + compression)
 
     zarr2_store = ts.open(zarr2_store_spec, create=True, delete_existing=True).result()
     zarr2_store.write(data).result()
@@ -301,35 +373,8 @@ def ts_create_zarr3_sharded_test(zarr3_path, data=None, shard_shape=None, chunk_
     print("Zarr3 store has been updated.")
     return zarr3_store
 
-# Determine whether to use Zarr or Zarr3
-use_zarr3 = '--zarr3' in sys.argv
-
-zarr_format = 3 if use_zarr3 else 2
-
-# Create the Zarr store using zarr-python or Zarr3 store using tensorstore
-if zarr_format == 3:
-  group_path = test_path + '\\groupV3'
-  os.makedirs(group_path)
-elif zarr_format == 2:
-    group_path = test_path + "\\groupV2"
-    os.makedirs(group_path)
-    zarr2 = open(group_path + "\\.zgroup", "x")
-    zarr2.write('''{
-        "zarr_format": 2
-        }''')
-    zarr2.close()
-
-# Data creation
-array_3x2_c = np.arange(0, 3 * 2).reshape(2, 3)
-array_3x2_f = np.asfortranarray(array_3x2_c)
-array_3x2_str_c = np.array(["", "a", "bc", "de", "fgh", ":-þ"]).reshape(2, 3)
-array_3x2_str_f = np.asfortranarray(array_3x2_str_c)
-
-array_30x20_c = np.arange(0, 30 * 20).reshape(20, 30)
-array_30x20_f = np.asfortranarray(array_30x20_c)
-
-if zarr_format == 3:
-    # For Zarr3
+# For Zarr3
+def runZarr3Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f):
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_u1'), data=array_3x2_c.astype("|u1"), chunk_shape=(2, 3))
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_f_u1'), data=array_3x2_f.astype("|u1"), chunk_shape=(2, 3))
 
@@ -359,18 +404,11 @@ if zarr_format == 3:
 
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_c_u8_zlib'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='zlib')
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_c_u8_gzip'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='gzip')
-   # ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_c_u8_bz2'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13))#, compression='bz2')
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_c_u8_zstd'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='zstd')
 
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_u4_f1'), data=array_3x2_c.astype(">u4"), chunk_shape=(3, 2), fill_value=1)
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_f4_fnan'), data=array_3x2_c.astype(">f4"), chunk_shape=(3, 2), fill_value=np.nan)
-
-    #ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_str'), data=array_3x2_str_c.astype(str), chunk_shape=(2, 3))
-    #ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_f_str'), data=array_3x2_str_f.astype(str), chunk_shape=(2, 3)) # order='F')
-    #ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_str_zlib'), data=array_3x2_str_c.astype(str), chunk_shape=(7, 13), compression='zlib')
-    #ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_str_gzip'), data=array_3x2_str_c.astype(str), chunk_shape=(7, 13), compression='gzip')
-    #ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_str_bz2'), data=array_3x2_str_c.astype(str), chunk_shape=(2, 2))#, compression='bz2')
-    #ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_str_zstd'), data=array_3x2_str_c.astype(str), chunk_shape=(2, 2), compression='zstd')
+    
 
     # For Zarr3 with sharding
     ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '3x2_c_u1_sharded'),data=array_3x2_c.astype("|u1"),shard_shape=(1, 2), chunk_shape=(1, 1))
@@ -379,9 +417,8 @@ if zarr_format == 3:
     ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_c_i8_sharded'),data=array_30x20_c.astype("<i8"),shard_shape=(10, 10), chunk_shape=(5, 5))
     ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_f_i8_sharded'),data=array_30x20_f.astype("<i8"),shard_shape=(10, 10), chunk_shape=(5, 5))
 
-else:
-    # For Zarr2
-    #pass
+# For Zarr2
+def runZarr2Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f):
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_u1'), data=array_3x2_c.astype("|u1"), chunk_shape=(2, 3))
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_u1'), data=array_3x2_f.astype("|u1"), chunk_shape=(2, 3))
 
@@ -411,218 +448,103 @@ else:
 
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u8_zlib'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='zlib')
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u8_gzip'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='gzip')
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u8_bz2'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='bz2')
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u8_zstd'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='zstd')
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u8_blosc'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='blosc')
 
-   
-    
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_u4_f1'), data=array_3x2_c.astype(">u4"), chunk_shape=(3, 2), fill_value=1)
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_f4_fnan'), data=array_3x2_c.astype(">f4"), chunk_shape=(3, 2), fill_value=np.nan)
+
+# For N5
+def runN5Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f):
+    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_c_u1'), data=array_3x2_c.astype("|u1"), chunk_shape=(2, 3))
+    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_u1'), data=array_3x2_f.astype("|u1"), chunk_shape=(2, 3))
+
+    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_c_i8'), data=array_3x2_c.astype("<i8"), chunk_shape=(2, 3))
+    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_i8'), data=array_3x2_f.astype("<i8"), chunk_shape=(2, 3))
+
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_i8'), data=array_30x20_c.astype("<i8"), chunk_shape=(7, 13))
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_f_i8'), data=array_30x20_f.astype("<i8"), chunk_shape=(7, 13))
+
+    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_c_u4'), data=array_3x2_c.astype(">u4"), chunk_shape=(2, 3))
+    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_u4'), data=array_3x2_f.astype(">u4"), chunk_shape=(2, 3))
+
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_u4'), data=array_30x20_c.astype(">u4"), chunk_shape=(7, 13))
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_f_u4'), data=array_30x20_f.astype(">u4"), chunk_shape=(7, 13))
+
+    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_c_f8'), data=array_3x2_c.astype("<f8"), chunk_shape=(2, 3))
+    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_f8'), data=array_3x2_f.astype("<f8"), chunk_shape=(2, 3))
+
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_f8'), data=array_30x20_c.astype("<f8"), chunk_shape=(7, 13))
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_f_f8'), data=array_30x20_f.astype("<f8"), chunk_shape=(7, 13))
+
+    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_c_f4'), data=array_3x2_c.astype(">f4"), chunk_shape=(2, 3))
+    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_f4'), data=array_3x2_f.astype(">f4"), chunk_shape=(2, 3))
+
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_f4'), data=array_30x20_c.astype(">f4"), chunk_shape=(7, 13))
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_f_f4'), data=array_30x20_f.astype(">f4"), chunk_shape=(7, 13))
+
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_u8_zlib'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='zlib')
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_u8_gzip'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='gzip')
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_u8_blosc'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='blosc')
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_u8_bzip2'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='bzip2')
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_u8_raw'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='raw')
+    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_u8_xz'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='xz')
+
+def main(test_path = None, *args):
+
+    if test_path is None:
+        test_path = sys.argv[1]
+
+    # Create test path
+    if test_path == "test":
+        test_path = tempfile.mkdtemp(".zarr", "zarr3-tensorstore-test_python_")
+
+    print("Test_path: " + test_path)
+    group_path = os.path.join('test', 'data')
+    print("Group_path: " + group_path)
+
+    sys.stderr.write(test_path + "\n")
+
+    # Determine whether to use N5 or Zarr2 or Zarr3
+    use_zarr3 = '--zarr3' in args
+    use_n5 = '--n5' in args
+
+    zarr_format = 3 if use_zarr3 else 2 if not use_n5 else 'n5'
+
+    # Create the Zarr/N5 store using tensorstore
+    if zarr_format == 3:
+      group_path = test_path + '\\groupV3'
+      os.makedirs(group_path)
+    elif zarr_format == 2:
+        group_path = test_path + "\\groupV2"
+        os.makedirs(group_path)
+        zarr2 = open(group_path + "\\.zgroup", "x")
+        zarr2.write('''{
+            "zarr_format": 2
+            }''')
+        zarr2.close()
+    else:
+        group_path = test_path + "\\groupN5"
+        os.makedirs(group_path)
+
+    # Data creation
+    array_3x2_c = np.arange(0, 3 * 2).reshape(2, 3)
+    array_3x2_f = np.asfortranarray(array_3x2_c)
+    #array_3x2_str_c = np.array(["", "a", "bc", "de", "fgh", ":-þ"]).reshape(2, 3)
+    #array_3x2_str_f = np.asfortranarray(array_3x2_str_c)
+    array_30x20_c = np.arange(0, 30 * 20).reshape(20, 30)
+    array_30x20_f = np.asfortranarray(array_30x20_c)
+
+    # array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f
+
+    if zarr_format == 3:
+        runZarr3Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
+    elif zarr_format == 2:
+        runZarr2Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
+    else:
+        runN5Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
 
 
-"""
-
-group.array(
-  name='3x2_c_u1',
-  dtype='|u1',
-  data=array_3x2_c,
-  chunks=(2, 3),
-  overwrite=True)
-group.array(
-  name='3x2_f_u1',
-  dtype='|u1',
-  data=array_3x2_f,
-  chunks=(2, 3),
-  order='F',
-  overwrite=True)
-
-group.array(
-  name='3x2_c_i8',
-  data=array_3x2_c,
-  dtype='<i8',
-  chunks=(2, 3),
-  overwrite=True)
-group.array(
-  name='3x2_f_i8',
-  data=array_3x2_f,
-  dtype='<i8',
-  chunks=(2, 3),
-  order='F',
-  overwrite=True)
-group.array(
-  name='30x20_c_i8',
-  data=array_30x20_c,
-  dtype='<i8',
-  chunks=(7, 13),
-  overwrite=True)
-group.array(
-  name='30x20_f_i8',
-  data=array_30x20_f,
-  dtype='<i8',
-  chunks=(7, 13),
-  order='F',
-  overwrite=True)
-
-group.array(
-  name='3x2_c_u4',
-  dtype='>u4',
-  data=array_3x2_c,
-  chunks=(2, 3),
-  overwrite=True)
-group.array(
-  name='3x2_f_u4',
-  dtype='>u4',
-  data=array_3x2_f,
-  chunks=(2, 3),
-  order='F',
-  overwrite=True)
-group.array(
-  name='30x20_c_u4',
-  dtype='>u4',
-  data=array_30x20_c,
-  chunks=(7, 13),
-  overwrite=True)
-group.array(
-  name='30x20_f_u4',
-  dtype='>u4',
-  data=array_30x20_f,
-  chunks=(7, 13),
-  order='F',
-  overwrite=True)
-
-group.array(
-  name='3x2_c_f8',
-  dtype='<f8',
-  data=array_3x2_c,
-  chunks=(2, 3),
-  overwrite=True)
-group.array(
-  name='3x2_f_f8',
-  dtype='<f8',
-  data=array_3x2_f,
-  chunks=(2, 3),
-  order='F',
-  overwrite=True)
-group.array(
-  name='30x20_c_f8',
-  dtype='<f8',
-  data=array_30x20_c,
-  chunks=(7, 13),
-  overwrite=True)
-group.array(
-  name='30x20_f_f8',
-  dtype='<f8',
-  data=array_30x20_f,
-  chunks=(7, 13),
-  order='F',
-  overwrite=True)
-
-group.array(
-  name='3x2_c_f4',
-  dtype='>f4',
-  data=array_3x2_c,
-  chunks=(2, 3),
-  overwrite=True)
-group.array(
-  name='3x2_f_f4',
-  dtype='>f4',
-  data=array_3x2_f,
-  chunks=(2, 3),
-  order='F',
-  overwrite=True)
-group.array(
-  name='30x20_c_f4',
-  dtype='>f4',
-  data=array_30x20_c,
-  chunks=(7, 13),
-  overwrite=True)
-group.array(
-  name='30x20_f_f4',
-  dtype='>f4',
-  data=array_30x20_f,
-  chunks=(7, 13),
-  order='F',
-  overwrite=True)
-
-group.array(
-  name='30x20_c_u8_zlib',
-  dtype='>u8',
-  compressor=Zlib(level=6),
-  data=array_30x20_c,
-  chunks=(7, 13),
-  overwrite=True)
-group.array(
-  name='30x20_c_u8_gzip',
-  dtype='>u8',
-  compressor=GZip(level=6),
-  data=array_30x20_c,
-  chunks=(7, 13),
-  overwrite=True)
-group.array(
-  name='30x20_c_u8_bz2',
-  dtype='>u8',
-  compressor=BZ2(level=1),
-  data=array_30x20_c,
-  chunks=(7, 13),
-  overwrite=True)
-group.array(
-  name='30x20_c_u8_zstd',
-  dtype='>u8',
-  compressor=Zstd(level=1),
-  data=array_30x20_c,
-  chunks=(7, 13),
-  overwrite=True)
-
-group.array(
-  name='3x2_c_u4_f1',
-  dtype='>u4',
-  data=array_3x2_c,
-  chunks=(3, 2),
-  fill_value="1",
-  overwrite=True)
-group.array(
-  name='3x2_c_f4_fnan',
-  dtype='<f4',
-  data=array_3x2_c,
-  chunks=(3, 2),
-  fill_value="NaN",
-  overwrite=True)
-
-group.array(
-  name='3x2_c_str',
-  dtype=str,
-  data=array_3x2_str_c,
-  chunks=(2, 3),
-  overwrite=True)
-group.array(
-  name='3x2_f_str',
-  dtype=str,
-  data=array_3x2_str_f,
-  chunks=(2, 3),
-  order='F',
-  overwrite=True)
-group.array(
-  name='3x2_c_str_zlib',
-  dtype=str,
-  compressor=Zlib(level=6),
-  data=array_3x2_str_c,
-  chunks=(7, 13),
-  overwrite=True)
-group.array(
-  name='3x2_c_str_gzip',
-  dtype=str,
-  compressor=GZip(level=6),
-  data=array_3x2_str_c,
-  chunks=(7, 13),
-  overwrite=True)
-group.array(
-  name='3x2_c_str_bz2',
-  dtype=str,
-  compressor=BZ2(level=1),
-  data=array_3x2_str_c,
-  chunks=(2, 2),
-  overwrite=True)
-group.array(
-  name='3x2_c_str_zstd',
-  dtype=str,
-  compressor=Zstd(level=1),
-  data=array_3x2_str_c,
-  chunks=(2, 2),
-  overwrite=True)
-"""
+if __name__ == '__main__':
+    sys.exit(main(*sys.argv[1:]))
