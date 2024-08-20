@@ -11,7 +11,9 @@ import java.io.InputStreamReader;
 import java.lang.ProcessBuilder.Redirect;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.janelia.saalfeldlab.n5.DataBlock;
@@ -51,15 +53,24 @@ public class TensorstoreTest {
 		}
 	}
 	
-	private boolean runPythonTest(final String script, final String containerPath) throws InterruptedException {
+	private boolean runPythonTest(final String script, final String containerPath, final String... args) throws InterruptedException {
+		
 
 		try {
-			//final Process process = Runtime.getRuntime().exec("poetry run python src/test/python/" + script + " " + containerPath + " --zarr3");
+
+			List<String> pythonArgs = new ArrayList<>();
+			pythonArgs.addAll(Arrays.asList(new String[]{"poetry", "run", "python", "src/test/python/" + script, containerPath}));
+			pythonArgs.addAll(Arrays.asList(args));
 			
-			System.out.println("poetry run python src/test/python/" + script + " " + containerPath + " --zarr3");
+	        //final Process process = Runtime.getRuntime().exec("poetry run python src/test/python/" + script + " " + containerPath + " --zarr3");
+			
+			System.out.println(String.join(" ", pythonArgs));
 			
 			//final ProcessBuilder pb = new ProcessBuilder("poetry run python src/test/python/" + script + " " + containerPath + " --zarr3");
-			final ProcessBuilder pb = new ProcessBuilder("poetry" , "run", "python", "src/test/python/" + script, containerPath, "--zarr3");
+			//final ProcessBuilder pb = new ProcessBuilder("poetry" , "run", "python", "src/test/python/" + script, containerPath, "--zarr3");
+			
+			final ProcessBuilder pb = new ProcessBuilder(pythonArgs.toArray(new String[0]));
+					
 			pb.redirectOutput(Redirect.INHERIT);
 			pb.redirectError(Redirect.INHERIT);
 			final Process process = pb.start();
@@ -115,7 +126,21 @@ public class TensorstoreTest {
 	
 	@SuppressWarnings("unchecked")
 	@Test
-	public void testReadZarrPython() throws IOException, InterruptedException {
+	public void testReadTensorstoreZarr3() throws IOException, InterruptedException{
+		testReadTensorstore("--zarr3");
+	}
+	
+	@Test
+	public void testReadTensorstoreZarr2() throws IOException, InterruptedException{
+		testReadTensorstore("--zarr2");
+	}
+	
+	@Test
+	public void testReadTensorstoreN5() throws IOException, InterruptedException{
+		testReadTensorstore("--n5");
+	}
+	
+	public void testReadTensorstore(String format) throws IOException, InterruptedException {
 
 		final String testZarrDirPath = tempN5Location();
 		//TODO: decided what to do with it for windows
@@ -127,9 +152,10 @@ public class TensorstoreTest {
 			testZarrDirPathForPython = testZarrDirPath;
 		
 		System.err.println("For Python: " + testZarrDirPathForPython);
-				
+
+		
 		/* create test data with python */
-		if (!runPythonTest("zarr3-tensorstore-test.py", testZarrDirPathForPython)) {
+		if (!runPythonTest("zarr3_tensorstore_test.py", testZarrDirPathForPython, format)) {
 			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
 			return;
 		}
