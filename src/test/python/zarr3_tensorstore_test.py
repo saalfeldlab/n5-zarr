@@ -491,7 +491,7 @@ def runN5Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f
     ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_u8_raw'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='raw')
     ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_u8_xz'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='xz')
 
-def main(test_path = None, *args):
+def main(test_path: str | None = None, *args) -> int:
 
     if test_path is None:
         test_path = sys.argv[1]
@@ -510,13 +510,13 @@ def main(test_path = None, *args):
     use_zarr3 = '--zarr3' in args
     use_n5 = '--n5' in args
 
-    zarr_format = 3 if use_zarr3 else 2 if not use_n5 else 'n5'
+    format = 3 if use_zarr3 else 2 if not use_n5 else 'n5'
 
     # Create the Zarr/N5 store using tensorstore
-    if zarr_format == 3:
+    if format == 3:
       group_path = test_path + '\\groupV3'
       os.makedirs(group_path)
-    elif zarr_format == 2:
+    elif format == 2:
         group_path = test_path + "\\groupV2"
         os.makedirs(group_path)
         zarr2 = open(group_path + "\\.zgroup", "x")
@@ -524,7 +524,7 @@ def main(test_path = None, *args):
             "zarr_format": 2
             }''')
         zarr2.close()
-    else:
+    elif format == "n5":
         group_path = test_path + "\\groupN5"
         os.makedirs(group_path)
 
@@ -538,11 +538,11 @@ def main(test_path = None, *args):
 
     # array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f
 
-    if zarr_format == 3:
+    if format == 3:
         runZarr3Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
-    elif zarr_format == 2:
+    elif format == 2:
         runZarr2Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
-    else:
+    elif format == "n5":
         runN5Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
 
 
