@@ -155,7 +155,7 @@ public class TensorstoreTest {
 
 		
 		/* create test data with python */
-		if (!runPythonTest("zarr3_tensorstore_test.py", testZarrDirPathForPython, format)) {
+		if (!runPythonTest("tensorstore_test.py", testZarrDirPathForPython, format)) {
 			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
 			return;
 		}
