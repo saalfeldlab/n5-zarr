@@ -34,6 +34,8 @@ import sys
 import os
 import tempfile
 import tensorstore as ts
+import logging
+logger = logging.getLogger(__name__)
 
 def ts_create_n5_test(n5_path, data=None, chunk_shape=None, compression=None, level=1, resolution=None):
     """
@@ -47,7 +49,7 @@ def ts_create_n5_test(n5_path, data=None, chunk_shape=None, compression=None, le
     - resolution: Resolution of the dataset, provided as a list of numbers.
     """
 
-    print(f"Creating a new N5 store at {n5_path}.")
+    logger.info(f"Creating a new N5 store at {n5_path}.")
 
     if chunk_shape is None:
         if data is None:
@@ -113,7 +115,7 @@ def ts_create_n5_test(n5_path, data=None, chunk_shape=None, compression=None, le
     n5_store = ts.open(n5_store_spec, create=True, delete_existing=True).result()
     n5_store.write(data).result()
 
-    print("N5 store has been updated.")
+    logger.debug("N5 store has been updated.")
    
 # Function to create Zarr2 dataset with TensorStore
 def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=None, level=1, fill_value=None):
@@ -128,7 +130,7 @@ def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=No
     - fill_value: Default value to use for uninitialized chunks.
     """
     
-    print(f"Creating a new Zarr2 store at {zarr2_path}.")
+    logger.info(f"Creating a new Zarr2 store at {zarr2_path}.")
 
     if chunk_shape is None:
         if data is None:
@@ -190,7 +192,7 @@ def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=No
     zarr2_store = ts.open(zarr2_store_spec, create=True, delete_existing=True).result()
     zarr2_store.write(data).result()
             
-    print("Zarr2 store has been updated.")
+    logger.debug("Zarr2 store has been updated.")
     return zarr2_store
 
 
@@ -209,7 +211,7 @@ def ts_create_zarr3_test(zarr3_path, data=None, chunk_shape=None, shard_shape=No
     if shard_shape is not None:
         return ts_create_zarr3_sharded_test(zarr3_path, data=data, shard_shape=shard_shape, chunk_shape=chunk_shape, compression=compression, level=level)
     
-    print(f"Creating a new Zarr3 store at {zarr3_path}.")
+    logger.info(f"Creating a new Zarr3 store at {zarr3_path}.")
 
     if chunk_shape is None:
         if data is None:
@@ -277,7 +279,7 @@ def ts_create_zarr3_test(zarr3_path, data=None, chunk_shape=None, shard_shape=No
     zarr3_store = ts.open(zarr3_store_spec, create=True, delete_existing=True).result()
     zarr3_store.write(data).result()
             
-    print("Zarr3 store has been updated.")
+    logger.debug("Zarr3 store has been updated.")
     return zarr3_store
 
 # Function to create sharded Zarr3 dataset with TensorStore
@@ -285,7 +287,7 @@ def ts_create_zarr3_sharded_test(zarr3_path, data=None, shard_shape=None, chunk_
     """
     Function to create a sharded Zarr3 dataset using TensorStore.
     """
-    print(f"Creating a new Zarr3 store at {zarr3_path}.")
+    logger.info(f"Creating a new Zarr3 store at {zarr3_path}.")
 
     if shard_shape is None:
         if data is None:
@@ -370,7 +372,7 @@ def ts_create_zarr3_sharded_test(zarr3_path, data=None, shard_shape=None, chunk_
     zarr3_store = ts.open(zarr3_store_spec, create=True, delete_existing=True).result()
     zarr3_store.write(data).result()
             
-    print("Zarr3 store has been updated.")
+    logger.debug("Zarr3 store has been updated.")
     return zarr3_store
 
 # For Zarr3
@@ -498,35 +500,39 @@ def main(test_path: str | None = None, *args) -> int:
 
     # Create test path
     if test_path == "test":
-        test_path = tempfile.mkdtemp(".zarr", "zarr3-tensorstore-test_python_")
+        test_path = tempfile.mkdtemp('.zarr', 'zarr3-tensorstore-test_python_')
+    logger.info("Test_path: " + test_path)
 
-    print("Test_path: " + test_path)
-    group_path = os.path.join('test', 'data')
-    print("Group_path: " + group_path)
-
-    sys.stderr.write(test_path + "\n")
+    tensorstore_tests_path = os.path.join(test_path, 'tensorstore_tests')
+    os.makedirs(tensorstore_tests_path, exist_ok=True)
 
     # Determine whether to use N5 or Zarr2 or Zarr3
+    args = [arg.lower() for arg in args]
+    valid_options = ['--zarr3', '--zarr2', '--n5', '--info']
     use_zarr3 = '--zarr3' in args
     use_n5 = '--n5' in args
+
+    if any(arg.startswith('--') and arg not in valid_options for arg in args):
+        raise Exception("Invalid option provided. Valid options are '--zarr3' or '--zarr2' or '--n5' or '--info'.")
 
     format = 3 if use_zarr3 else 2 if not use_n5 else 'n5'
 
     # Create the Zarr/N5 store using tensorstore
-    if format == 3:
-      group_path = test_path + '\\groupV3'
-      os.makedirs(group_path)
+    if format == 3:  
+        group_path = os.path.join(tensorstore_tests_path, 'zarr3')
     elif format == 2:
-        group_path = test_path + "\\groupV2"
-        os.makedirs(group_path)
-        zarr2 = open(group_path + "\\.zgroup", "x")
+        group_path = os.path.join(tensorstore_tests_path, 'zarr2')
+        os.makedirs(group_path, exist_ok=True)
+        zarr2 = open(os.path.join(group_path, '.zgroup'), 'w')
         zarr2.write('''{
             "zarr_format": 2
             }''')
         zarr2.close()
-    elif format == "n5":
-        group_path = test_path + "\\groupN5"
-        os.makedirs(group_path)
+    elif format == 'n5':
+        group_path = os.path.join(tensorstore_tests_path, 'n5')
+
+    os.makedirs(group_path, exist_ok=True)
+    logger.info("Group_path: " + group_path)
 
     # Data creation
     array_3x2_c = np.arange(0, 3 * 2).reshape(2, 3)
@@ -536,15 +542,30 @@ def main(test_path: str | None = None, *args) -> int:
     array_30x20_c = np.arange(0, 30 * 20).reshape(20, 30)
     array_30x20_f = np.asfortranarray(array_30x20_c)
 
-    # array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f
-
     if format == 3:
         runZarr3Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
     elif format == 2:
         runZarr2Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
-    elif format == "n5":
+    elif format == 'n5':
         runN5Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
+
+    return 0
 
 
 if __name__ == '__main__':
-    sys.exit(main(*sys.argv[1:]))
+    logging.basicConfig(level = logging.INFO)
+
+    if "--info" in sys.argv:
+        logger.setLevel(logging.INFO)
+    elif "--debug" in sys.argv:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.WARN)
+
+    try:
+        status = main(*sys.argv[1:])
+        print("tensorstore_test.py completed.")
+        sys.exit(status)
+    except Exception as e:
+        logger.error("tensorstore_test.py failed with the following exception!", exc_info=True)
+        sys.exit(3)
