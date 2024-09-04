@@ -225,6 +225,33 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	}
 
 	@Override
+	public DataBlock<?> readBlock(
+			final String pathName,
+			final DatasetAttributes datasetAttributes,
+			final long... gridPosition) throws N5Exception {
+
+		if (datasetAttributes instanceof ShardedDatasetAttributes) {
+			final ShardedDatasetAttributes shardedAttrs = (ShardedDatasetAttributes)datasetAttributes;
+			final long[] shardPosition = shardedAttrs.getShardPositionForBlock(gridPosition);
+			final Shard<?> shard = getShard(pathName, shardedAttrs, shardPosition);
+			return shard.getBlock(gridPosition);
+		}
+
+		final String path = absoluteDataBlockPath(N5URI.normalizeGroupPath(pathName), gridPosition);
+
+		try (final LockedChannel lockedChannel = getKeyValueAccess().lockForReading(path)) {
+			return DefaultBlockReader.readBlock(lockedChannel.newInputStream(), datasetAttributes,
+					gridPosition);
+		} catch (final N5Exception.N5NoSuchKeyException e) {
+			return null;
+		} catch (final IOException | UncheckedIOException e) {
+			throw new N5IOException(
+					"Failed to read block " + Arrays.toString(gridPosition) + " from dataset " + path,
+					e);
+		}
+	}
+
+	@Override
 	public String toString() {
 
 		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, uri.getPath());

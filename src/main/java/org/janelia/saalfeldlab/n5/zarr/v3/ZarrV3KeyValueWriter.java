@@ -123,6 +123,18 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 	@Override
 	public void createDataset(
+			final String datasetPath,
+			final long[] dimensions,
+			final int[] blockSize,
+			final DataType dataType,
+			final Compression compression) throws N5Exception {
+
+		createDataset(datasetPath, new DatasetAttributes(dimensions, blockSize, dataType, null,
+				new Codec[]{new BytesCodec(), compression}));
+	}
+
+	@Override
+	public void createDataset(
 			final String path,
 			final DatasetAttributes datasetAttributes) throws N5Exception {
 
@@ -178,9 +190,17 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 				dType,
 				"0",
 				datasetAttributes.getCompression(),
-				datasetAttributes.getCodecs());
+				prependArrayToBytes(datasetAttributes.getArrayToBytesCodec(), datasetAttributes.getCodecs()));
 
 		return zArrayAttributes;
+	}
+
+	private static Codec[] prependArrayToBytes(Codec.ArrayToBytes arrayToBytes, Codec[] codecs) {
+
+		final Codec[] out = new Codec[codecs.length + 1];
+		out[0] = arrayToBytes;
+		System.arraycopy(codecs, 0, out, 1, codecs.length);
+		return out;
 	}
 
 	@Override
@@ -191,6 +211,35 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 		CachedGsonKeyValueN5Writer.super.setAttribute(groupPath, mapAttributeKey(attributePath),
 				attribute);
+	}
+
+	@SuppressWarnings("incomplete-switch")
+	protected static DataBlock<?> readBlock(
+			final InputStream in,
+			final ZarrDatasetAttributes datasetAttributes,
+			final long... gridPosition) throws IOException {
+
+		final int[] blockSize = datasetAttributes.getBlockSize();
+		final DType dType = datasetAttributes.getDType();
+
+		final ByteArrayDataBlock byteBlock = dType.createByteBlock(blockSize, gridPosition);
+		final BlockReader reader = datasetAttributes.getCompression().getReader();
+
+		reader.read(byteBlock, in);
+
+		switch (dType.getDataType()) {
+		case UINT8:
+		case INT8:
+			return byteBlock;
+		}
+
+		/* else translate into target type */
+		final DataBlock<?> dataBlock = dType.createDataBlock(blockSize, gridPosition);
+		final ByteBuffer byteBuffer = byteBlock.toByteBuffer();
+		byteBuffer.order(dType.getOrder());
+		dataBlock.readData(byteBuffer);
+
+		return dataBlock;
 	}
 
 	/**

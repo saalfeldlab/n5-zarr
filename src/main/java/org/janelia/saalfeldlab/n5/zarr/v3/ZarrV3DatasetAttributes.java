@@ -88,8 +88,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final Compression compression,
 			final Codec[] codecs) {
 
-		super(shape, chunkAttributes.getGrid().getShape(), dtype.getDataType(), compression,
-				appendCompression(codecs, compression));
+		super(shape, chunkAttributes.getGrid().getShape(), dtype.getDataType(), compression, codecs);
 		this.zarrFormat = zarrFormat;
 		this.shape = shape;
 		this.chunkAttributes = chunkAttributes;
@@ -144,6 +143,14 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		final Codec[] out = new Codec[codecs.length + 1];
 		System.arraycopy(codecs, 0, out, 0, codecs.length);
 		out[codecs.length] = compression;
+		return out;
+	}
+
+	private static Codec[] prependArrayToBytes(Codec.ArrayToBytes arrayToBytes, Codec[] codecs) {
+
+		final Codec[] out = new Codec[codecs.length + 1];
+		out[0] = arrayToBytes;
+		System.arraycopy(codecs, 0, out, 1, codecs.length);
 		return out;
 	}
 
@@ -211,16 +218,20 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 		final HashMap<String, Object> map = new HashMap<>();
 
+		final long[] shapeReversed = new long[shape.length];
+		System.arraycopy(shape, 0, shapeReversed, 0, shape.length);
+		ArrayUtils.reverse(shapeReversed);
+
 		map.put(ZARR_FORMAT_KEY, zarrFormat);
 		map.put(NodeType.key(), NodeType.ARRAY.toString());
-		map.put(SHAPE_KEY, shape);
+		map.put(SHAPE_KEY, shapeReversed);
 		map.put(DATA_TYPE_KEY, dtype.toString());
 		map.put(CHUNK_GRID_KEY, getChunkAttributes().getGrid());
 		map.put(CHUNK_KEY_ENCODING_KEY, getChunkAttributes().getKeyEncoding());
 
 		map.put(FILL_VALUE_KEY, fillValue);
 		// map.put(CODECS_KEY, codecsToZarrCompressors(getCodecs()));
-		map.put(CODECS_KEY, getCodecs());
+		map.put(CODECS_KEY, prependArrayToBytes(getArrayToBytesCodec(), getCodecs()));
 
 		return map;
 	}
@@ -267,6 +278,8 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 				final int zarrFormat = obj.get("zarr_format").getAsInt();
 				final long[] shape = context.deserialize(obj.get("shape"), long[].class);
+				ArrayUtils.reverse(shape);
+
 				final ChunkAttributes chunkAttributes = context.deserialize(obj, ChunkAttributes.class);
 
 				return new ZarrV3DatasetAttributes(
@@ -287,7 +300,10 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 			final JsonObject jsonObject = new JsonObject();
 			jsonObject.addProperty(ZARR_FORMAT_KEY, src.getZarrFormat());
-			jsonObject.add(SHAPE_KEY, context.serialize(src.getShape()));
+
+			final JsonElement shapeArray = context.serialize(src.getShape());
+			reverseJsonArray(shapeArray);
+			jsonObject.add(SHAPE_KEY, shapeArray);
 
 			final JsonObject chunkAttrs = context.serialize(src.chunkAttributes).getAsJsonObject();
 			chunkAttrs.entrySet().forEach(entry -> jsonObject.add(entry.getKey(), entry.getValue()));
@@ -298,6 +314,15 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			jsonObject.add(CODECS_KEY, context.serialize(src.getCodecs()));
 
 			return jsonObject;
+		}
+
+		private static JsonArray reverseJsonArray(JsonElement paramJson) {
+
+			final JsonArray reversedJson = new JsonArray(paramJson.getAsJsonArray().size());
+			for (int i = paramJson.getAsJsonArray().size() - 1; i >= 0; i--) {
+				reversedJson.add(paramJson.getAsJsonArray().get(i));
+			}
+			return reversedJson;
 		}
 	}
 
