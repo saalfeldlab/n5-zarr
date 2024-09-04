@@ -230,7 +230,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		final Codec[] out = new Codec[codecs.length];
 		for (int i = 0; i < out.length; i++) {
 			if (codecs[i] instanceof Compression)
-				out[i] = ZarrCompressor.fromCompression((Compression)codecs[i]);
+				out[i] = (Compression)codecs[i];
 			else
 				out[i] = codecs[i];
 		}
