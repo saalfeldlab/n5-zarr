@@ -386,6 +386,7 @@ public class ZarrV3Test extends AbstractN5Test {
 
 	@Test
 	@Override
+	@Ignore(value = "No String type in Zarr v3")
 	public void testWriteReadStringBlock()  {
 		final DataType dataType = DataType.STRING;
 		final int[] blockSize = new int[]{3, 2, 1};
