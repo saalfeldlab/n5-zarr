@@ -29,6 +29,7 @@
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.HashMap;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -79,6 +80,12 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 	protected transient final byte[] fillBytes;
 
+	private static Codec[] removeRawCompression(final Codec[] codecs) {
+
+		final Codec[] newCodecs = Arrays.stream(codecs).filter(it -> !(it instanceof RawCompression)).toArray(Codec[]::new);
+		return newCodecs;
+	}
+
 	public ZarrV3DatasetAttributes(
 			final int zarrFormat,
 			final long[] shape,
@@ -88,7 +95,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final Compression compression,
 			final Codec[] codecs) {
 
-		super(shape, chunkAttributes.getGrid().getShape(), dtype.getDataType(), compression, codecs);
+		super(shape, chunkAttributes.getGrid().getShape(), dtype.getDataType(), compression, removeRawCompression(codecs));
 		this.zarrFormat = zarrFormat;
 		this.shape = shape;
 		this.chunkAttributes = chunkAttributes;
