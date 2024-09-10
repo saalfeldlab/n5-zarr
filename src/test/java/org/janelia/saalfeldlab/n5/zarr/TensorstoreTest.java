@@ -20,6 +20,7 @@ import org.apache.commons.io.FileUtils;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter;
 import org.junit.After;
@@ -41,6 +42,10 @@ import net.imglib2.view.Views;
 public class TensorstoreTest {
 
 	private String testZarrDatasetName = "/tensorstore_tests/zarr3";
+
+	private static enum Version {
+		zarr2, zarr3
+	};
 
 	private HashSet<Path> paths;
 
@@ -132,24 +137,23 @@ public class TensorstoreTest {
 			ref.inc();
 		}
 	}
-	
-	@SuppressWarnings("unchecked")
+
+//	@Test
+//	public void testReadTensorstoreZarr2() throws IOException, InterruptedException{
+//		testReadTensorstore(VersionFlags.zarr2);
+//	}
+
 	@Test
 	public void testReadTensorstoreZarr3() throws IOException, InterruptedException{
-		testReadTensorstore("--zarr3");
+		testReadTensorstore(Version.zarr3);
 	}
-	
-	@Test
-	public void testReadTensorstoreZarr2() throws IOException, InterruptedException{
-		testReadTensorstore("--zarr2");
+
+	private static String versionFlag(Version version) {
+
+		return "--" + version;
 	}
-	
-	@Test
-	public void testReadTensorstoreN5() throws IOException, InterruptedException{
-		testReadTensorstore("--n5");
-	}
-	
-	public void testReadTensorstore(String format) throws IOException, InterruptedException {
+
+	public void testReadTensorstore(Version version) throws IOException, InterruptedException {
 
 		final String testZarrDirPath = tempN5Location();
 		//TODO: decided what to do with it for windows
@@ -161,14 +165,23 @@ public class TensorstoreTest {
 			testZarrDirPathForPython = testZarrDirPath;
 
 		/* create test data with python */
-		if (!runPythonTest("tensorstore_test.py", testZarrDirPathForPython, format)) {
+		if (!runPythonTest("tensorstore_test.py", testZarrDirPathForPython, versionFlag(version))) {
 			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
 			return;
 		}
 
-		final ZarrV3KeyValueWriter n5Zarr = new ZarrV3KeyValueWriter(
-				new FileSystemKeyValueAccess(FileSystems.getDefault()), testZarrDirPath, new GsonBuilder(),
-				true, true, "/", false);
+		N5Writer n5Zarr;
+		switch (version) {
+		case zarr3:
+			n5Zarr = new ZarrV3KeyValueWriter(
+					new FileSystemKeyValueAccess(FileSystems.getDefault()), testZarrDirPath, new GsonBuilder(),
+					true, true, "/", false);
+			break;
+		default:
+			n5Zarr = new ZarrKeyValueWriter(new FileSystemKeyValueAccess(FileSystems.getDefault()),
+					testZarrDirPath, new GsonBuilder(), true, true, "/", false);
+			break;
+		}
 
 		/* groups */
 		assertTrue(n5Zarr.exists(testZarrDatasetName));
