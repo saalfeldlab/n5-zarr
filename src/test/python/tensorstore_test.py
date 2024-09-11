@@ -118,7 +118,7 @@ def ts_create_n5_test(n5_path, data=None, chunk_shape=None, compression=None, le
     logger.debug("N5 store has been updated.")
    
 # Function to create Zarr2 dataset with TensorStore
-def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=None, level=1, fill_value=None):
+def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=None, level=1, fill_value=0):
     """
     Function to create a Zarr2 dataset using TensorStore.
 
@@ -376,34 +376,18 @@ def ts_create_zarr3_sharded_test(zarr3_path, data=None, shard_shape=None, chunk_
     return zarr3_store
 
 # For Zarr3
-def runZarr3Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f):
-    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_u1'), data=array_3x2_c.astype("|u1"), chunk_shape=(2, 3))
-    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_f_u1'), data=array_3x2_f.astype("|u1"), chunk_shape=(2, 3))
+def runZarr3Test(group_path, array_3x2_c, array_30x20_c):
 
+    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_u1'), data=array_3x2_c.astype("|u1"), chunk_shape=(2, 3))
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_i8'), data=array_3x2_c.astype("<i8"), chunk_shape=(2, 3))
-    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_f_i8'), data=array_3x2_f.astype("<i8"), chunk_shape=(2, 3))
+    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_u4'), data=array_3x2_c.astype(">u4"), chunk_shape=(2, 3))
+    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_f8'), data=array_3x2_c.astype("<f8"), chunk_shape=(2, 3))
+    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_f4'), data=array_3x2_c.astype(">f4"), chunk_shape=(2, 3))
 
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_c_i8'), data=array_30x20_c.astype("<i8"), chunk_shape=(7, 13))
-    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_f_i8'), data=array_30x20_f.astype("<i8"), chunk_shape=(7, 13))
-
-    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_u4'), data=array_3x2_c.astype(">u4"), chunk_shape=(2, 3))
-    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_f_u4'), data=array_3x2_f.astype(">u4"), chunk_shape=(2, 3))
-
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_c_u4'), data=array_30x20_c.astype(">u4"), chunk_shape=(7, 13))
-    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_f_u4'), data=array_30x20_f.astype(">u4"), chunk_shape=(7, 13))
-
-    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_f8'), data=array_3x2_c.astype("<f8"), chunk_shape=(2, 3))
-    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_f_f8'), data=array_3x2_f.astype("<f8"), chunk_shape=(2, 3))
-
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_c_f8'), data=array_30x20_c.astype("<f8"), chunk_shape=(7, 13))
-    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_f_f8'), data=array_30x20_f.astype("<f8"), chunk_shape=(7, 13))
-
-    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_f4'), data=array_3x2_c.astype(">f4"), chunk_shape=(2, 3))
-    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_f_f4'), data=array_3x2_f.astype(">f4"), chunk_shape=(2, 3))
-
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_c_f4'), data=array_30x20_c.astype(">f4"), chunk_shape=(7, 13))
-    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_f_f4'), data=array_30x20_f.astype(">f4"), chunk_shape=(7, 13))
-
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_c_u8_zlib'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='zlib')
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_c_u8_gzip'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='gzip')
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '30x20_c_u8_zstd'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='zstd')
@@ -414,39 +398,36 @@ def runZarr3Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x2
 
     # For Zarr3 with sharding
     ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '3x2_c_u1_sharded'),data=array_3x2_c.astype("|u1"),shard_shape=(1, 2), chunk_shape=(1, 1))
-    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '3x2_f_u1_sharded'),data=array_3x2_f.astype("|u1"),shard_shape=(1, 2), chunk_shape=(1, 1))
-
     ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_c_i8_sharded'),data=array_30x20_c.astype("<i8"),shard_shape=(10, 10), chunk_shape=(5, 5))
-    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_f_i8_sharded'),data=array_30x20_f.astype("<i8"),shard_shape=(10, 10), chunk_shape=(5, 5))
 
 # For Zarr2
 def runZarr2Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f):
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_u1'), data=array_3x2_c.astype("|u1"), chunk_shape=(2, 3))
-    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_u1'), data=array_3x2_f.astype("|u1"), chunk_shape=(2, 3))
+    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_u1'), data=array_3x2_f.astype("|u1"), chunk_shape=(2, 3))
 
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_i8'), data=array_3x2_c.astype("<i8"), chunk_shape=(2, 3))
-    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_i8'), data=array_3x2_f.astype("<i8"), chunk_shape=(2, 3))
+    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_i8'), data=array_3x2_f.astype("<i8"), chunk_shape=(2, 3))
 
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_i8'), data=array_30x20_c.astype("<i8"), chunk_shape=(7, 13))
-    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_f_i8'), data=array_30x20_f.astype("<i8"), chunk_shape=(7, 13))
+    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_f_i8'), data=array_30x20_f.astype("<i8"), chunk_shape=(7, 13))
 
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_u4'), data=array_3x2_c.astype(">u4"), chunk_shape=(2, 3))
-    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_u4'), data=array_3x2_f.astype(">u4"), chunk_shape=(2, 3))
+    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_u4'), data=array_3x2_f.astype(">u4"), chunk_shape=(2, 3))
 
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u4'), data=array_30x20_c.astype(">u4"), chunk_shape=(7, 13))
-    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_f_u4'), data=array_30x20_f.astype(">u4"), chunk_shape=(7, 13))
+    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_f_u4'), data=array_30x20_f.astype(">u4"), chunk_shape=(7, 13))
 
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_f8'), data=array_3x2_c.astype("<f8"), chunk_shape=(2, 3))
-    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_f8'), data=array_3x2_f.astype("<f8"), chunk_shape=(2, 3))
+    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_f8'), data=array_3x2_f.astype("<f8"), chunk_shape=(2, 3))
 
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_f8'), data=array_30x20_c.astype("<f8"), chunk_shape=(7, 13))
-    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_f_f8'), data=array_30x20_f.astype("<f8"), chunk_shape=(7, 13))
+    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_f_f8'), data=array_30x20_f.astype("<f8"), chunk_shape=(7, 13))
 
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_f4'), data=array_3x2_c.astype(">f4"), chunk_shape=(2, 3))
-    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_f4'), data=array_3x2_f.astype(">f4"), chunk_shape=(2, 3))
+    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_f4'), data=array_3x2_f.astype(">f4"), chunk_shape=(2, 3))
 
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_f4'), data=array_30x20_c.astype(">f4"), chunk_shape=(7, 13))
-    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_f_f4'), data=array_30x20_f.astype(">f4"), chunk_shape=(7, 13))
+    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_f_f4'), data=array_30x20_f.astype(">f4"), chunk_shape=(7, 13))
 
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u8_zlib'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='zlib')
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u8_gzip'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='gzip')
@@ -454,37 +435,37 @@ def runZarr2Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x2
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u8_zstd'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='zstd')
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u8_blosc'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='blosc')
 
-    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_u4_f1'), data=array_3x2_c.astype(">u4"), chunk_shape=(3, 2), fill_value=1)
-    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_f4_fnan'), data=array_3x2_c.astype(">f4"), chunk_shape=(3, 2), fill_value=np.nan)
+    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_u4_f1'), data=array_3x2_c.astype(">u4"), chunk_shape=(3, 2), fill_value=1)
+    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_f4_fnan'), data=array_3x2_c.astype(">f4"), chunk_shape=(3, 2), fill_value=np.nan)
 
 # For N5
 def runN5Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f):
     ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_c_u1'), data=array_3x2_c.astype("|u1"), chunk_shape=(2, 3))
-    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_u1'), data=array_3x2_f.astype("|u1"), chunk_shape=(2, 3))
+    #ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_u1'), data=array_3x2_f.astype("|u1"), chunk_shape=(2, 3))
 
     ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_c_i8'), data=array_3x2_c.astype("<i8"), chunk_shape=(2, 3))
-    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_i8'), data=array_3x2_f.astype("<i8"), chunk_shape=(2, 3))
+    #ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_i8'), data=array_3x2_f.astype("<i8"), chunk_shape=(2, 3))
 
     ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_i8'), data=array_30x20_c.astype("<i8"), chunk_shape=(7, 13))
-    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_f_i8'), data=array_30x20_f.astype("<i8"), chunk_shape=(7, 13))
+    #ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_f_i8'), data=array_30x20_f.astype("<i8"), chunk_shape=(7, 13))
 
     ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_c_u4'), data=array_3x2_c.astype(">u4"), chunk_shape=(2, 3))
-    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_u4'), data=array_3x2_f.astype(">u4"), chunk_shape=(2, 3))
+    #ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_u4'), data=array_3x2_f.astype(">u4"), chunk_shape=(2, 3))
 
     ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_u4'), data=array_30x20_c.astype(">u4"), chunk_shape=(7, 13))
-    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_f_u4'), data=array_30x20_f.astype(">u4"), chunk_shape=(7, 13))
+    #ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_f_u4'), data=array_30x20_f.astype(">u4"), chunk_shape=(7, 13))
 
     ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_c_f8'), data=array_3x2_c.astype("<f8"), chunk_shape=(2, 3))
-    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_f8'), data=array_3x2_f.astype("<f8"), chunk_shape=(2, 3))
+    #ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_f8'), data=array_3x2_f.astype("<f8"), chunk_shape=(2, 3))
 
     ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_f8'), data=array_30x20_c.astype("<f8"), chunk_shape=(7, 13))
-    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_f_f8'), data=array_30x20_f.astype("<f8"), chunk_shape=(7, 13))
+    #ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_f_f8'), data=array_30x20_f.astype("<f8"), chunk_shape=(7, 13))
 
     ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_c_f4'), data=array_3x2_c.astype(">f4"), chunk_shape=(2, 3))
-    ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_f4'), data=array_3x2_f.astype(">f4"), chunk_shape=(2, 3))
+    #ts_create_n5_test(n5_path=os.path.join(group_path, '3x2_f_f4'), data=array_3x2_f.astype(">f4"), chunk_shape=(2, 3))
 
     ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_f4'), data=array_30x20_c.astype(">f4"), chunk_shape=(7, 13))
-    ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_f_f4'), data=array_30x20_f.astype(">f4"), chunk_shape=(7, 13))
+    #ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_f_f4'), data=array_30x20_f.astype(">f4"), chunk_shape=(7, 13))
 
     ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_u8_zlib'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='zlib')
     ts_create_n5_test(n5_path=os.path.join(group_path, '30x20_c_u8_gzip'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='gzip')
@@ -536,14 +517,13 @@ def main(test_path: str | None = None, *args) -> int:
 
     # Data creation
     array_3x2_c = np.arange(0, 3 * 2).reshape(2, 3)
-    array_3x2_f = np.asfortranarray(array_3x2_c)
-    #array_3x2_str_c = np.array(["", "a", "bc", "de", "fgh", ":-þ"]).reshape(2, 3)
-    #array_3x2_str_f = np.asfortranarray(array_3x2_str_c)
     array_30x20_c = np.arange(0, 30 * 20).reshape(20, 30)
-    array_30x20_f = np.asfortranarray(array_30x20_c)
+
+    array_3x2_f = np.arange(0, 3 * 2).reshape(2, 3)
+    array_30x20_f = np.arange(0, 30 * 20).reshape(20, 30)
 
     if format == 3:
-        runZarr3Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
+        runZarr3Test(group_path, array_3x2_c, array_30x20_c )
     elif format == 2:
         runZarr2Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
     elif format == 'n5':

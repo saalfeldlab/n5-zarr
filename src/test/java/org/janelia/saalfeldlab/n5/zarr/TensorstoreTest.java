@@ -41,7 +41,7 @@ import net.imglib2.view.Views;
 
 public class TensorstoreTest {
 
-	private String testZarrDatasetName = "/tensorstore_tests/zarr3";
+	private String testZarrBaseName = "tensorstore_tests";
 
 	private static enum Version {
 		zarr2, zarr3
@@ -138,13 +138,15 @@ public class TensorstoreTest {
 		}
 	}
 
-//	@Test
-//	public void testReadTensorstoreZarr2() throws IOException, InterruptedException{
-//		testReadTensorstore(VersionFlags.zarr2);
-//	}
+	@Test
+	public void testReadTensorstoreZarr2() throws IOException, InterruptedException {
+
+		testReadTensorstore(Version.zarr2);
+	}
 
 	@Test
-	public void testReadTensorstoreZarr3() throws IOException, InterruptedException{
+	public void testReadTensorstoreZarr3() throws IOException, InterruptedException {
+
 		testReadTensorstore(Version.zarr3);
 	}
 
@@ -184,6 +186,7 @@ public class TensorstoreTest {
 		}
 
 		/* groups */
+		final String testZarrDatasetName = String.join("/", testZarrBaseName, version.toString());
 		assertTrue(n5Zarr.exists(testZarrDatasetName));
 		assertFalse(n5Zarr.datasetExists(testZarrDatasetName));
 
