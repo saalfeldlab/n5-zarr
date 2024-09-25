@@ -147,6 +147,7 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5</artifactId>
+			<version>3.3.1-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -160,6 +161,10 @@
 			<groupId>org.janelia</groupId>
 			<artifactId>n5-zstandard</artifactId>
 			<version>${n5-zstandard.version}</version>
+		</dependency>
+		<dependency>
+  			<groupId>commons-codec</groupId>
+  			<artifactId>commons-codec</artifactId>
 		</dependency>
 
 		<!-- Test dependencies -->
