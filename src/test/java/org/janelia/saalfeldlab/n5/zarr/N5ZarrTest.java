@@ -687,6 +687,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testRawCompressorNullInZarray() throws IOException, ParseException, URISyntaxException {
 
+		// GsonBuilder's default value for serializeNulls is false
 		final ZarrKeyValueWriter n5 = (ZarrKeyValueWriter) createTempN5Writer();
 		n5.createDataset(
 				testZarrDatasetName,
@@ -701,6 +702,27 @@ public class N5ZarrTest extends AbstractN5Test {
 			final JSONObject zarray = (JSONObject)jsonParser.parse(reader);
 			final JSONObject compressor = (JSONObject)zarray.get("compressor");
 			assertNull(compressor);
+		}
+	}
+
+	@Test
+	public void testFiltersNullInZarray() throws IOException, ParseException, URISyntaxException {
+
+		// GsonBuilder's default value for serializeNulls is false
+		final ZarrKeyValueWriter n5 = (ZarrKeyValueWriter)createTempN5Writer();
+		n5.createDataset(
+				testZarrDatasetName,
+				new long[]{1, 2, 3},
+				new int[]{1, 2, 3},
+				DataType.UINT16,
+				new RawCompression());
+		final String zarrayLocation = n5.keyValueAccess.compose(n5.uri, testZarrDatasetName, ".zarray");
+		final LockedChannel zarrayChannel = n5.keyValueAccess.lockForReading(zarrayLocation);
+		final JSONParser jsonParser = new JSONParser();
+		try (Reader reader = zarrayChannel.newReader()) {
+			final JSONObject zarray = (JSONObject)jsonParser.parse(reader);
+			final JSONObject filters = (JSONObject)zarray.get("filters");
+			assertNull(filters);
 		}
 	}
 
