@@ -3,6 +3,8 @@ import tensorstore as ts
 from crc32c import crc32c
 import numpy as np
 import sys
+import os
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,8 @@ def zarr3_read_and_checksum_array(store_path):
 
 def zarr2_read_and_checksum_array(store_path):
     try:
+        fix_zarray_filters(store_path)
+
         spec = {
             'driver': 'zarr',
             'kvstore': {
@@ -45,6 +49,9 @@ def zarr2_read_and_checksum_array(store_path):
         array = store.read().result()
 
         flat_array = array.flatten()
+
+        #print("Python flat_array: ")
+        #print(flat_array)
 
         checksum = crc32c(flat_array)
 
@@ -81,6 +88,30 @@ def n5_read_and_checksum_array(store_path):
         logger.error(f"Error occurred while reading array and calculating checksum: {e}")
         raise
 
+# Function to load and fix the .zarray metadata
+def fix_zarray_filters(store_path):
+    zarray_path = os.path.join(store_path, ".zarray")
+    
+    # Check if .zarray file exists
+    if not os.path.exists(zarray_path):
+        raise FileNotFoundError(f"Could not find .zarray file at {zarray_path}")
+    
+    # Open the .zarray file and load its content
+    with open(zarray_path, "r") as zarray_file:
+        zarray_data = json.load(zarray_file)
+    
+    # Fix the filters if they are an empty list
+    if "filters" in zarray_data and zarray_data["filters"] == []:
+        print(zarray_data)
+        zarray_data["filters"] = None
+    
+        # Save the updated .zarray file
+        with open(zarray_path, "w") as zarray_file:
+            json.dump(zarray_data, zarray_file)
+        print(f"Fixed filters in .zarray file at {zarray_path}")
+    else:
+        print(f"Did not change filters in file at {zarray_path}")
+
 def main(store_path, *args):
     # Determine whether to use N5 or Zarr2 or Zarr3
     args = [arg.lower() for arg in args]
@@ -107,7 +138,6 @@ def main(store_path, *args):
     except Exception as e:
         logger.error(f"Main processing failed: {e}")
         sys.exit(3)
-
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
