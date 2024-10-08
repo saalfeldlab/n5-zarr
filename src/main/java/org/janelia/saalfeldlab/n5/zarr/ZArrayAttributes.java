@@ -138,7 +138,7 @@ public class ZArrayAttributes {
 				dtype,
 				compressor.getCompression(),
 				isRowMajor,
-				fill_value.getAsString(),
+				fill_value.isJsonNull() ? null : fill_value.getAsString(),
 				dimensionSeparator);
 	}
 
@@ -243,7 +243,7 @@ public class ZArrayAttributes {
 						context.deserialize( obj.get("chunks"), int[].class),
 						dType, // fix
 						context.deserialize( obj.get("compressor"), ZarrCompressor.class), // fix
-						obj.get("fill_value").getAsString(),
+						obj.get("fill_value").isJsonNull() ? null : obj.get("fill_value").getAsString(),
 						obj.get("order").getAsCharacter(),
 						sepElem != null ? sepElem.getAsString() : ".",
 						filters);
