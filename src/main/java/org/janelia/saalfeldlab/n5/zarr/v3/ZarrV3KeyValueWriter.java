@@ -25,17 +25,28 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.stream.Collectors;
 
+import org.janelia.saalfeldlab.n5.BlockReader;
+import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
+import org.janelia.saalfeldlab.n5.Compression;
+import org.janelia.saalfeldlab.n5.DataBlock;
+import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
+import org.janelia.saalfeldlab.n5.codec.BytesCodec;
+import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.saalfeldlab.n5.zarr.DType;
+import org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
@@ -112,6 +123,18 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 	@Override
 	public void createDataset(
+			final String datasetPath,
+			final long[] dimensions,
+			final int[] blockSize,
+			final DataType dataType,
+			final Compression compression) throws N5Exception {
+
+		createDataset(datasetPath, new DatasetAttributes(dimensions, blockSize, dataType, null,
+				new Codec[]{new BytesCodec(), compression}));
+	}
+
+	@Override
+	public void createDataset(
 			final String path,
 			final DatasetAttributes datasetAttributes) throws N5Exception {
 
@@ -167,9 +190,17 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 				dType,
 				"0",
 				datasetAttributes.getCompression(),
-				datasetAttributes.getCodecs());
+				prependArrayToBytes(datasetAttributes.getArrayToBytesCodec(), datasetAttributes.getCodecs()));
 
 		return zArrayAttributes;
+	}
+
+	private static Codec[] prependArrayToBytes(Codec.ArrayToBytes arrayToBytes, Codec[] codecs) {
+
+		final Codec[] out = new Codec[codecs.length + 1];
+		out[0] = arrayToBytes;
+		System.arraycopy(codecs, 0, out, 1, codecs.length);
+		return out;
 	}
 
 	@Override
@@ -180,6 +211,35 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 		CachedGsonKeyValueN5Writer.super.setAttribute(groupPath, mapAttributeKey(attributePath),
 				attribute);
+	}
+
+	@SuppressWarnings("incomplete-switch")
+	protected static DataBlock<?> readBlock(
+			final InputStream in,
+			final ZarrDatasetAttributes datasetAttributes,
+			final long... gridPosition) throws IOException {
+
+		final int[] blockSize = datasetAttributes.getBlockSize();
+		final DType dType = datasetAttributes.getDType();
+
+		final ByteArrayDataBlock byteBlock = dType.createByteBlock(blockSize, gridPosition);
+		final BlockReader reader = datasetAttributes.getCompression().getReader();
+
+		reader.read(byteBlock, in);
+
+		switch (dType.getDataType()) {
+		case UINT8:
+		case INT8:
+			return byteBlock;
+		}
+
+		/* else translate into target type */
+		final DataBlock<?> dataBlock = dType.createDataBlock(blockSize, gridPosition);
+		final ByteBuffer byteBuffer = byteBlock.toByteBuffer();
+		byteBuffer.order(dType.getOrder());
+		dataBlock.readData(byteBuffer);
+
+		return dataBlock;
 	}
 
 	/**

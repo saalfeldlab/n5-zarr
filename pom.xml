@@ -163,8 +163,16 @@
 			<version>${n5-zstandard.version}</version>
 		</dependency>
 		<dependency>
-  			<groupId>commons-codec</groupId>
-  			<artifactId>commons-codec</artifactId>
+  	  <groupId>commons-codec</groupId>
+  	  <artifactId>commons-codec</artifactId>
+    </dependency>
+    <dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-compress</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
 		</dependency>
 
 		<!-- Test dependencies -->
@@ -185,12 +193,7 @@
 			<version>${json-simple.version}</version>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-			<groupId>commons-io</groupId>
-			<artifactId>commons-io</artifactId>
-			<version>${commons-io.version}</version>
-			<scope>test</scope>
-		</dependency>
+
 
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>

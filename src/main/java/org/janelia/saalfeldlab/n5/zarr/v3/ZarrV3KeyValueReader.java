@@ -25,13 +25,24 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Arrays;
+
+import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.DefaultBlockReader;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
+import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
+import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
+import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
+import org.janelia.saalfeldlab.n5.ShardedDatasetAttributes;
 import org.janelia.saalfeldlab.n5.codec.Codec;
+import org.janelia.saalfeldlab.n5.shard.Shard;
 import org.janelia.saalfeldlab.n5.zarr.Filter;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
@@ -211,6 +222,33 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
 		// TODO decide how attributes work
 		return getAttribute(ZARR_KEY, ZarrV3Node.ATTRIBUTES_KEY, JsonElement.class);
+	}
+
+	@Override
+	public DataBlock<?> readBlock(
+			final String pathName,
+			final DatasetAttributes datasetAttributes,
+			final long... gridPosition) throws N5Exception {
+
+		if (datasetAttributes instanceof ShardedDatasetAttributes) {
+			final ShardedDatasetAttributes shardedAttrs = (ShardedDatasetAttributes)datasetAttributes;
+			final long[] shardPosition = shardedAttrs.getShardPositionForBlock(gridPosition);
+			final Shard<?> shard = getShard(pathName, shardedAttrs, shardPosition);
+			return shard.getBlock(gridPosition);
+		}
+
+		final String path = absoluteDataBlockPath(N5URI.normalizeGroupPath(pathName), gridPosition);
+
+		try (final LockedChannel lockedChannel = getKeyValueAccess().lockForReading(path)) {
+			return DefaultBlockReader.readBlock(lockedChannel.newInputStream(), datasetAttributes,
+					gridPosition);
+		} catch (final N5Exception.N5NoSuchKeyException e) {
+			return null;
+		} catch (final IOException | UncheckedIOException e) {
+			throw new N5IOException(
+					"Failed to read block " + Arrays.toString(gridPosition) + " from dataset " + path,
+					e);
+		}
 	}
 
 	@Override

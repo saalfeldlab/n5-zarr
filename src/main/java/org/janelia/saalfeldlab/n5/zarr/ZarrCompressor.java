@@ -29,8 +29,6 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.AbstractMap.SimpleImmutableEntry;
@@ -38,8 +36,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.janelia.saalfeldlab.n5.BlockReader;
-import org.janelia.saalfeldlab.n5.BlockWriter;
 import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
@@ -60,7 +56,7 @@ import com.google.gson.stream.JsonWriter;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  *
  */
-public interface ZarrCompressor extends Compression {
+public interface ZarrCompressor {
 
 	/* idiotic stream based initialization because Java cannot have static initialization code in interfaces */
 	public static Map<String, Class<? extends ZarrCompressor>> registry = Stream.of(
@@ -95,35 +91,35 @@ public interface ZarrCompressor extends Compression {
 		}
 	}
 
-	@Override
-	public default String getType() {
+	// @Override
+	// public default String getType() {
+	//
+	// return getCompression().getType();
+	// }
+	//
+	// @Override
+	// default BlockReader getReader() {
+	//
+	// return getCompression().getReader();
+	// }
+	//
+	// @Override
+	// default BlockWriter getWriter() {
+	//
+	// return getCompression().getWriter();
+	// }
 
-		return getCompression().getType();
-	}
-
-	@Override
-	default BlockReader getReader() {
-
-		return getCompression().getReader();
-	}
-
-	@Override
-	default BlockWriter getWriter() {
-
-		return getCompression().getWriter();
-	}
-
-	@Override
-	default InputStream decode(final InputStream in) throws IOException {
-
-		return getCompression().decode(in);
-	}
-
-	@Override
-	default OutputStream encode(OutputStream out) throws IOException {
-
-		return getCompression().encode(out);
-	}
+	// @Override
+	// default InputStream decode(final InputStream in) throws IOException {
+	//
+	// return getCompression().decode(in);
+	// }
+	//
+	// @Override
+	// default OutputStream encode(OutputStream out) throws IOException {
+	//
+	// return getCompression().encode(out);
+	// }
 
 	public Compression getCompression();
 
