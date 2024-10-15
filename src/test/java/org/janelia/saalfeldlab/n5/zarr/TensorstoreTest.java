@@ -5,7 +5,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.ProcessBuilder.Redirect;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -21,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 //import java.util.zip.CRC32;
 
 import org.apache.commons.codec.digest.PureJavaCrc32C;
+import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -49,8 +52,10 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.view.RandomAccessiblePair.RandomAccess;
 import net.imglib2.view.Views;
 
 public class TensorstoreTest {
@@ -58,7 +63,7 @@ public class TensorstoreTest {
 	private String testZarrBaseName = "tensorstore_tests";
 
 	private static enum Version {
-		zarr2, zarr3
+		zarr2, zarr3, n5
 	};
 
 	private HashSet<Path> paths;
@@ -126,12 +131,12 @@ public class TensorstoreTest {
 
 	}
 
-  public long runPythonChecksum(final String containerPath, final String format) throws InterruptedException {
+  public long runPythonChecksum(final String containerPath, final Version version) throws InterruptedException {
 	    try {
 	        List<String> pythonArgs = new ArrayList<>();
 	        String checksumResult = "<no line read>";
 	        pythonArgs.addAll(Arrays.asList(
-	            "poetry", "run", "python", "src/test/python/tensorstore_checksum.py", containerPath, format
+	            "poetry", "run", "python", "src/test/python/tensorstore_checksum.py", containerPath, version.toString()
 	        ));
 	        System.out.println(String.join(" ", pythonArgs));
 
@@ -226,20 +231,22 @@ public class TensorstoreTest {
 	
 	@Test
 	public void testReadTensorstoreChecksumZarr2() throws IOException, InterruptedException{
-		testReadChecksum("--zarr2");
+		testReadChecksum(Version.zarr2);
 	}
 
-	public void testReadChecksum(String format) throws IOException, InterruptedException {
+	public void testReadChecksum(Version version) throws IOException, InterruptedException {
 		
 		ZarrKeyValueWriter n5Zarr = new ZarrKeyValueWriter(new FileSystemKeyValueAccess(FileSystems.getDefault()), tempN5Location(), new GsonBuilder(), false, false, "/", false);
+		
+		final String testZarrDatasetName = String.join("/", testZarrBaseName, version.toString());
 
 		n5Zarr.createDataset(
 				testZarrDatasetName,
 				new long[]{1, 2, 3},
 				new int[]{1, 2, 3},
 				DataType.UINT16,
-				//new GzipCompression()
-				ZarrCompressor.fromCompression(new GzipCompression(5))
+				new GzipCompression(4) //new GzipCompression()
+				//ZarrCompressor.fromCompression(new GzipCompression(5))
 				//ZarrCompressor.fromCompression(new BloscCompression("blosc", BloscCompression.BITSHUFFLE,5,0, 1))
 			    );
 
@@ -273,7 +280,7 @@ public class TensorstoreTest {
 
 		// pythonZarrPath
 		//final String testZarrDirPath = "C:\\Users\\chend\\AppData\\Local\\Temp\\zarr3-tensorstore-test_python_o0dnjj3f.zarr\\tensorstore_tests\\zarr2\\3x2_f_u4";
-		final String testZarrDirPath =(n5Zarr.getURI().getPath().substring(1) + "test/tensorstore");
+		final String testZarrDirPath =(n5Zarr.getURI().getPath().substring(1) + testZarrBaseName + "/" + version);
 		
 		
 		//TODO: decided what to do with it for windows
@@ -287,7 +294,7 @@ public class TensorstoreTest {
 		
 		System.err.println("For Python: " + testZarrDirPathForPython);
 		
-		long pythonChecksum = runPythonChecksum(testZarrDirPathForPython, format);
+		long pythonChecksum = runPythonChecksum(testZarrDirPathForPython, version);
 		if (pythonChecksum == -1) {
 	        System.out.println("Couldn't run Checksum Python test, skipping compatibility test with Python.");
 	        return;
@@ -343,7 +350,7 @@ public class TensorstoreTest {
 
 		/* groups */
 		final String testZarrDatasetName = String.join("/", testZarrBaseName, version.toString());
-    final String testZarrGroupName = testZarrDatasetName;
+		final String testZarrGroupName = testZarrDatasetName;
 		assertTrue(n5Zarr.exists(testZarrDatasetName));
 		assertFalse(n5Zarr.datasetExists(testZarrDatasetName));
 
@@ -480,7 +487,7 @@ public class TensorstoreTest {
 
 		final RandomAccessibleInterval<UnsignedIntType> a3x2_c_bu4_f1_after = N5Utils.open(n5Zarr, datasetName);
 		assertIsSequence(Views.interval(a3x2_c_bu4_f1_after, a3x2_c_bu4_f1), refUnsignedInt);
-		final RandomAccess<UnsignedIntType> ra = a3x2_c_bu4_f1_after.randomAccess();
+		final net.imglib2.RandomAccess<UnsignedIntType> ra = a3x2_c_bu4_f1_after.randomAccess();
 
 		/* fill value NaN */
 		datasetName = testZarrDatasetName + "/3x2_c_f4_fnan";
@@ -495,7 +502,7 @@ public class TensorstoreTest {
 
 		final RandomAccessibleInterval<FloatType> a3x2_c_lf4_fnan_after = N5Utils.open(n5Zarr, datasetName);
 		assertIsSequence(Views.interval(a3x2_c_lf4_fnan_after, a3x2_c_lf4_fnan), refFloat);
-		final RandomAccess<FloatType> raf = a3x2_c_lf4_fnan_after.randomAccess();
+		final net.imglib2.RandomAccess<FloatType> raf = a3x2_c_lf4_fnan_after.randomAccess();
 		raf.setPosition(shapef[0] - 5, 0);
 		assertTrue(Float.isNaN(raf.get().getRealFloat()));
 		raf.setPosition(shapef[1] - 5, 1);
