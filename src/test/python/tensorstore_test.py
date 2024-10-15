@@ -140,6 +140,14 @@ def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=No
 
     if data is None:
         data = np.arange(np.prod(chunk_shape)).reshape(chunk_shape)
+    
+    # Determine the order
+    if data.flags['C_CONTIGUOUS']:
+        order = 'C'
+    elif data.flags['F_CONTIGUOUS']:
+        order = 'F'
+    else:
+        raise ValueError("Data is neither C-contiguous nor F-contiguous.")
 
     # TensorStore Zarr2 dtype
     dtype_str = np.dtype(data.dtype).str
@@ -156,7 +164,7 @@ def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=No
             'dtype': dtype_str,
             'compressor': None,
             'fill_value': fill_value,
-            'order': 'C'
+            'order': order # TODO: Fix F or C order, based on data via data.flags['C_CONTIGUOUS'] or  data.flags['F_CONTIGUOUS']:
         }
     }
 

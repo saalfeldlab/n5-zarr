@@ -478,6 +478,9 @@ public class DType {
 	}
 
 	public byte[] createFillBytes(final String fill_value) {
+		if (fill_value == null) {
+			return createFillBytes("0");
+		}
 
 		final byte[] fillBytes = new byte[nBytes];
 		final ByteBuffer fillBuffer = ByteBuffer.wrap(fillBytes);

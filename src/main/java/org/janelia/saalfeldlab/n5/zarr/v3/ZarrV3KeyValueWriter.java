@@ -190,12 +190,12 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 				dType,
 				"0",
 				datasetAttributes.getCompression(),
-				prependArrayToBytes(datasetAttributes.getArrayToBytesCodec(), datasetAttributes.getCodecs()));
+				prependArrayToBytes(datasetAttributes.getArrayCodec(), datasetAttributes.getCodecs()));
 
 		return zArrayAttributes;
 	}
 
-	private static Codec[] prependArrayToBytes(Codec.ArrayToBytes arrayToBytes, Codec[] codecs) {
+	private static Codec[] prependArrayToBytes(Codec.ArrayCodec arrayToBytes, Codec[] codecs) {
 
 		final Codec[] out = new Codec[codecs.length + 1];
 		out[0] = arrayToBytes;

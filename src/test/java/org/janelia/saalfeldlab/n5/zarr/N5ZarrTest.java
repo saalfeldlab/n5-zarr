@@ -464,10 +464,19 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testReadZarrPython() throws IOException, InterruptedException {
 
-		final String testZarrDirPath = tempN5Location();
-
+		final String testZarrDirPath = tempN5Location();	
+		//TODO: decided what to do with it for windows
+		String testZarrDirPathForPython;
+		
+		if (System.getProperty("os.name").startsWith("Windows"))
+			testZarrDirPathForPython = testZarrDirPath.substring(1);
+		else
+			testZarrDirPathForPython = testZarrDirPath;
+		
+		System.err.println("For Python: " + testZarrDirPathForPython);
+				
 		/* create test data with python */
-		if (!runPythonTest("zarr-test.py", testZarrDirPath)) {
+		if (!runPythonTest("zarr-test.py", testZarrDirPathForPython)) {
 			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
 			return;
 		}
