@@ -153,7 +153,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return out;
 	}
 
-	private static Codec[] prependArrayToBytes(Codec.ArrayToBytes arrayToBytes, Codec[] codecs) {
+	private static Codec[] prependArrayToBytes(Codec.ArrayCodec arrayToBytes, Codec[] codecs) {
 
 		final Codec[] out = new Codec[codecs.length + 1];
 		out[0] = arrayToBytes;
@@ -238,7 +238,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 		map.put(FILL_VALUE_KEY, fillValue);
 		// map.put(CODECS_KEY, codecsToZarrCompressors(getCodecs()));
-		map.put(CODECS_KEY, prependArrayToBytes(getArrayToBytesCodec(), getCodecs()));
+		map.put(CODECS_KEY, prependArrayToBytes(getArrayCodec(), getCodecs()));
 
 		return map;
 	}
