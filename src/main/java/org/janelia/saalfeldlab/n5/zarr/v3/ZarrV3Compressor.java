@@ -232,6 +232,18 @@ public interface ZarrV3Compressor extends Codec.BytesCodec {
       field.setAccessible(false);
     }
 
+    int getShuffle(String s){
+      switch (s) {
+        case "noshuffle":
+          return BloscCompression.NOSHUFFLE;
+        case "shuffle":
+          return BloscCompression.SHUFFLE;
+        case "bitshuffle":
+          return BloscCompression.BITSHUFFLE;
+      }
+      throw new N5Exception("Invalid shuffle: " + s);
+    }
+
     @Override
     public BloscCompression getCompression() {
 
