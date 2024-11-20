@@ -42,7 +42,6 @@ import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Exception;
-import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
@@ -54,9 +53,6 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import com.google.gson.TypeAdapter;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -118,6 +114,7 @@ public interface ZarrV3Compressor extends Codec.BytesCodec {
 
 		@SuppressWarnings("unused")
 		private final String id = "zstd";
+
 		private final int level;
 		private final transient int nbWorkers;
 
@@ -171,8 +168,16 @@ public interface ZarrV3Compressor extends Codec.BytesCodec {
 		@NameConfig.Parameter
 		private final int typesize;
 
-		@NameConfig.Parameter
 		private final transient int nthreads;
+
+		public Blosc() {
+			this.cname = "zstd";
+			this.clevel = 5;
+			this.shuffle = "shuffle";
+			this.blocksize = 0;
+			this.typesize = 0;
+			this.nthreads = 1;
+		}
 
 		public Blosc(final String cname, final int clevel, final String shuffle, final int blockSize,
 				final int typeSize, final int nthreads) {

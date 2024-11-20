@@ -12,6 +12,9 @@ import org.junit.Test;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 public class ZarrV3Compressions {
 	
@@ -29,22 +32,16 @@ public class ZarrV3Compressions {
 	@Test
 	public void testSerializeBloscCompression() {
 
+		final Codec codec = new Blosc("zstd", 5, "shuffle", 0, 1, 1);
+		final JsonObject jsonCodec = gson.toJsonTree(codec).getAsJsonObject();
+		final JsonObject expected = gson.fromJson(
+				"{\"name\":\"blosc\",\"configuration\":{\"clevel\":5,\"blocksize\":0,\"typesize\":1,\"cname\":\"zstd\",\"shuffle\":\"shuffle\"}}",
+				JsonElement.class).getAsJsonObject();
 
-		Codec[] codecs = new Codec[]{
-				new Blosc("zstd", 5, "shuffle", 0, 1, 1)
-		};
+		assertEquals("blosc codec", expected, jsonCodec.getAsJsonObject());
 
-		final String jsonCodecArrayString = gson.toJsonTree(codecs).getAsJsonArray().toString();
-		System.out.println(jsonCodecArrayString);
-
-//		JsonElement expected = gson.fromJson(
-//				"[{\"name\":\"astype\",\"configuration\":{\"dataType\":\"float64\",\"encodedType\":\"int16\"}},{\"name\":\"gzip\",\"configuration\":{\"level\":-1,\"useZlib\":false}}]",
-//				JsonElement.class);
-//		assertEquals("codec array", expected, jsonCodecArray.getAsJsonArray());
-
-		final Codec[] codecsDeserialized = gson.fromJson(jsonCodecArrayString, Codec[].class);
-		assertEquals("codecs length not 1", 1, codecsDeserialized.length);
-		assertTrue("codec not blosc", codecsDeserialized[0] instanceof Blosc);
+		final Codec codecsDeserialized = gson.fromJson(expected.toString(), Codec.class);
+		assertTrue("codec not blosc", codecsDeserialized instanceof Blosc);
 	}
 
 	@Test
