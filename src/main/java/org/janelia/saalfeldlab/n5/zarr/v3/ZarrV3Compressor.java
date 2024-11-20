@@ -247,7 +247,7 @@ public interface ZarrV3Compressor extends Codec.BytesCodec {
     @Override
     public BloscCompression getCompression() {
 
-      return new BloscCompression(cname, clevel, shuffle, blocksize, typesize, Math.max(1, nthreads));
+      return new BloscCompression(cname, clevel, getShuffle(shuffle), blocksize, Math.max(1, nthreads));
     }
    
     @Override
