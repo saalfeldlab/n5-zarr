@@ -213,6 +213,27 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	}
 
 	@Override
+	public boolean isGroupFromAttributes(final String normalCacheKey, final JsonElement attributes) {
+
+		if (normalCacheKey.equals(ZARR_KEY) && attributes != null && attributes.isJsonObject() && NodeType.isGroup(attributes.getAsJsonObject().getAsJsonPrimitive(ZarrV3Node.NODE_TYPE_KEY).getAsString())) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+
+	@Override
+	public boolean isDatasetFromAttributes(final String normalCacheKey, final JsonElement attributes) {
+
+		if (normalCacheKey.equals(ZARR_KEY) && attributes != null && attributes.isJsonObject() && NodeType.isArray(attributes.getAsJsonObject().getAsJsonPrimitive(ZarrV3Node.NODE_TYPE_KEY).getAsString())) {
+			return createDatasetAttributes(attributes) != null;
+		} else {
+			return false;
+		}
+	}
+
+	@Override
 	public DatasetAttributes createDatasetAttributes(final JsonElement attributes) {
 
 		return gson.fromJson(attributes, ZarrV3DatasetAttributes.class);
