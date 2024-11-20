@@ -110,8 +110,6 @@ public interface ZarrV3Compressor extends Codec.BytesCodec {
 
 	public static class Zstandard implements ZarrV3Compressor {
 
-		// TODO implement get type
-
 		@SuppressWarnings("unused")
 		private final String id = "zstd";
 
