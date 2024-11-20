@@ -29,6 +29,8 @@
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.AbstractMap.SimpleImmutableEntry;
@@ -42,7 +44,10 @@ import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
+import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
+
+import org.janelia.saalfeldlab.n5.serialization.NameConfig;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -57,74 +62,59 @@ import com.google.gson.stream.JsonWriter;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  *
  */
-public interface ZarrV3Compressor {
+public interface ZarrV3Compressor extends Codec.BytesCodec {
 
-  /* idiotic stream based initialization because Java cannot have static initialization code in interfaces */
-  public static Map<String, Class<? extends ZarrV3Compressor>> registry = Stream.of(
-          new SimpleImmutableEntry<>("zstd", Zstandard.class),
-          new SimpleImmutableEntry<>("blosc", Blosc.class),
-          new SimpleImmutableEntry<>("zlib", Zlib.class),
-          new SimpleImmutableEntry<>("gzip", Gzip.class),
-          new SimpleImmutableEntry<>("bz2", Bz2.class))
-      .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+	/*
+	 * idiotic stream based initialization because Java cannot have static
+	 * initialization code in interfaces
+	 */
+	public static Map<String, Class<? extends ZarrV3Compressor>> registry = Stream
+			.of(new SimpleImmutableEntry<>("zstd", Zstandard.class), new SimpleImmutableEntry<>("blosc", Blosc.class),
+					new SimpleImmutableEntry<>("zlib", Zlib.class), new SimpleImmutableEntry<>("gzip", Gzip.class),
+					new SimpleImmutableEntry<>("bz2", Bz2.class))
+			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-  public static ZarrV3Compressor fromCompression(final Compression compression) {
+	public static ZarrV3Compressor fromCompression(final Compression compression) {
 
-    try {
-      if (compression instanceof BloscCompression) {
-        return new Blosc((BloscCompression)compression);
-      } else if (compression instanceof GzipCompression) {
-        final Class<? extends Compression> clazz = compression.getClass();
-        final Field field = clazz.getDeclaredField("useZlib");
-        field.setAccessible(true);
-        final Boolean useZlib = (Boolean)field.get(compression);
-        field.setAccessible(false);
-        return useZlib != null && useZlib ? new Zlib((GzipCompression)compression) : new Gzip((GzipCompression)compression);
-      } else if (compression instanceof Bzip2Compression) {
-        return new Bz2((Bzip2Compression)compression);
-      } else if (compression instanceof ZstandardCompression) {
-        return new Zstandard((ZstandardCompression)compression);
-      } else {
-        return new Raw();
-      }
-    } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
-      return null;
+		try {
+			if (compression instanceof BloscCompression) {
+				return new Blosc((BloscCompression) compression);
+			} else if (compression instanceof GzipCompression) {
+				final Class<? extends Compression> clazz = compression.getClass();
+				final Field field = clazz.getDeclaredField("useZlib");
+				field.setAccessible(true);
+				final Boolean useZlib = (Boolean) field.get(compression);
+				field.setAccessible(false);
+				return useZlib != null && useZlib ? new Zlib((GzipCompression) compression)
+						: new Gzip((GzipCompression) compression);
+			} else if (compression instanceof Bzip2Compression) {
+				return new Bz2((Bzip2Compression) compression);
+			} else if (compression instanceof ZstandardCompression) {
+				return new Zstandard((ZstandardCompression) compression);
+			} else {
+				return new Raw();
+			}
+		} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+			return null;
+		}
+
+	}
+
+	@Override
+	public default OutputStream encode(final OutputStream in) throws IOException {
+    	return getCompression().encode(in);
     }
-  }
 
-  // @Override
-  // public default String getType() {
-  //
-  // return getCompression().getType();
-  // }
-  //
-  // @Override
-  // default BlockReader getReader() {
-  //
-  // return getCompression().getReader();
-  // }
-  //
-  // @Override
-  // default BlockWriter getWriter() {
-  //
-  // return getCompression().getWriter();
-  // }
+	@Override
+	public default InputStream decode(final InputStream in) throws IOException {
+    	return getCompression().decode(in);
+    }
 
-  // @Override
-  // default InputStream decode(final InputStream in) throws IOException {
-  //
-  // return getCompression().decode(in);
-  // }
-  //
-  // @Override
-  // default OutputStream encode(OutputStream out) throws IOException {
-  //
-  // return getCompression().encode(out);
-  // }
-
-  public Compression getCompression();
+    public Compression getCompression();
 
   public static class Zstandard implements ZarrV3Compressor {
+	  
+	  // TODO implement get type
 
     @SuppressWarnings("unused")
     private final String id = "zstd";
@@ -155,15 +145,28 @@ public interface ZarrV3Compressor {
 
   }
 
+  @NameConfig.Name("blosc")
   public static class Blosc implements ZarrV3Compressor {
 
     @SuppressWarnings("unused")
     private final String id = "blosc";
+
+    @NameConfig.Parameter
     private final String cname;
+
+    @NameConfig.Parameter
     private final int clevel;
+
+    @NameConfig.Parameter
     private final String shuffle;
+
+    @NameConfig.Parameter
     private final int blocksize;
+
+    @NameConfig.Parameter
     private final int typesize;
+
+    @NameConfig.Parameter
     private final transient int nthreads;
 
     public Blosc(
@@ -181,7 +184,7 @@ public interface ZarrV3Compressor {
       this.typesize = typeSize;
       this.nthreads = nthreads;
     }
-
+    
     public Blosc(final BloscCompression compression) throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException {
 
       final Class<? extends BloscCompression> clazz = compression.getClass();
@@ -233,6 +236,11 @@ public interface ZarrV3Compressor {
     public BloscCompression getCompression() {
 
       return new BloscCompression(cname, clevel, shuffle, blocksize, typesize, Math.max(1, nthreads));
+    }
+   
+    @Override
+    public String getType() {
+    	return id;
     }
   }
 
