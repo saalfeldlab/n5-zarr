@@ -65,4 +65,19 @@ public class ZarrV3Compressions {
 		assertTrue("codec not gzip", codecsDeserialized[0] instanceof GzipCompression);
 	}
 
+	@Test
+	public void testDeserializeZstandardCompression() {
+
+		JsonElement expected = gson.fromJson( "{\n"
+						+ "    \"configuration\": {\n"
+						+ "        \"level\": 5,\n"
+						+ "        \"checksum\": true\n"
+						+ "    },\n"
+						+ "    \"name\": \"zstd\"\n"
+						+ "}",
+				JsonElement.class);
+
+		final Codec codecsDeserialized = gson.fromJson(expected, Codec.class);
+		assertTrue("codec not zstd", codecsDeserialized instanceof ZarrV3Compressor.Zstandard );
+	}
 }
