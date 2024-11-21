@@ -33,6 +33,8 @@ import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.DefaultBlockReader;
+import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader;
+import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
@@ -53,6 +55,7 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonSyntaxException;
 
 public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
@@ -192,7 +195,7 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	@Override
 	public Version getVersion() throws N5Exception {
 
-		return getVersion(getAttribute("/", ZarrV3Node.ZARR_FORMAT_KEY, JsonElement.class));
+		return getVersion(getRawAttribute("/", ZarrV3Node.ZARR_FORMAT_KEY, JsonElement.class));
 	}
 
 	private static Version getVersion(final JsonElement json) {
@@ -209,7 +212,7 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	@Override
 	public boolean isGroupFromContainer(final String normalPath) {
 
-		return NodeType.isGroup(getAttribute(normalPath, ZarrV3DatasetAttributes.NODE_TYPE_KEY, String.class));
+		return NodeType.isGroup(getRawAttribute(normalPath, ZarrV3DatasetAttributes.NODE_TYPE_KEY, String.class));
 	}
 
 	@Override
@@ -244,6 +247,24 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		// TODO decide how attributes work
 		return getAttribute(ZARR_KEY, ZarrV3Node.ATTRIBUTES_KEY, JsonElement.class);
 	}
+	
+	public <T> T getRawAttribute(
+			final String pathName,
+			final String key,
+			final Class<T> clazz) throws N5Exception {
+
+		return super.getAttribute(pathName, key, clazz);
+	}
+
+	@Override
+	public <T> T getAttribute(
+			final String pathName,
+			final String key,
+			final Class<T> clazz) throws N5Exception {
+
+		return super.getAttribute(pathName, ZarrV3Node.ATTRIBUTES_KEY + "/" + key, clazz);
+	}
+
 
 	@Override
 	public DataBlock<?> readBlock(
@@ -251,8 +272,18 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 			final DatasetAttributes datasetAttributes,
 			final long... gridPosition) throws N5Exception {
 
-		if (datasetAttributes instanceof ShardedDatasetAttributes) {
-			final ShardedDatasetAttributes shardedAttrs = (ShardedDatasetAttributes)datasetAttributes;
+		// TODO is the code below a complete replacement for this?
+//		if (datasetAttributes instanceof ShardedDatasetAttributes) {
+//			final ShardedDatasetAttributes shardedAttrs = (ShardedDatasetAttributes)datasetAttributes;
+//			final long[] shardPosition = shardedAttrs.getShardPositionForBlock(gridPosition);
+//			final Shard<?> shard = getShard(pathName, shardedAttrs, shardPosition);
+//			return shard.getBlock(gridPosition);
+//		}
+		
+		if (datasetAttributes instanceof ZarrV3DatasetAttributes) {
+//			System.out.println("reading block from shard");
+			ZarrV3DatasetAttributes zarr3DatasetAttributes = (ZarrV3DatasetAttributes) datasetAttributes;
+			final ShardedDatasetAttributes shardedAttrs = (ShardedDatasetAttributes)zarr3DatasetAttributes.getShardAttributes();
 			final long[] shardPosition = shardedAttrs.getShardPositionForBlock(gridPosition);
 			final Shard<?> shard = getShard(pathName, shardedAttrs, shardPosition);
 			return shard.getBlock(gridPosition);
