@@ -184,6 +184,15 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return new JsonPrimitive(Double.parseDouble(fillValue));
 	}
 
+	@Override
+	public int[] getBlockSize() {
+
+		// TODO is this correct?
+		// even if it is correct, should consider re-design of downstream code so that overriding
+		// this is not necessary
+		return getShardAttributes() == null ? super.getBlockSize() : getShardAttributes().getBlockSize();
+	}
+
 	public long[] getShape() {
 
 		return shape;

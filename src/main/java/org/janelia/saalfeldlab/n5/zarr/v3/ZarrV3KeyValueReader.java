@@ -33,8 +33,6 @@ import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.DefaultBlockReader;
-import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader;
-import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
@@ -55,7 +53,6 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonSyntaxException;
 
 public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
@@ -279,9 +276,8 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 //			final Shard<?> shard = getShard(pathName, shardedAttrs, shardPosition);
 //			return shard.getBlock(gridPosition);
 //		}
-		
+
 		if (datasetAttributes instanceof ZarrV3DatasetAttributes) {
-//			System.out.println("reading block from shard");
 			ZarrV3DatasetAttributes zarr3DatasetAttributes = (ZarrV3DatasetAttributes) datasetAttributes;
 			final ShardedDatasetAttributes shardedAttrs = (ShardedDatasetAttributes)zarr3DatasetAttributes.getShardAttributes();
 			final long[] shardPosition = shardedAttrs.getShardPositionForBlock(gridPosition);
