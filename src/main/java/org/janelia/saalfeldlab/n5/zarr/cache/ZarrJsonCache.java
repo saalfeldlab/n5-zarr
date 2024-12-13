@@ -52,6 +52,7 @@ public class ZarrJsonCache extends N5JsonCache {
 		updateCache(normalPathKey, cacheInfo);
 	}
 
+	@Deprecated
 	public N5CacheInfo forceAddNewCacheInfo(final String normalPathKey, final String normalCacheKey, final JsonElement uncachedAttributes,
 			final boolean isGroup, final boolean isDataset) {
 
@@ -74,6 +75,28 @@ public class ZarrJsonCache extends N5JsonCache {
 		updateCache(normalPathKey, cacheInfo);
 
 		return cacheInfo;
+	}
+
+	@Override
+	public JsonElement getAttributes(final String normalPathKey, final String normalCacheKey) {
+
+		N5CacheInfo cacheInfo = getCacheInfo(normalPathKey);
+		if (cacheInfo == null) {
+			cacheGroupAndDataset(normalPathKey);
+			cacheInfo = getCacheInfo(normalPathKey);
+		}
+
+		if (cacheInfo == emptyCacheInfo || cacheInfo.getCache(normalCacheKey) == emptyJson) {
+			return null;
+		}
+		synchronized (cacheInfo) {
+			if (!cacheInfo.containsKey(normalCacheKey)) {
+				updateCacheInfo(normalPathKey, normalCacheKey, null);
+			}
+		}
+
+		final JsonElement output = cacheInfo.getCache(normalCacheKey);
+		return output == null ? null : output.deepCopy();
 	}
 
 	@Override
@@ -138,6 +161,18 @@ public class ZarrJsonCache extends N5JsonCache {
 
 		updateCache(normalPathKey, emptyCacheInfo);
 		return emptyCacheInfo;
+	}
+
+	public N5CacheInfo cacheAttributes(final String normalPathKey, final String normalCacheKey) {
+
+		final N5CacheInfo cacheInfo = getCacheInfo(normalPathKey);
+		if (cacheInfo != null) {
+			final JsonElement zattrs = container.getAttributesFromContainer(normalPathKey,
+					normalCacheKey);
+			updateCacheAttributes(cacheInfo, normalCacheKey, zattrs);
+		}
+
+		return cacheInfo;
 	}
 
 }
