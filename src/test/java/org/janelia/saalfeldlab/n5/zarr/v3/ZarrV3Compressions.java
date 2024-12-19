@@ -70,7 +70,7 @@ public class ZarrV3Compressions {
 
 		final Codec codec1 = new ZarrV3Compressor.Zstandard();
 		final Codec codec2 = new ZarrV3Compressor.Zstandard(10, false);
-		final Codec codec3 = new ZarrV3Compressor.Zstandard(new ZstandardCompression() );
+		final Codec codec3 = new ZarrV3Compressor.Zstandard(new ZstandardCompression());
 		final JsonElement serialized1 = gson.toJsonTree(codec1).getAsJsonObject();
 		final JsonElement serialized2 = gson.toJsonTree(codec2).getAsJsonObject();
 		final JsonElement serialized3 = gson.toJsonTree(codec3).getAsJsonObject();
@@ -114,6 +114,6 @@ public class ZarrV3Compressions {
 				JsonElement.class);
 
 		final Codec codecsDeserialized = gson.fromJson(expected, Codec.class);
-		assertTrue("codec not zstd", codecsDeserialized instanceof ZarrV3Compressor.Zstandard );
+		assertTrue("codec not zstd", codecsDeserialized instanceof ZarrV3Compressor.Zstandard);
 	}
 }

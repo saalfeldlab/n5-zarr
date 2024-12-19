@@ -69,6 +69,7 @@ import org.janelia.saalfeldlab.n5.zarr.ZarrCompressor;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter;
 import org.janelia.saalfeldlab.n5.zarr.ZarrStringDataBlock;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
+import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -168,12 +169,12 @@ public class ZarrV3Test extends AbstractN5Test {
 
 		return new Compression[]{
 				// new Bzip2Compression(),
-				new GzipCompression(),
+//				new GzipCompression(),
 				// new GzipCompression(5, true),
 				// new BloscCompression(),
 				// new BloscCompression("lz4", 6, BloscCompression.BITSHUFFLE, 0, 4),
 				// new ZstandardCompression(),
-				// new ZstandardCompression(0),
+				 new ZstandardCompression(0),
 				// new ZstandardCompression(-1),
 				//add new compressions here
 				// new RawCompression()
@@ -185,9 +186,9 @@ public class ZarrV3Test extends AbstractN5Test {
 	public void testCreateDataset()  {
 
 		final DatasetAttributes info;
-		try (N5Writer n5 = createTempN5Writer()) {
-			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+		try (ZarrV3KeyValueWriter n5 = (ZarrV3KeyValueWriter)createTempN5Writer()) {
 
+			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 			assertTrue("Dataset does not exist", n5.exists(datasetName));
 
 			info = n5.getDatasetAttributes(datasetName);
@@ -196,7 +197,8 @@ public class ZarrV3Test extends AbstractN5Test {
 			assertEquals(DataType.UINT64, info.getDataType());
 			assertEquals(getCompressions()[0].getClass(), info.getCompression().getClass());
 
-			final JsonElement elem = n5.getAttribute(datasetName, "/", JsonElement.class);
+			final JsonElement elem = n5.getRawAttribute(datasetName, "/", JsonElement.class);
+
 			assertTrue(elem.getAsJsonObject().get("fill_value").getAsJsonPrimitive().isNumber());
 		}
 	}
@@ -256,7 +258,7 @@ public class ZarrV3Test extends AbstractN5Test {
 			assertEquals(n5Version, ZarrV3KeyValueReader.VERSION);
 
 			final JsonObject bumpVersion = new JsonObject();
-			final JsonElement elem = zarr.getAttributes("/");
+			final JsonElement elem = zarr.getRawAttributes("/");
 			elem.getAsJsonObject().add(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY,
 					new JsonPrimitive(ZarrV3KeyValueReader.VERSION.getMajor() + 1));
 			zarr.writeAttributes("/", elem);
@@ -682,11 +684,14 @@ public class ZarrV3Test extends AbstractN5Test {
 	public void testAttributes()  {
 
 		try (final N5Writer n5 = createTempN5Writer()) {
+
+			System.out.println(n5.getURI());
+
 			n5.createGroup(groupName);
 
 			n5.setAttribute(groupName, "key1", "value1");
-			// length 2 because it includes "zarr_version"
-			Assert.assertEquals(2, n5.listAttributes(groupName).size());
+			// length 1 because it does not include "zarr_version"
+			Assert.assertEquals(1, n5.listAttributes(groupName).size());
 			/* class interface */
 			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
 			/* type interface */
@@ -699,7 +704,7 @@ public class ZarrV3Test extends AbstractN5Test {
 			newAttributes.put("key3", "value3");
 			n5.setAttributes(groupName, newAttributes);
 
-			Assert.assertEquals(4, n5.listAttributes(groupName).size());
+			Assert.assertEquals(3, n5.listAttributes(groupName).size());
 			/* class interface */
 			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
 			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", String.class));
@@ -718,7 +723,7 @@ public class ZarrV3Test extends AbstractN5Test {
 			n5.setAttribute(groupName, "key1", 1);
 			n5.setAttribute(groupName, "key2", 2);
 
-			Assert.assertEquals(4, n5.listAttributes(groupName).size());
+			Assert.assertEquals(3, n5.listAttributes(groupName).size());
 			/* class interface */
 			Assert.assertEquals(new Integer(1), n5.getAttribute(groupName, "key1", Integer.class));
 			Assert.assertEquals(new Integer(2), n5.getAttribute(groupName, "key2", Integer.class));
@@ -743,7 +748,7 @@ public class ZarrV3Test extends AbstractN5Test {
 			n5.removeAttribute(groupName, "key1");
 			n5.removeAttribute(groupName, "key2");
 			n5.removeAttribute(groupName, "key3");
-			Assert.assertEquals(1, n5.listAttributes(groupName).size());
+			Assert.assertEquals(0, n5.listAttributes(groupName).size());
 		}
 	}
 

@@ -27,16 +27,20 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.DefaultBlockReader;
+import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader;
+import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
+import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
@@ -53,6 +57,7 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonSyntaxException;
 
 public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
@@ -192,10 +197,16 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	@Override
 	public Version getVersion() throws N5Exception {
 
-		return getVersion(getRawAttribute("/", ZarrV3Node.ZARR_FORMAT_KEY, JsonElement.class));
+		return getVersion("/");
 	}
 
-	private static Version getVersion(final JsonElement json) {
+	// protected?
+	public Version getVersion(final String path) throws N5Exception {
+
+		return getVersion(getRawAttribute(path, ZarrV3Node.ZARR_FORMAT_KEY, JsonElement.class));
+	}
+
+	protected static Version getVersion(final JsonElement json) {
 
 		if (json == null)
 			return ZarrKeyValueReader.VERSION_ZERO;
@@ -245,6 +256,38 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		return getAttribute(ZARR_KEY, ZarrV3Node.ATTRIBUTES_KEY, JsonElement.class);
 	}
 	
+	public JsonElement getRawAttributes(final String pathName) throws N5IOException {
+
+		return super.getAttributes(pathName);
+	}
+
+	@Override
+	public JsonElement getAttributes(final String pathName) throws N5IOException {
+
+		final JsonElement elem = getRawAttributes(pathName);
+		return elem == null ? null : elem.getAsJsonObject().get(ZarrV3Node.ATTRIBUTES_KEY);
+	}
+
+	public <T> T getAttribute(
+			final String pathName,
+			final String key,
+			final Type type) throws N5Exception {
+
+		final String normalPathName = N5URI.normalizeGroupPath(pathName);
+		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
+		JsonElement attributes;
+		if (cacheMeta()) {
+			attributes = getCache().getAttributes(normalPathName, getAttributesKey());
+		} else {
+			attributes = getAttributes(normalPathName);
+		}
+		try {
+			return GsonUtils.readAttribute(attributes, normalizedAttributePath, type, getGson());
+		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
+			throw new N5Exception.N5ClassCastException(e);
+		}
+	}
+
 	public <T> T getRawAttribute(
 			final String pathName,
 			final String key,
@@ -261,7 +304,6 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
 		return super.getAttribute(pathName, ZarrV3Node.ATTRIBUTES_KEY + "/" + key, clazz);
 	}
-
 
 	@Override
 	public DataBlock<?> readBlock(
@@ -325,6 +367,47 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		gsonBuilder.disableHtmlEscaping();
 
 		return gsonBuilder;
+	}
+
+	/**
+	 * Converts an attribute path
+	 *
+	 * @param attributePath
+	 * @return
+	 */
+	protected String mapAttributeKey(final String attributePath) {
+
+		final String key = mapN5DatasetAttributes ? n5AttributeKeyToZarr(attributePath) : attributePath;
+		return isAttributes(key) ? key : ZarrV3Node.ATTRIBUTES_KEY + "/" + key;
+	}
+
+	protected boolean isAttributes(final String attributePath) {
+
+		if (!Arrays.stream(ZarrV3DatasetAttributes.requiredKeys).anyMatch(attributePath::equals))
+			return false;
+
+		if (mapN5DatasetAttributes &&
+				!Arrays.stream(DatasetAttributes.N5_DATASET_ATTRIBUTES).anyMatch(attributePath::equals)) {
+			return false;
+		}
+
+		return true;
+	}
+
+	protected String n5AttributeKeyToZarr(final String attributePath) {
+
+		switch (attributePath) {
+		case DatasetAttributes.DIMENSIONS_KEY:
+			return ZarrV3DatasetAttributes.SHAPE_KEY;
+		case DatasetAttributes.BLOCK_SIZE_KEY:
+			return ZarrV3DatasetAttributes.CHUNK_GRID_KEY + "/configuration/chunk_shape"; // TODO gross
+		case DatasetAttributes.DATA_TYPE_KEY:
+			return ZarrV3DatasetAttributes.DATA_TYPE_KEY;
+		case DatasetAttributes.CODEC_KEY:
+			return ZarrV3DatasetAttributes.CODECS_KEY;
+		default:
+			return attributePath;
+		}
 	}
 
 }
