@@ -320,11 +320,14 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 //		}
 
 		if (datasetAttributes instanceof ZarrV3DatasetAttributes) {
+			// TODO ugly. either check for ShardedDatasetAttributes
 			ZarrV3DatasetAttributes zarr3DatasetAttributes = (ZarrV3DatasetAttributes) datasetAttributes;
-			final ShardedDatasetAttributes shardedAttrs = (ShardedDatasetAttributes)zarr3DatasetAttributes.getShardAttributes();
-			final long[] shardPosition = shardedAttrs.getShardPositionForBlock(gridPosition);
-			final Shard<?> shard = getShard(pathName, shardedAttrs, shardPosition);
-			return shard.getBlock(gridPosition);
+			final ShardedDatasetAttributes shardedAttrs = (ShardedDatasetAttributes) zarr3DatasetAttributes.getShardAttributes();
+			if (shardedAttrs != null) {
+				final long[] shardPosition = shardedAttrs.getShardPositionForBlock(gridPosition);
+				final Shard<?> shard = getShard(pathName, shardedAttrs, shardPosition);
+				return shard.getBlock(gridPosition);
+			}
 		}
 
 		final String path = absoluteDataBlockPath(N5URI.normalizeGroupPath(pathName), gridPosition);
