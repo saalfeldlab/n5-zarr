@@ -326,7 +326,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 			jsonObject.add("data_type", context.serialize(src.getDType().toString()));
 
-			jsonObject.addProperty(FILL_VALUE_KEY, src.getFillValue());
+			jsonObject.add(FILL_VALUE_KEY, src.fillValue);
 			jsonObject.add(CODECS_KEY, context.serialize(src.getCodecs()));
 
 			return jsonObject;
