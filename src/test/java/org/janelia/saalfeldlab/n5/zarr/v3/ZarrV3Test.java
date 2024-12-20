@@ -49,6 +49,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.AbstractN5Test;
+import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
@@ -63,6 +64,7 @@ import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
+import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.zarr.DType;
 import org.janelia.saalfeldlab.n5.zarr.ZArrayAttributes;
@@ -169,16 +171,16 @@ public class ZarrV3Test extends AbstractN5Test {
 	protected Compression[] getCompressions() {
 
 		return new Compression[]{
-				// new Bzip2Compression(),
-//				new GzipCompression(),
-				// new GzipCompression(5, true),
-				// new BloscCompression(),
-				// new BloscCompression("lz4", 6, BloscCompression.BITSHUFFLE, 0, 4),
-				// new ZstandardCompression(),
+				 new Bzip2Compression(),
+				 new GzipCompression(),
+				 new GzipCompression(5, true),
+				 new BloscCompression(),
+				 new BloscCompression("lz4", 6, BloscCompression.BITSHUFFLE, 0, 4),
+				 new ZstandardCompression(),
 				 new ZstandardCompression(0),
-				// new ZstandardCompression(-1),
+				 new ZstandardCompression(-1),
 				//add new compressions here
-				// new RawCompression()
+				 new RawCompression()
 		};
 	}
 

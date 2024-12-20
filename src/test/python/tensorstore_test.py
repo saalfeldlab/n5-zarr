@@ -29,7 +29,6 @@
 
 from pathlib import Path
 import numpy as np
-#from numcodecs import Zlib, GZip, BZ2, Zstd
 import sys
 import os
 import tempfile
@@ -398,7 +397,7 @@ def runZarr3Test(group_path, array_3x2_c, array_30x20_c):
 
     # For Zarr3 with sharding
     ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '3x2_c_u1_sharded'),data=array_3x2_c.astype("|u1"),shard_shape=(1, 2), chunk_shape=(1, 1))
-    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_c_i8_sharded'),data=array_30x20_c.astype("<i8"),shard_shape=(10, 10), chunk_shape=(5, 5))
+    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_c_i8_sharded'),data=array_30x20_c.astype("<i8"),shard_shape=(6, 10), chunk_shape=(3, 5))
 
 # For Zarr2
 def runZarr2Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f):

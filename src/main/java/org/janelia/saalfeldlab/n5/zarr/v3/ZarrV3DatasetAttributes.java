@@ -284,7 +284,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 				// TODO make this work with codecs
 				// final DType dType = new DType(typestr, codecs);
-				final String typestr = obj.getAsJsonPrimitive("data_type").getAsString();
+				final String typestr = obj.get("data_type").getAsString();
 				final String parsedType = DType.getTypeStr(typestr);
 				final DType dType;
 				if (parsedType != null)
@@ -306,7 +306,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 						obj.get("fill_value").getAsString(),
 						codecs);
 			} catch (final Exception e) {
-				e.printStackTrace();
 				return null;
 			}
 		}

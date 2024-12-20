@@ -168,16 +168,17 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		int expectedExistCount = 0;
 		final int expectedGroupCount = 0;
 		final int expectedDatasetCount = 0;
-		int expectedAttributeCount = 0;
+		int expectedAttributeCount = 0; // isGroup and isDataset are called when creating the reader
 		int expectedListCount = 0;
 
 		boolean exists = n5.exists(groupA);
 		boolean groupExists = n5.groupExists(groupA);
 		boolean datasetExists = n5.datasetExists(groupA);
+		expectedAttributeCount+=2; // attributes (zarray and zgroup) are called by groupExists and datasetExists
 		assertFalse(exists); // group does not exist
 		assertFalse(groupExists); // group does not exist
 		assertFalse(datasetExists); // dataset does not exist
-		assertEquals(++expectedExistCount, n5.getExistCallCount());
+		assertEquals(expectedExistCount, n5.getExistCallCount());
 		assertEquals(expectedGroupCount, n5.getGroupCallCount());
 		assertEquals(expectedDatasetCount, n5.getDatasetCallCount());
 		assertEquals(expectedAttributeCount, n5.getAttrCallCount());
@@ -189,10 +190,11 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		exists = n5.exists(groupB);
 		groupExists = n5.groupExists(groupB);
 		datasetExists = n5.datasetExists(groupB);
+		expectedAttributeCount+=2; // attributes (zarray and zgroup) are called by groupExists and datasetExists
 		assertFalse(exists); // group now exists
 		assertFalse(groupExists); // group now exists
 		assertFalse(datasetExists); // dataset does not exist
-		assertEquals(++expectedExistCount, n5.getExistCallCount());
+		assertEquals(expectedExistCount, n5.getExistCallCount());
 		assertEquals(expectedGroupCount, n5.getGroupCallCount());
 		assertEquals(expectedDatasetCount, n5.getDatasetCallCount());
 		assertEquals(expectedAttributeCount, n5.getAttrCallCount());
@@ -212,7 +214,8 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		// should not check existence when creating a group
 		n5.createGroup(cachedGroup);
 		n5.createGroup(cachedGroup); // be annoying
-		assertEquals(++expectedExistCount, n5.getExistCallCount());
+		expectedAttributeCount+=2; // createGroup calls isGroup and isDataset
+		assertEquals(expectedExistCount, n5.getExistCallCount());
 		assertEquals(expectedGroupCount, n5.getGroupCallCount());
 		assertEquals(expectedDatasetCount, n5.getDatasetCallCount());
 		assertEquals(expectedAttributeCount, n5.getAttrCallCount());
@@ -271,7 +274,8 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		 */
 		final String nonExistentGroup = "doesNotExist";
 		n5.exists(nonExistentGroup);
-		assertEquals(++expectedExistCount, n5.getExistCallCount());
+		expectedAttributeCount+=2; // exists calls isGroup and isDataset
+		assertEquals(expectedExistCount, n5.getExistCallCount());
 		assertEquals(expectedGroupCount, n5.getGroupCallCount());
 		assertEquals(expectedDatasetCount, n5.getDatasetCallCount());
 		assertEquals(expectedAttributeCount, n5.getAttrCallCount());
@@ -310,10 +314,11 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		final String abc = "a/b/c";
 		// create "a/b/c"
 		n5.createGroup(abc);
+		expectedAttributeCount+=2; // createGroup calls isGroup and isDataset
 		assertTrue(n5.exists(abc));
 		assertTrue(n5.groupExists(abc));
 		assertFalse(n5.datasetExists(abc));
-		assertEquals(++expectedExistCount, n5.getExistCallCount());
+		assertEquals(expectedExistCount, n5.getExistCallCount());
 		assertEquals(expectedGroupCount, n5.getGroupCallCount());
 		assertEquals(expectedDatasetCount, n5.getDatasetCallCount());
 		assertEquals(expectedAttributeCount, n5.getAttrCallCount());
@@ -362,12 +367,18 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 
 		n5.createGroup("a");
 		assertEquals(expectedExistCount, n5.getExistCallCount());
+		assertEquals(expectedAttributeCount, n5.getAttrCallCount());
 		n5.createGroup("a/a");
-		assertEquals(++expectedExistCount, n5.getExistCallCount());
+		expectedAttributeCount+=2;
+		assertEquals(expectedExistCount, n5.getExistCallCount());
+		assertEquals(expectedAttributeCount, n5.getAttrCallCount());
 		n5.createGroup("a/b");
 		assertEquals(expectedExistCount, n5.getExistCallCount());
+		assertEquals(expectedAttributeCount, n5.getAttrCallCount());
 		n5.createGroup("a/c");
-		assertEquals(++expectedExistCount, n5.getExistCallCount());
+		expectedAttributeCount+=2;
+		assertEquals(expectedExistCount, n5.getExistCallCount());
+		assertEquals(expectedAttributeCount, n5.getAttrCallCount());
 
 		assertArrayEquals(new String[] {"a", "b", "c"}, n5.list("a")); // call list
 		assertEquals(expectedGroupCount, n5.getGroupCallCount());

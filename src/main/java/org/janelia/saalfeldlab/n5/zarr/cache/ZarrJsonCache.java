@@ -17,7 +17,7 @@ public class ZarrJsonCache extends N5JsonCache {
 
 		N5CacheInfo cacheInfo = getCacheInfo(normalPathKey);
 		if (cacheInfo == null ){
-			addNewCacheInfo(normalPathKey, normalCacheKey, uncachedAttributes );
+			addNewCacheInfo(normalPathKey, normalCacheKey, uncachedAttributes);
 			return;
 		}
 
@@ -52,6 +52,7 @@ public class ZarrJsonCache extends N5JsonCache {
 		updateCache(normalPathKey, cacheInfo);
 	}
 
+	@Deprecated
 	public N5CacheInfo forceAddNewCacheInfo(final String normalPathKey, final String normalCacheKey, final JsonElement uncachedAttributes,
 			final boolean isGroup, final boolean isDataset) {
 
@@ -77,11 +78,33 @@ public class ZarrJsonCache extends N5JsonCache {
 	}
 
 	@Override
+	public JsonElement getAttributes(final String normalPathKey, final String normalCacheKey) {
+
+		N5CacheInfo cacheInfo = getCacheInfo(normalPathKey);
+		if (cacheInfo == null) {
+			cacheGroupAndDataset(normalPathKey);
+			cacheInfo = getCacheInfo(normalPathKey);
+		}
+
+		if (cacheInfo == emptyCacheInfo || cacheInfo.getCache(normalCacheKey) == emptyJson) {
+			return null;
+		}
+		synchronized (cacheInfo) {
+			if (!cacheInfo.containsKey(normalCacheKey)) {
+				updateCacheInfo(normalPathKey, normalCacheKey, null);
+			}
+		}
+
+		final JsonElement output = cacheInfo.getCache(normalCacheKey);
+		return output == null ? null : output.deepCopy();
+	}
+
+	@Override
 	public boolean isDataset(final String normalPathKey, final String normalCacheKey) {
 
 		N5CacheInfo cacheInfo = getCacheInfo(normalPathKey);
 		if (cacheInfo == null) {
-			addNewCacheInfo(normalPathKey, normalCacheKey, null);
+			cacheGroupAndDataset(normalPathKey);
 			cacheInfo = getCacheInfo(normalPathKey);
 		}
 		else if (cacheInfo == emptyCacheInfo || cacheInfo.isGroup())
@@ -100,7 +123,7 @@ public class ZarrJsonCache extends N5JsonCache {
 
 		N5CacheInfo cacheInfo = getCacheInfo(normalPathKey);
 		if (cacheInfo == null) {
-			addNewCacheInfo(normalPathKey, normalCacheKey, null);
+			cacheGroupAndDataset(normalPathKey);
 			cacheInfo = getCacheInfo(normalPathKey);
 		}
 		else if (cacheInfo == emptyCacheInfo || cacheInfo.isDataset())
@@ -112,6 +135,44 @@ public class ZarrJsonCache extends N5JsonCache {
 		}
 
 		return cacheInfo.isGroup();
+	}
+
+	public N5CacheInfo cacheGroupAndDataset(final String normalPathKey) {
+
+		final JsonElement zgroup = container.getAttributesFromContainer(normalPathKey, ZarrKeyValueReader.ZGROUP_FILE);
+		final boolean isGroup = container.isGroupFromAttributes(normalPathKey, zgroup);
+
+		final JsonElement zarray = container.getAttributesFromContainer(normalPathKey, ZarrKeyValueReader.ZARRAY_FILE);
+		final boolean isDataset = container.isGroupFromAttributes(normalPathKey, zarray);
+
+		if( isGroup || isDataset ) {
+
+			final N5CacheInfo cacheInfo = newCacheInfo();
+
+			updateCacheIsGroup(cacheInfo, isGroup);
+			updateCacheAttributes(cacheInfo, ZarrKeyValueReader.ZGROUP_FILE, zgroup);
+
+			updateCacheIsDataset(cacheInfo, isDataset);
+			updateCacheAttributes(cacheInfo, ZarrKeyValueReader.ZARRAY_FILE, zarray);
+
+			updateCache(normalPathKey, cacheInfo);
+			return cacheInfo;
+		}
+
+		updateCache(normalPathKey, emptyCacheInfo);
+		return emptyCacheInfo;
+	}
+
+	public N5CacheInfo cacheAttributes(final String normalPathKey, final String normalCacheKey) {
+
+		final N5CacheInfo cacheInfo = getCacheInfo(normalPathKey);
+		if (cacheInfo != null) {
+			final JsonElement zattrs = container.getAttributesFromContainer(normalPathKey,
+					normalCacheKey);
+			updateCacheAttributes(cacheInfo, normalCacheKey, zattrs);
+		}
+
+		return cacheInfo;
 	}
 
 }
