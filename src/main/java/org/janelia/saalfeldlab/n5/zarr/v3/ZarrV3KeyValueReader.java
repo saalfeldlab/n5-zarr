@@ -34,13 +34,11 @@ import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.DefaultBlockReader;
-import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
-import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
@@ -215,6 +213,17 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 			return new Version(json.getAsInt(), 0, 0);
 
 		return null;
+	}
+
+	@Override
+	public boolean exists(final String pathName) {
+
+		// Overridden because of the difference in how n5 and zarr define "group" and "dataset".
+		// The implementation in CachedGsonKeyValueReader is simpler but more low-level
+		final String normalPathName = N5URI.normalizeGroupPath(pathName);
+
+		// Note that datasetExists and groupExists use the cache
+		return groupExists(normalPathName) || datasetExists(normalPathName);
 	}
 
 	@Override

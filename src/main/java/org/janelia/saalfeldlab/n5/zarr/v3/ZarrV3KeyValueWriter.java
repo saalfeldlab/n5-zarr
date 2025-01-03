@@ -51,17 +51,14 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 /**
- * Zarr {@link KeyValueWriter} implementation.
- *
- * @author Stephan Saalfeld
- * @author John Bogovic
+ * Zarr v3 {@link KeyValueWriter} implementation.
  */
 public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements CachedGsonKeyValueN5Writer {
 
 	protected String dimensionSeparator;
-
 
 	public ZarrV3KeyValueWriter(
 			final KeyValueAccess keyValueAccess,
@@ -88,8 +85,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		} catch (final NullPointerException e) {}
 
 		if (version == null || version.equals(new Version(0, 0, 0, ""))) {
-			createGroup("/");
-			setVersion("/");
+			createGroup("/"); // sets the version
 		}
 	}
 
@@ -104,18 +100,59 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 		// This writer may only write zarr v3
 		if (!ZarrV3KeyValueReader.VERSION.equals(version))
-			setRawAttribute(normalPath, ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, 3);
+			setRawAttribute(normalPath,
+					ZarrV3DatasetAttributes.ZARR_FORMAT_KEY,
+					ZarrV3KeyValueReader.VERSION.getMajor());
+	}
+
+	/**
+	 * Creates a group at the specified path without also making every parent path a group.
+	 *
+	 * @param path path to group relative to root
+	 */
+	public void createGroupNonrecursive(final String normalPath) {
+
+		if (groupExists(normalPath))
+			return;
+		else if (datasetExists(normalPath))
+			throw new N5Exception("Can't make a group on existing dataset.");
+
+		final JsonObject obj = new JsonObject();
+		obj.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, super.VERSION.getMajor());
+		obj.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.GROUP.toString());
+
+		writeAttributes(normalPath, obj);
+		if (cacheMeta()) {
+			getCache().initializeNonemptyCache(normalPath, getAttributesKey());
+			getCache().updateCacheInfo(normalPath, getAttributesKey(), obj);
+		}
 	}
 
 	@Override
 	public void createGroup(final String path) {
 
 		final String normalPath = N5URI.normalizeGroupPath(path);
-		CachedGsonKeyValueN5Writer.super.createGroup(normalPath);
+		String[] pathParts = getKeyValueAccess().components(normalPath);
+		String parent = N5URI.normalizeGroupPath("/");
+		if (pathParts.length == 0) {
+			pathParts = new String[]{""};
+		}
+		for (final String child : pathParts) {
 
-		// TODO possible to optimize by writing once
-		setVersion(normalPath);
-		setRawAttribute(normalPath, ZarrV3Node.NODE_TYPE_KEY, NodeType.GROUP.toString());
+			final String childPath = parent.isEmpty() ? child : parent + "/" + child;
+			createGroupNonrecursive(path);
+			parent = childPath;
+		}
+
+	}
+
+	private void writeGroupMetadata(final String normalPath) {
+
+		final JsonObject obj = new JsonObject();
+		obj.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
+		obj.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.GROUP.toString());
+
+		writeAttributes(normalPath, obj);
 	}
 
 	@Override
@@ -198,19 +235,15 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		return out;
 	}
 
-	public <T> void setRawAttribute(
-			final String groupPath,
-			final String attributePath,
-			final T attribute) throws N5Exception {
+	public <T> void setRawAttribute(final String groupPath, final String attributePath, final T attribute)
+			throws N5Exception {
 
 		setRawAttributes(groupPath, Collections.singletonMap(attributePath, attribute));
 	}
 
 	@Override
-	public <T> void setAttribute(
-			final String groupPath,
-			final String attributePath,
-			final T attribute) throws N5Exception {
+	public <T> void setAttribute(final String groupPath, final String attributePath, final T attribute)
+			throws N5Exception {
 
 		setRawAttribute(groupPath, mapAttributeKey(attributePath), attribute);
 	}
@@ -219,6 +252,11 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 		// TODO should this and other raw attribute methods be protected?
 		// maybe best to have single public get/setRawAttributes(path,JsonObject)
+		CachedGsonKeyValueN5Writer.super.setAttributes(path, attributes);
+	}
+
+	public void setRawAttributes(final String path, final JsonElement attributes) throws N5Exception {
+
 		CachedGsonKeyValueN5Writer.super.setAttributes(path, attributes);
 	}
 
@@ -256,11 +294,6 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		final JsonObject rootObj = root.getAsJsonObject();
 		rootObj.add(ZarrV3Node.ATTRIBUTES_KEY, attributes);
 		setRawAttributes(path, rootObj);
-	}
-
-	public void setRawAttributes(final String path, final JsonElement attributes) throws N5Exception {
-
-		CachedGsonKeyValueN5Writer.super.setAttributes(path, attributes);
 	}
 
 	@Override
