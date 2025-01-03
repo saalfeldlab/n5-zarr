@@ -75,7 +75,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	protected final int zarrFormat;
 	protected final long[] shape;
 	protected final ChunkAttributes chunkAttributes; // only support regular chunk grids for now
-	protected final DType dtype;
+	protected final ZarrV3DataType dataType;
 	protected final JsonElement fillValue;
 
 	protected transient final byte[] fillBytes;
@@ -90,53 +90,53 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final int zarrFormat,
 			final long[] shape,
 			final ChunkAttributes chunkAttributes,
-			final DType dtype,
+			final ZarrV3DataType dataType,
 			final String fillValue,
 			final Compression compression,
 			final Codec[] codecs) {
 
-		super(shape, chunkAttributes.getGrid().getShape(), dtype.getDataType(), compression, removeRawCompression(codecs));
+		super(shape, chunkAttributes.getGrid().getShape(), dataType.getDataType(), compression, removeRawCompression(codecs));
 		this.zarrFormat = zarrFormat;
 		this.shape = shape;
 		this.chunkAttributes = chunkAttributes;
-		this.dtype = dtype;
-		this.fillValue = parseFillValue(fillValue, dtype.getDataType());
-		this.fillBytes = dtype.createFillBytes(fillValue);
+		this.dataType = dataType;
+		this.fillValue = parseFillValue(fillValue, dataType.getDataType());
+		this.fillBytes = dataType.createFillBytes(fillValue);
 	}
 
 	public ZarrV3DatasetAttributes(
 			final int zarrFormat,
 			final long[] shape,
 			final ChunkAttributes chunkAttributes,
-			final DType dtype,
+			final ZarrV3DataType dataType,
 			final String fillValue,
 			final Codec[] codecs) {
 
-		this(zarrFormat, shape, chunkAttributes, dtype, fillValue, inferCompression(codecs), codecs);
+		this(zarrFormat, shape, chunkAttributes, dataType, fillValue, inferCompression(codecs), codecs);
 	}
 
 	public ZarrV3DatasetAttributes(
 			final int zarrFormat,
 			final long[] shape,
 			final int[] chunkShape,
-			final DType dtype,
+			final ZarrV3DataType dataType,
 			final String fillValue,
 			final DefaultChunkKeyEncoding chunkKeyEncoding,
 			final Codec[] codecs) {
 
-		this(zarrFormat, shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dtype, fillValue, codecs);
+		this(zarrFormat, shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dataType, fillValue, codecs);
 	}
 
 	public ZarrV3DatasetAttributes(
 			final int zarrFormat,
 			final long[] shape,
 			final int[] chunkShape,
-			final DType dtype,
+			final ZarrV3DataType dataType,
 			final String fillValue,
 			final String dimensionSeparator,
 			final Codec[] codecs) {
 
-		this(zarrFormat, shape, chunkShape, dtype, fillValue,
+		this(zarrFormat, shape, chunkShape, dataType, fillValue,
 				new DefaultChunkKeyEncoding(dimensionSeparator), codecs);
 	}
 
@@ -209,9 +209,9 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return chunkAttributes;
 	}
 
-	public DType getDType() {
+	public ZarrV3DataType getDType() {
 
-		return dtype;
+		return dataType;
 	}
 
 	public int getZarrFormat() {
@@ -241,7 +241,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		map.put(ZARR_FORMAT_KEY, zarrFormat);
 		map.put(NodeType.key(), NodeType.ARRAY.toString());
 		map.put(SHAPE_KEY, shapeReversed);
-		map.put(DATA_TYPE_KEY, dtype.toString());
+		map.put(DATA_TYPE_KEY, dataType.toString());
 		map.put(CHUNK_GRID_KEY, getChunkAttributes().getGrid());
 		map.put(CHUNK_KEY_ENCODING_KEY, getChunkAttributes().getKeyEncoding());
 
@@ -285,12 +285,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				// TODO make this work with codecs
 				// final DType dType = new DType(typestr, codecs);
 				final String typestr = obj.get("data_type").getAsString();
-				final String parsedType = DType.getTypeStr(typestr);
-				final DType dType;
-				if (parsedType != null)
-					dType = new DType(parsedType, null);
-				else
-					dType = new DType(typestr, null);
+				final ZarrV3DataType dataType = ZarrV3DataType.valueOf(typestr.toLowerCase());
 
 				final int zarrFormat = obj.get("zarr_format").getAsInt();
 				final long[] shape = context.deserialize(obj.get("shape"), long[].class);
@@ -302,7 +297,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 						zarrFormat,
 						shape,
 						chunkAttributes,
-						dType, // fix
+						dataType,
 						obj.get("fill_value").getAsString(),
 						codecs);
 			} catch (final Exception e) {

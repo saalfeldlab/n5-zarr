@@ -178,13 +178,11 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 				new RegularChunkGrid(chunkShape),
 				new DefaultChunkKeyEncoding(dimensionSeparator));
 
-		final DType dType = new DType(datasetAttributes.getDataType());
-
 		final ZarrV3DatasetAttributes zArrayAttributes = new ZarrV3DatasetAttributes(
 				ZarrV3KeyValueReader.VERSION.getMajor(),
 				shape,
 				chunkAttrs,
-				dType,
+				ZarrV3DataType.fromDataType(datasetAttributes.getDataType()),
 				"0",
 				datasetAttributes.getCompression(),
 				prependArrayToBytes(datasetAttributes.getArrayCodec(), datasetAttributes.getCodecs()));
