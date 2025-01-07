@@ -80,7 +80,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 	protected transient final byte[] fillBytes;
 
-	private static Codec[] removeRawCompression(final Codec[] codecs) {
+	protected static Codec[] removeRawCompression(final Codec[] codecs) {
 
 		final Codec[] newCodecs = Arrays.stream(codecs).filter(it -> !(it instanceof RawCompression)).toArray(Codec[]::new);
 		return newCodecs;
@@ -140,20 +140,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				new DefaultChunkKeyEncoding(dimensionSeparator), codecs);
 	}
 
-	private static Codec[] appendCompression(Codec[] codecs, Compression compression) {
-
-		if (compression == null)
-			return codecs;
-		else if (codecs == null)
-			return new Codec[]{compression};
-
-		final Codec[] out = new Codec[codecs.length + 1];
-		System.arraycopy(codecs, 0, out, 0, codecs.length);
-		out[codecs.length] = compression;
-		return out;
-	}
-
-	private static Codec[] prependArrayToBytes(Codec.ArrayCodec arrayToBytes, Codec[] codecs) {
+	protected static Codec[] prependArrayToBytes(Codec.ArrayCodec arrayToBytes, Codec[] codecs) {
 
 		final Codec[] out = new Codec[codecs.length + 1];
 		out[0] = arrayToBytes;

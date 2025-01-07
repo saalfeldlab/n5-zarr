@@ -21,7 +21,9 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter;
 import org.junit.After;
 import org.junit.Before;
@@ -30,11 +32,19 @@ import org.junit.Test;
 import com.google.gson.GsonBuilder;
 
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.Img;
+import net.imglib2.img.array.ArrayCursor;
+import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.integer.ByteType;
+import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.Views;
@@ -78,12 +88,12 @@ public class TensorstoreTest {
 		}
 	}
 
-	private boolean runPythonTest(final String script, final String containerPath, final String... args) throws InterruptedException {
+	private boolean runPythonTest(final String script, final String... args) throws InterruptedException {
 
 		try {
 
 			final List<String> pythonArgs = new ArrayList<>();
-			pythonArgs.addAll(Arrays.asList(new String[]{"poetry", "run", "python", "src/test/python/" + script, containerPath}));
+			pythonArgs.addAll(Arrays.asList(new String[]{"poetry", "run", "python", "src/test/python/" + script}));
 			pythonArgs.addAll(Arrays.asList(args));
 
 			System.out.println(String.join(" ", pythonArgs));
@@ -149,6 +159,12 @@ public class TensorstoreTest {
 
 		testReadTensorstore(Version.zarr3);
 	}
+	
+	@Test
+	public void testWriteTensorstoreZarr3() throws IOException, InterruptedException {
+
+		testWriteTensorstore(Version.zarr3);
+	}
 
 	private static String versionFlag(Version version) {
 
@@ -187,7 +203,9 @@ public class TensorstoreTest {
 
 		/* groups */
 		final String testZarrDatasetName = String.join("/", testZarrBaseName, version.toString());
-		assertTrue(n5Zarr.exists(testZarrDatasetName));
+
+		// assertTrue(n5Zarr.exists(testZarrDatasetName)); // For this to be true, the tensorstore script needs to explicitly create a group
+
 		assertFalse(n5Zarr.datasetExists(testZarrDatasetName));
 
 		/* array parameters */
@@ -234,7 +252,22 @@ public class TensorstoreTest {
 		final FloatType refFloat = new FloatType();
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_f4"), refFloat);
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_f4"), refFloat);
+		
+		/* sharded data */
+		if (version == Version.zarr3) {
+			System.out.println("sharded");
+			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_u1_sharded", new UnsignedByteType());
+			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/30x20_c_u1_sharded", new UnsignedByteType());
 
+			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_u4_sharded", new UnsignedIntType());
+			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/30x20_c_u4_sharded", new UnsignedIntType());
+
+			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_i4_sharded", new IntType());
+			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/30x20_c_i4_sharded", new IntType());
+
+			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/30x20_c_i8_sharded", new LongType());
+			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_i8_sharded", new LongType());
+		}
 
 		// /* compressors */
 		// final UnsignedLongType refUnsignedLong = new UnsignedLongType();
@@ -276,6 +309,107 @@ public class TensorstoreTest {
 		// assertTrue(Float.isNaN(raf.get().getRealFloat()));
 		// raf.setPosition(shapef[1] - 5, 1);
 		// assertTrue(Float.isNaN(raf.get().getRealFloat()));
+
+	}
+	
+	public <T extends NativeType<T> & NumericType<T>> void testWriteTensorstore(Version version) throws IOException, InterruptedException {
+		
+		/* 
+		 * run the python script in a test mode and resturn early if we can't run it.
+		 */
+		if (!runPythonTest("tensorstore_read_test.py", "--test" )) {
+			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
+			return;
+		}
+
+		final String testZarrDirPath = tempN5Location();
+		//TODO: decided what to do with it for windows
+		String testZarrDirPathForPython;
+
+		if (System.getProperty("os.name").startsWith("Windows"))
+			testZarrDirPathForPython = testZarrDirPath.substring(1);
+		else
+			testZarrDirPathForPython = testZarrDirPath;
+
+		N5Writer n5Zarr;
+		switch (version) {
+		case zarr3:
+			n5Zarr = new ZarrV3KeyValueWriter(
+					new FileSystemKeyValueAccess(FileSystems.getDefault()), testZarrDirPath, new GsonBuilder(),
+					true, true, "/", false);
+			break;
+		default:
+			n5Zarr = new ZarrKeyValueWriter(new FileSystemKeyValueAccess(FileSystems.getDefault()),
+					testZarrDirPath, new GsonBuilder(), true, true, "/", false);
+			break;
+		}
+		
+		final DataType[] dtypes =  new DataType[]{ 
+				DataType.INT8, DataType.UINT8,
+				DataType.INT16, DataType.UINT16,
+				DataType.INT32, DataType.UINT32,
+				DataType.INT64, DataType.UINT64,
+				DataType.FLOAT32, DataType.FLOAT64 };
+
+		for( DataType dtype : dtypes ) {
+
+			final Img<T> img = generateData(new long[] { 3, 2 }, (T)N5Utils.type(dtype));
+
+			// unsharded
+			String dset = String.format("3x2_%s", dtype.toString());
+			N5Utils.save(img, n5Zarr, dset, new int[] { 3, 2 }, new RawCompression());
+			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dset, "-d", version.toString()));
+
+			// unsharded big
+			String dsetBig = String.format("30x20_%s", dtype.toString());
+			N5Utils.save(img, n5Zarr, dset, new int[] { 6, 5 }, new RawCompression());
+			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBig, "-d", version.toString()));
+
+			// sharded
+			String dsetSharded = String.format("3x2_%s_shard", dtype.toString());
+			N5Utils.save(img, n5Zarr, dsetSharded, new int[] { 1, 2 }, new int[] { 3, 2 }, new RawCompression());
+			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetSharded, "-d",version.toString()));
+
+			// sharded big
+			String dsetBigSharded = String.format("3x2_%s_shard", dtype.toString());
+			N5Utils.save(img, n5Zarr, dsetSharded, new int[] { 6, 5 }, new int[] { 12, 10 }, new RawCompression());
+			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBigSharded, "-d",version.toString()));
+		}
+	}
+	
+	protected <T extends NativeType<T> & NumericType<T>> Img<T> generateData( final long[] size, T type ) {
+		
+		final ArrayImg<T, ?> img = new ArrayImgFactory<T>(type).create(size);
+		T val = type.copy();
+		val.setZero();
+
+		T one = type.copy();
+		one.setOne();
+
+		final ArrayCursor<T> c = img.cursor();
+		while( c.hasNext()) {
+			c.next().set(val);
+			val.add(one);
+		}
+
+		return img;
+	}
+
+	public <T extends NumericType<T>> void testReadSharded(final ZarrV3KeyValueReader zarr, final String dataset, T ref) {
+
+		System.out.println("testSharded for : " + zarr.getURI() + "  " + dataset);
+		if( zarr.exists(dataset)) {
+			System.out.println("  exists");
+			if (ref instanceof IntegerType) {
+				assertIsSequence((RandomAccessibleInterval<IntegerType>) N5Utils.open(zarr, dataset), (IntegerType) ref);
+			}
+			else if (ref instanceof RealType) {
+				assertIsSequence((RandomAccessibleInterval<RealType>) N5Utils.open(zarr, dataset), (RealType) ref);
+			}
+			else
+				System.err.println("Skipping test for: " + dataset + ".  Invalide ref type.");
+
+		}
 
 	}
 

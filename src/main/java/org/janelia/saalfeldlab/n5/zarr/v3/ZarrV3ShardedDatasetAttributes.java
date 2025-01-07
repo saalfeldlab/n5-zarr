@@ -52,7 +52,7 @@ public class ZarrV3ShardedDatasetAttributes extends ZarrV3DatasetAttributes impl
 			final Codec[] codecs) {
 
 		super(zarrFormat, shape, chunkAttributes, dataType, fillValue, compression, codecs);
-		shardingCodec = (ShardingCodec) codecs[0]; // TODO validate;
+		shardingCodec = (ShardingCodec) getArrayCodec();
 	}
 
 	public ZarrV3ShardedDatasetAttributes(
@@ -92,6 +92,7 @@ public class ZarrV3ShardedDatasetAttributes extends ZarrV3DatasetAttributes impl
 		super(zarrFormat, shape, chunkShape, dataType, fillValue, dimensionSeparator, codecs);
 		shardingCodec = (ShardingCodec) codecs[0]; // TODO validate
 	}
+
 
 	@Override
 	public int[] getBlockSize() {

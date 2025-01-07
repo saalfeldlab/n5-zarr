@@ -41,11 +41,13 @@ import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
+import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.ShardedDatasetAttributes;
 import org.janelia.saalfeldlab.n5.codec.BytesCodec;
 import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.saalfeldlab.n5.codec.N5BlockCodec;
 import org.janelia.saalfeldlab.n5.shard.ShardParameters;
+import org.janelia.saalfeldlab.n5.shard.ShardingCodec;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
@@ -243,7 +245,28 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 		if (datasetAttributes instanceof ShardParameters) {
 			final ShardedDatasetAttributes shardAttrs = (ShardedDatasetAttributes) datasetAttributes;
-			return new Codec[] { shardAttrs.getShardingCodec() };
+			ShardingCodec sc = shardAttrs.getShardingCodec();
+
+			if( Arrays.stream(sc.getCodecs()).anyMatch(x -> { return x instanceof RawCompression; })) {
+
+				Codec[] oldCodecs = sc.getCodecs();
+				Codec[] codecs;
+				if (oldCodecs.length == 1)
+					codecs = new Codec[] { sc.getArrayCodec() };
+				else {
+					codecs = ZarrV3DatasetAttributes.prependArrayToBytes(
+							sc.getArrayCodec(),
+							ZarrV3DatasetAttributes.removeRawCompression(sc.getCodecs()));
+				}
+
+				sc = new ShardingCodec(
+						sc.getBlockSize(),
+						codecs,
+						sc.getIndexCodecs(),
+						sc.getIndexLocation());
+			}
+			return new Codec[] { sc };
+
 		} else
 			return prependArrayToBytes(
 					convert(datasetAttributes.getArrayCodec()),
