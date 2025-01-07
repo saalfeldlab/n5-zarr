@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.Compression;
+import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
@@ -40,9 +41,11 @@ import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
+import org.janelia.saalfeldlab.n5.ShardedDatasetAttributes;
 import org.janelia.saalfeldlab.n5.codec.BytesCodec;
 import org.janelia.saalfeldlab.n5.codec.Codec;
-import org.janelia.saalfeldlab.n5.zarr.DType;
+import org.janelia.saalfeldlab.n5.codec.N5BlockCodec;
+import org.janelia.saalfeldlab.n5.shard.ShardParameters;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
@@ -51,7 +54,6 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 
 /**
  * Zarr v3 {@link KeyValueWriter} implementation.
@@ -207,24 +209,56 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		writeAttributes(normalPath, attributes);
 	}
 
+	public <T> void writeBlock(final String path, final DatasetAttributes datasetAttributes,
+			final DataBlock<T> dataBlock) throws N5Exception {
+
+		CachedGsonKeyValueN5Writer.super.writeBlock(path, createZArrayAttributes(datasetAttributes), dataBlock);
+	}
+
 	protected ZarrV3DatasetAttributes createZArrayAttributes(final DatasetAttributes datasetAttributes) {
 
+		boolean sharded = datasetAttributes instanceof ShardParameters;
 		final long[] shape = datasetAttributes.getDimensions().clone();
-		final int[] chunkShape = datasetAttributes.getBlockSize().clone();
+
+		final int[] chunkShape = sharded ?
+				((ShardParameters)datasetAttributes).getShardSize() :
+				datasetAttributes.getBlockSize().clone();
+
 		final ChunkAttributes chunkAttrs = new ChunkAttributes(
 				new RegularChunkGrid(chunkShape),
 				new DefaultChunkKeyEncoding(dimensionSeparator));
 
-		final ZarrV3DatasetAttributes zArrayAttributes = new ZarrV3DatasetAttributes(
-				ZarrV3KeyValueReader.VERSION.getMajor(),
-				shape,
-				chunkAttrs,
-				ZarrV3DataType.fromDataType(datasetAttributes.getDataType()),
-				"0",
-				datasetAttributes.getCompression(),
-				prependArrayToBytes(datasetAttributes.getArrayCodec(), datasetAttributes.getCodecs()));
+		if (sharded) {
+			return new ZarrV3ShardedDatasetAttributes(ZarrV3KeyValueReader.VERSION.getMajor(), shape, chunkAttrs,
+					ZarrV3DataType.fromDataType(datasetAttributes.getDataType()), "0",
+					datasetAttributes.getCompression(), buildCodecs(datasetAttributes));
+		} else {
+			return new ZarrV3DatasetAttributes(ZarrV3KeyValueReader.VERSION.getMajor(), shape, chunkAttrs,
+					ZarrV3DataType.fromDataType(datasetAttributes.getDataType()), "0",
+					datasetAttributes.getCompression(), buildCodecs(datasetAttributes));
+		}
+	}
 
-		return zArrayAttributes;
+	private static Codec[] buildCodecs(DatasetAttributes datasetAttributes) {
+
+		if (datasetAttributes instanceof ShardParameters) {
+			final ShardedDatasetAttributes shardAttrs = (ShardedDatasetAttributes) datasetAttributes;
+			return new Codec[] { shardAttrs.getShardingCodec() };
+		} else
+			return prependArrayToBytes(
+					convert(datasetAttributes.getArrayCodec()),
+					datasetAttributes.getCodecs());
+	}
+
+	private static Codec.ArrayCodec convert(Codec.ArrayCodec arrayCodec) {
+
+		if (arrayCodec instanceof BytesCodec)
+			return (BytesCodec) arrayCodec;
+		else if (arrayCodec instanceof N5BlockCodec)
+			return new BytesCodec(((N5BlockCodec) arrayCodec).getByteOrder());
+		else
+			return new BytesCodec();
+
 	}
 
 	private static Codec[] prependArrayToBytes(Codec.ArrayCodec arrayToBytes, Codec[] codecs) {

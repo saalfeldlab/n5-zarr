@@ -38,7 +38,7 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.codec.Codec;
-import org.janelia.saalfeldlab.n5.zarr.DType;
+import org.janelia.saalfeldlab.n5.shard.ShardingCodec;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
@@ -161,7 +161,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return out;
 	}
 
-	private static Compression inferCompression(Codec[] codecs) {
+	protected static Compression inferCompression(Codec[] codecs) {
 
 		final Codec lastCodec = codecs[codecs.length - 1];
 		if (lastCodec instanceof Compression)
@@ -182,15 +182,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		} catch (final NumberFormatException ignore) {}
 
 		return new JsonPrimitive(Double.parseDouble(fillValue));
-	}
-
-	@Override
-	public int[] getBlockSize() {
-
-		// TODO is this correct?
-		// even if it is correct, should consider re-design of downstream code so that overriding
-		// this is not necessary
-		return getShardAttributes() == null ? super.getBlockSize() : getShardAttributes().getBlockSize();
 	}
 
 	public long[] getShape() {
@@ -252,18 +243,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return map;
 	}
 
-	private Codec[] codecsToZarrCompressors(Codec[] codecs) {
-
-		final Codec[] out = new Codec[codecs.length];
-		for (int i = 0; i < out.length; i++) {
-			if (codecs[i] instanceof Compression)
-				out[i] = (Compression)codecs[i];
-			else
-				out[i] = codecs[i];
-		}
-		return out;
-	}
-
 	@Override
 	public NodeType getType() {
 
@@ -293,13 +272,27 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 				final ChunkAttributes chunkAttributes = context.deserialize(obj, ChunkAttributes.class);
 
-				return new ZarrV3DatasetAttributes(
-						zarrFormat,
-						shape,
-						chunkAttributes,
-						dataType,
-						obj.get("fill_value").getAsString(),
-						codecs);
+				if( codecs[0] instanceof ShardingCodec ) {
+
+					return new ZarrV3ShardedDatasetAttributes(
+							zarrFormat,
+							shape,
+							chunkAttributes,
+							dataType,
+							obj.get("fill_value").getAsString(),
+							codecs);
+
+				} else {
+
+					return new ZarrV3DatasetAttributes(
+							zarrFormat,
+							shape,
+							chunkAttributes,
+							dataType,
+							obj.get("fill_value").getAsString(),
+							codecs);
+				}
+
 			} catch (final Exception e) {
 				return null;
 			}
