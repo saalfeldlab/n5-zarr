@@ -282,7 +282,7 @@ def ts_create_zarr3_test(zarr3_path, data=None, chunk_shape=None, shard_shape=No
     return zarr3_store
 
 # Function to create sharded Zarr3 dataset with TensorStore
-def ts_create_zarr3_sharded_test(zarr3_path, data=None, shard_shape=None, chunk_shape=None, compression='gzip', level=1, fill_value=None):
+def ts_create_zarr3_sharded_test(zarr3_path, data=None, shard_shape=None, chunk_shape=None, compression=None, level=1, fill_value=None):
     """
     Function to create a sharded Zarr3 dataset using TensorStore.
     """
@@ -394,10 +394,20 @@ def runZarr3Test(group_path, array_3x2_c, array_30x20_c):
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_u4_f1'), data=array_3x2_c.astype(">u4"), chunk_shape=(3, 2), fill_value=1)
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_f4_fnan'), data=array_3x2_c.astype(">f4"), chunk_shape=(3, 2), fill_value=np.nan)
     
-
     # For Zarr3 with sharding
-    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '3x2_c_u1_sharded'),data=array_3x2_c.astype("|u1"),shard_shape=(1, 2), chunk_shape=(1, 1))
-    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_c_i8_sharded'),data=array_30x20_c.astype("<i8"),shard_shape=(6, 10), chunk_shape=(3, 5))
+    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '3x2_c_u1_sharded'),data=array_3x2_c.astype("|u1"),shard_shape=(2, 1), chunk_shape=(1, 1))
+    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '3x2_c_u1_sharded_gz'),data=array_3x2_c.astype("|u1"),shard_shape=(2, 1), chunk_shape=(1, 1))
+    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_c_u1_sharded'),data=array_30x20_c.astype("|u1"),shard_shape=(6, 10), chunk_shape=(3, 5))
+
+    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '3x2_c_u4_sharded'),data=array_3x2_c.astype("|u4"),shard_shape=(1, 2), chunk_shape=(1, 1))
+    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_c_u4_sharded'),data=array_30x20_c.astype("|u4"),shard_shape=(6, 10), chunk_shape=(3, 5))
+
+    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '3x2_c_i4_sharded'),data=array_3x2_c.astype("<i4"),shard_shape=(1, 2), chunk_shape=(1, 1))
+    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_c_i4_sharded'),data=array_30x20_c.astype("<i4"),shard_shape=(6, 10), chunk_shape=(3, 5))
+
+    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '3x2_c_i8_sharded'), data=array_3x2_c.astype("<i8"), shard_shape=(1, 2), chunk_shape=(1, 1))
+    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_c_i8_sharded'), data=array_30x20_c.astype("<i8"), shard_shape=(6, 10), chunk_shape=(3, 5))
+
 
 # For Zarr2
 def runZarr2Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f):
