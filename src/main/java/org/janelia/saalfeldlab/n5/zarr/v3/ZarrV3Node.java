@@ -24,12 +24,12 @@ public interface ZarrV3Node {
 
 		public static boolean isGroup(final String type) {
 
-			return type.equals(GROUP.toString());
+			return type != null && type.equals(GROUP.toString());
 		}
 
 		public static boolean isArray(final String type) {
 
-			return type.equals(ARRAY.toString());
+			return type != null && type.equals(ARRAY.toString());
 		}
 
 		public static String key() {
