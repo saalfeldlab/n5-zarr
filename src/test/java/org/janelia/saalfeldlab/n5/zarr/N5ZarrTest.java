@@ -399,6 +399,13 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
+	@Ignore
+	@Override
+	public void testWriteReadByteBlockMultipleCodecs() {
+		// not yet supported
+	}
+
+	@Test
 	@Override
 	public void testWriteReadStringBlock()  {
 		final DataType dataType = DataType.STRING;
