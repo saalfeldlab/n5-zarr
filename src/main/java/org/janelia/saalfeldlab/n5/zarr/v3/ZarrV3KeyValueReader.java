@@ -320,18 +320,10 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 			final DatasetAttributes datasetAttributes,
 			final long... gridPosition) throws N5Exception {
 
-		// TODO is the code below a complete replacement for this?
-//		if (datasetAttributes instanceof ShardedDatasetAttributes) {
-//			final ShardedDatasetAttributes shardedAttrs = (ShardedDatasetAttributes)datasetAttributes;
-//			final long[] shardPosition = shardedAttrs.getShardPositionForBlock(gridPosition);
-//			final Shard<?> shard = getShard(pathName, shardedAttrs, shardPosition);
-//			return shard.getBlock(gridPosition);
-//		}
-
 		if (datasetAttributes instanceof ZarrV3ShardedDatasetAttributes) {
 			final ZarrV3ShardedDatasetAttributes shardedAttrs = (ZarrV3ShardedDatasetAttributes) datasetAttributes;
 			final long[] shardPosition = shardedAttrs.getShardPositionForBlock(gridPosition);
-			final Shard<?, ?> shard = getShard(pathName, shardedAttrs, shardPosition);
+			final Shard<?> shard = getShard(pathName, shardedAttrs, shardPosition);
 			return shard.getBlock(gridPosition);
 		}
 
