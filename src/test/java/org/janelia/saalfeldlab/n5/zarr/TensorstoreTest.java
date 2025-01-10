@@ -122,7 +122,7 @@ public class TensorstoreTest {
 
 	}
 
-	private static <T extends IntegerType<T>> void assertIsSequence(
+	private static <T extends IntegerType<T>> void assertIsIntegerSequence(
 			final RandomAccessibleInterval<T> source,
 			final T ref) {
 
@@ -135,7 +135,7 @@ public class TensorstoreTest {
 		}
 	}
 
-	private static <T extends RealType<T>> void assertIsSequence(
+	private static <T extends RealType<T>> void assertIsRealSequence(
 			final RandomAccessibleInterval<T> source,
 			final T ref) {
 
@@ -231,27 +231,27 @@ public class TensorstoreTest {
 		// DataType.INT64);
 
 		final UnsignedByteType refUnsignedByte = new UnsignedByteType();
-		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_u1"), refUnsignedByte);
+		assertIsIntegerSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_u1"), refUnsignedByte);
 
 		/* int64 in C order */
 		final LongType refLong = new LongType();
-		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_i8"), refLong);
-		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_i8"), refLong);
+		assertIsIntegerSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_i8"), refLong);
+		assertIsIntegerSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_i8"), refLong);
 
 		/* int32 in C order */
 		final UnsignedIntType refUnsignedInt = new UnsignedIntType();
-		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_u4"), refUnsignedInt);
-		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_u4"), refUnsignedInt);
+		assertIsIntegerSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_u4"), refUnsignedInt);
+		assertIsIntegerSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_u4"), refUnsignedInt);
 
 		/* float64 in C order */
 		final DoubleType refDouble = new DoubleType();
-		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_f8"), refDouble);
-		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_f8"), refDouble);
+		assertIsRealSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_f8"), refDouble);
+		assertIsRealSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_f8"), refDouble);
 
 		/* float32 in C order */
 		final FloatType refFloat = new FloatType();
-		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_f4"), refFloat);
-		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_f4"), refFloat);
+		assertIsRealSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_f4"), refFloat);
+		assertIsRealSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_f4"), refFloat);
 		
 		/* sharded data */
 		if (version == Version.zarr3) {
@@ -315,7 +315,7 @@ public class TensorstoreTest {
 	public <T extends NativeType<T> & NumericType<T>> void testWriteTensorstore(Version version) throws IOException, InterruptedException {
 		
 		/* 
-		 * run the python script in a test mode and resturn early if we can't run it.
+		 * run the python script in a test mode and return early if we can't run it.
 		 */
 		if (!runPythonTest("tensorstore_read_test.py", "--test" )) {
 			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
@@ -353,7 +353,11 @@ public class TensorstoreTest {
 
 		for( DataType dtype : dtypes ) {
 
+			@SuppressWarnings("unchecked")
 			final Img<T> img = generateData(new long[] { 3, 2 }, (T)N5Utils.type(dtype));
+
+			@SuppressWarnings("unchecked")
+			final Img<T> imgBig = generateData(new long[] { 12, 9 }, (T)N5Utils.type(dtype));
 
 			// unsharded
 			String dset = String.format("3x2_%s", dtype.toString());
@@ -361,8 +365,8 @@ public class TensorstoreTest {
 			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dset, "-d", version.toString()));
 
 			// unsharded big
-			String dsetBig = String.format("30x20_%s", dtype.toString());
-			N5Utils.save(img, n5Zarr, dset, new int[] { 6, 5 }, new RawCompression());
+			String dsetBig = String.format("12x9%s", dtype.toString());
+			N5Utils.save(imgBig, n5Zarr, dsetBig, new int[] { 2, 3 }, new RawCompression());
 			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBig, "-d", version.toString()));
 
 			// sharded
@@ -371,8 +375,8 @@ public class TensorstoreTest {
 			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetSharded, "-d",version.toString()));
 
 			// sharded big
-			String dsetBigSharded = String.format("3x2_%s_shard", dtype.toString());
-			N5Utils.save(img, n5Zarr, dsetSharded, new int[] { 6, 5 }, new int[] { 12, 10 }, new RawCompression());
+			String dsetBigSharded = String.format("12x9%s_shard", dtype.toString());
+			N5Utils.save(imgBig, n5Zarr, dsetBigSharded, new int[] { 2, 3 }, new int[] { 6, 9 }, new RawCompression());
 			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBigSharded, "-d",version.toString()));
 		}
 	}
@@ -401,10 +405,10 @@ public class TensorstoreTest {
 		if( zarr.exists(dataset)) {
 			System.out.println("  exists");
 			if (ref instanceof IntegerType) {
-				assertIsSequence((RandomAccessibleInterval<IntegerType>) N5Utils.open(zarr, dataset), (IntegerType) ref);
+				assertIsIntegerSequence((RandomAccessibleInterval) N5Utils.open(zarr, dataset), (IntegerType) ref);
 			}
 			else if (ref instanceof RealType) {
-				assertIsSequence((RandomAccessibleInterval<RealType>) N5Utils.open(zarr, dataset), (RealType) ref);
+				assertIsRealSequence((RandomAccessibleInterval) N5Utils.open(zarr, dataset), (RealType) ref);
 			}
 			else
 				System.err.println("Skipping test for: " + dataset + ".  Invalide ref type.");
