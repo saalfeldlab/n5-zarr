@@ -381,6 +381,14 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		return createDatasetAttributes(getZArray(pathName));
 	}
 
+	@Override
+	public String absoluteDataBlockPath(final String normalPath, long... gridPosition) {
+
+		final ZarrDatasetAttributes zarrDatasetAttributes = getDatasetAttributes(normalPath);
+		return keyValueAccess.compose(uri, normalPath,
+				getZarrDataBlockPath(gridPosition, zarrDatasetAttributes.getDimensionSeparator(), zarrDatasetAttributes.isRowMajor()));
+	}
+
 	/**
 	 * Returns the {@link ZArrayAttributes} located at the given path, if
 	 * present.
@@ -642,14 +650,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		else
 			zarrDatasetAttributes = getDatasetAttributes(pathName);
 
-		final String absolutePath = keyValueAccess
-				.compose(
-						uri,
-						pathName,
-						getZarrDataBlockPath(
-								gridPosition,
-								zarrDatasetAttributes.getDimensionSeparator(),
-								zarrDatasetAttributes.isRowMajor()));
+		final String normalPathName = N5URI.normalizeGroupPath(pathName);
+		final String absolutePath = absoluteDataBlockPath(normalPathName, gridPosition);
 
 		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
 			return readBlock(lockedChannel.newInputStream(), zarrDatasetAttributes, gridPosition);
