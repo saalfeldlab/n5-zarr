@@ -25,6 +25,14 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Writer;
@@ -33,14 +41,20 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
-import org.janelia.saalfeldlab.n5.BlockWriter;
-import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
+import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
+import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.basictypeaccess.array.ByteArray;
+import net.imglib2.type.numeric.integer.ByteType;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.GsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
@@ -50,26 +64,8 @@ import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSyntaxException;
-
-import net.imglib2.Cursor;
-import net.imglib2.FinalInterval;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.basictypeaccess.array.ByteArray;
-import net.imglib2.type.numeric.integer.ByteType;
-import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
-
 /**
- * Zarr {@link KeyValueWriter} implementation.
+ * Zarr {@link GsonKeyValueN5Writer} implementation.
  *
  * @author Stephan Saalfeld
  * @author John Bogovic
@@ -486,28 +482,20 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 		final int[] blockSize = datasetAttributes.getBlockSize();
 		final DType dType = datasetAttributes.getDType();
-		final BlockWriter writer = datasetAttributes.getCompression().getWriter();
 
-		if (!Arrays.equals(blockSize, dataBlock.getSize())) {
-
-			final byte[] padCropped = padCrop(
-					dataBlock.toByteBuffer().array(),
-					dataBlock.getSize(),
-					blockSize,
-					dType.getNBytes(),
-					dType.getNBits(),
-					datasetAttributes.getFillBytes());
-
-			final DataBlock<byte[]> padCroppedDataBlock = new ByteArrayDataBlock(
-					blockSize,
-					dataBlock.getGridPosition(),
-					padCropped);
-
-			writer.write(padCroppedDataBlock, out);
-
-		} else {
-
-			writer.write(dataBlock, out);
+		try (final OutputStream deflater = datasetAttributes.getCompression().encode(out)) {
+			if (Arrays.equals(blockSize, dataBlock.getSize())) {
+				dataBlock.writeData(dType.getOrder(), deflater);
+			} else {
+				final byte[] padCropped = padCrop(
+						dataBlock.serialize(dType.getOrder()),
+						dataBlock.getSize(),
+						blockSize,
+						dType.getNBytes(),
+						dType.getNBits(),
+						datasetAttributes.getFillBytes());
+				deflater.write(padCropped);
+			}
 		}
 	}
 
