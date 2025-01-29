@@ -473,6 +473,9 @@ public class DType {
 		final ByteBuffer fillBuffer = ByteBuffer.wrap(fillBytes);
 		fillBuffer.order(order);
 
+		if (fill_value == null)
+			return fillBytes;
+
 		if (fill_value.equals("NaN")) {
 			if (nBytes == 8) {
 				fillBuffer.putDouble(Double.NaN);
