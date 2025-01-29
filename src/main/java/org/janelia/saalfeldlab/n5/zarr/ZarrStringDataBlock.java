@@ -19,7 +19,7 @@ public class ZarrStringDataBlock extends StringDataBlock {
 		final int[] lengths = Arrays.stream(encodedStrings).mapToInt((arr) -> arr.length).toArray();
 		final int totalLength = Arrays.stream(lengths).sum();
 		final ByteBuffer buf = ByteBuffer.wrap(new byte[totalLength + 4*N + 4]);
-		buf.order(byteOrder);
+		buf.order(ByteOrder.LITTLE_ENDIAN);
 
 		buf.putInt(N);
 		for (int i = 0; i < N; ++i) {
@@ -35,7 +35,7 @@ public class ZarrStringDataBlock extends StringDataBlock {
 		serializedData = serialized;
 
 		final ByteBuffer buf = ByteBuffer.wrap(serialized);
-		buf.order(byteOrder);
+		buf.order(ByteOrder.LITTLE_ENDIAN);
 
 		// sanity check to avoid out of memory errors
 		if (serialized.length < 4)
