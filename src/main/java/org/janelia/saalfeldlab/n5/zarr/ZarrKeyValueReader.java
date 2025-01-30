@@ -430,8 +430,22 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		final JsonElement attributes = getAttributes(pathName); // handles caching
 		try {
 			return GsonUtils.readAttribute(attributes, normalizedAttributePath, clazz, gson);
-		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
+		} catch (JsonSyntaxException | NumberFormatException  e) {
 			throw new N5Exception.N5ClassCastException(e);
+		} catch (ClassCastException e ) {
+			if( clazz.equals(ZarrCompressor.class)) {
+				// get around Gson eagerly returning null
+				// a nicer solution would involve a large re-working of how ZarrCompressor are serialized
+				// this is such a niche issue, that I don't currently feel that is worth the effort.
+				// see https://github.com/saalfeldlab/n5-zarr/issues/61
+				final JsonElement elem = GsonUtils.readAttribute(attributes, normalizedAttributePath, JsonElement.class, gson);
+				if( elem.isJsonNull() )
+					return (T)new ZarrCompressor.Raw();
+				else
+					throw new N5Exception.N5ClassCastException(e);
+			}
+			else
+				throw new N5Exception.N5ClassCastException(e);
 		}
 	}
 
