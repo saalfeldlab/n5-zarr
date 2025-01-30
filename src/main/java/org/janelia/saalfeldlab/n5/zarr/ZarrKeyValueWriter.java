@@ -298,7 +298,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		newAttributes = GsonUtils.insertAttributes(newAttributes, attributes, gson);
 
 		if (newAttributes.isJsonObject()) {
-			final ZarrJsonElements zje = build(newAttributes.getAsJsonObject(), getGson());
+			final ZarrJsonElements zje = build(newAttributes.getAsJsonObject(), getGson(), mapN5DatasetAttributes);
 			// the three methods below handle caching
 			writeZArray(normalPath, zje.zarray);
 			writeZAttrs(normalPath, zje.zattrs);
