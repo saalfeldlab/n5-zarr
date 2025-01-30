@@ -842,6 +842,26 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
+	public void testNullFillValue() {
+
+		final String key = ZArrayAttributes.fillValueKey;
+		final JsonNull jsonNull = JsonNull.INSTANCE;
+		final byte[] zero = new byte[8];
+
+		try (final N5Writer n5 = createTempN5Writer(tempN5Location(), new GsonBuilder().serializeNulls())) {
+
+			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			n5.setAttribute(datasetName, key, jsonNull);
+
+			assertEquals(jsonNull, n5.getAttribute(datasetName, key, JsonElement.class));
+			assertTrue(n5.datasetExists(datasetName));
+
+			final ZarrDatasetAttributes dsetAttrs = (ZarrDatasetAttributes) n5.getDatasetAttributes(datasetName);
+			assertArrayEquals(zero, dsetAttrs.getFillBytes());
+		}
+	}
+
+	@Test
 	@Override
 	@Ignore
 	public void testNullAttributes()  {
