@@ -39,15 +39,12 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
-import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
-import org.janelia.saalfeldlab.n5.BytesCodec;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Reader;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.DefaultBlockReader;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
@@ -56,9 +53,7 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.Splittable.InputStreamReadData;
-import org.janelia.saalfeldlab.n5.Splittable.ReadData;
-import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
+import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
 import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
 
@@ -703,19 +698,22 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		final DType dType = datasetAttributes.getDType();
 
 		final DataBlock<?> dataBlock = dType.createDataBlock(blockSize, gridPosition);
-		try (final InputStream inflater = datasetAttributes.getCompression().decode(in)) {
-			final int numElements = DataBlock.getNumElements(blockSize);
-			final int numBytes;
-			if ( dType.getDataType() == DataType.STRING ) {
-				numBytes = -1;
-			}
-			else if (dType.getNBytes() != 0)
-				numBytes = numElements * dType.getNBytes();
-			else
-				numBytes = (numElements * dType.getNBits() + 7) / 8;
-			final ReadData data = new InputStreamReadData(inflater, numBytes);
-			dataBlock.readData(dType.getOrder(), data);
+
+		final int numElements = DataBlock.getNumElements(blockSize);
+		final int numBytes;
+		if ( dType.getDataType() == DataType.STRING ) {
+			numBytes = -1;
 		}
+		else if (dType.getNBytes() != 0)
+			numBytes = numElements * dType.getNBytes();
+		else
+			numBytes = (numElements * dType.getNBits() + 7) / 8;
+
+		final ReadData data = ReadData
+				.from(in)
+				.decode(datasetAttributes.getCompression(), numBytes)
+				.order(dType.getOrder());
+		dataBlock.readData(data);
 
 		return dataBlock;
 	}

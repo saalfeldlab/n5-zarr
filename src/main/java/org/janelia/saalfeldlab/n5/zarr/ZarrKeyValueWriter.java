@@ -57,6 +57,7 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
+import org.janelia.saalfeldlab.n5.readdata.ReadData;
 
 import static net.imglib2.util.Util.safeInt;
 
@@ -479,20 +480,20 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final int[] blockSize = datasetAttributes.getBlockSize();
 		final DType dType = datasetAttributes.getDType();
 
-		try (final OutputStream deflater = datasetAttributes.getCompression().encode(out)) {
-			if (Arrays.equals(blockSize, dataBlock.getSize())) {
-				dataBlock.writeData(dType.getOrder(), deflater);
-			} else {
-				final byte[] padCropped = padCrop(
-						dataBlock.serialize(dType.getOrder()),
-						dataBlock.getSize(),
-						blockSize,
-						dType.getNBytes(),
-						dType.getNBits(),
-						datasetAttributes.getFillBytes());
-				deflater.write(padCropped);
-			}
+		ReadData readData = dataBlock.writeData(dType.getOrder());
+		if (!Arrays.equals(blockSize, dataBlock.getSize())) {
+			final byte[] padCropped = padCrop(
+					readData.allBytes(),
+					dataBlock.getSize(),
+					blockSize,
+					dType.getNBytes(),
+					dType.getNBits(),
+					datasetAttributes.getFillBytes());
+			readData = ReadData.from(padCropped);
 		}
+		readData.encode(datasetAttributes.getCompression())
+				.writeTo(out);
+		out.flush();
 	}
 
 	@Override
