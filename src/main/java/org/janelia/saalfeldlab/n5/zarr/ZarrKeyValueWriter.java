@@ -48,6 +48,7 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.DefaultBlockWriter;
 import org.janelia.saalfeldlab.n5.GsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
@@ -57,8 +58,6 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
-import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
-import org.janelia.saalfeldlab.n5.readdata.ReadData;
 
 import static net.imglib2.util.Util.safeInt;
 
@@ -465,24 +464,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			cache.updateCacheInfo(normalGroupPath, ZATTRS_FILE, attributes);
 	}
 
-	/**
-	 * Writes a {@link DataBlock} into an {@link OutputStream}.
-	 *
-	 * @param out the output stream
-	 * @param datasetAttributes dataset attributes
-	 * @param dataBlock the data block
-	 * @throws IOException the exception
-	 */
-	public static <T> void writeBlock(
-			final OutputStream out,
-			final ZarrDatasetAttributes datasetAttributes,
-			final DataBlock<T> dataBlock) throws IOException {
-
-		final DataBlockCodec<T> codec = datasetAttributes.getDataBlockCodec();
-		codec.encode(dataBlock).writeTo(out);
-		out.flush();
-	}
-
 	@Override
 	public <T> void writeBlock(
 			final String pathName,
@@ -513,8 +494,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		try {
 			keyValueAccess.createDirectories(parent);
 			try (final LockedChannel lockedChannel = keyValueAccess.lockForWriting(path)) {
-
-				writeBlock(
+				DefaultBlockWriter.writeBlock(
 						lockedChannel.newOutputStream(),
 						zarrDatasetAttributes,
 						dataBlock);

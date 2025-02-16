@@ -45,6 +45,7 @@ import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.DefaultBlockReader;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
@@ -53,8 +54,6 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
-import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
 import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
 
@@ -670,7 +669,10 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		final String absolutePath = absoluteDataBlockPath(normalPathName, gridPosition);
 
 		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
-			return readBlock(lockedChannel.newInputStream(), zarrDatasetAttributes, gridPosition);
+			return DefaultBlockReader.readBlock(
+					lockedChannel.newInputStream(),
+					zarrDatasetAttributes,
+					gridPosition);
 		} catch (final N5Exception.N5NoSuchKeyException e) {
 			return null;
 		} catch (final Throwable  e) {
@@ -678,24 +680,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 					"Failed to read block " + Arrays.toString(gridPosition) + " from dataset " + pathName,
 					e);
 		}
-	}
-
-	/**
-	 * Reads a {@link DataBlock} from an {@link InputStream}.
-	 *
-	 * @param in
-	 * @param datasetAttributes
-	 * @param gridPosition
-	 * @return
-	 * @throws IOException
-	 */
-	@SuppressWarnings("incomplete-switch")
-	protected static DataBlock<?> readBlock(
-			final InputStream in,
-			final ZarrDatasetAttributes datasetAttributes,
-			final long... gridPosition) throws IOException {
-		final DataBlockCodec<?> codec = datasetAttributes.getDataBlockCodec();
-		return codec.decode(ReadData.from(in), gridPosition);
 	}
 
 	/**
