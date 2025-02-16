@@ -29,6 +29,7 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
 import org.janelia.saalfeldlab.n5.Compression;
+import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
 
@@ -85,7 +86,15 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		return dimensionSeparator;
 	}
 
-	public DataBlockCodec<?> getDataBlockCodec() {
-		return dataBlockCodec;
+	/**
+	 * Get the {@link DataBlockCodec} for this dataset.
+	 *
+	 * @param <T>
+	 * 		the returned codec is cast to {@code DataBlockCodec<T>} for convenience
+	 * 		(that is, the caller doesn't have to do the cast explicitly).
+	 * @return the {@code DataBlockCodec} for this dataset
+	 */
+	public <T> DataBlockCodec<T> getDataBlockCodec() {
+		return (DataBlockCodec<T>) dataBlockCodec;
 	}
 }
