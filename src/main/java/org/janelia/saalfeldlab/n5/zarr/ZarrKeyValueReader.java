@@ -670,6 +670,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			final ZarrDatasetAttributes datasetAttributes,
 			final long... gridPosition) throws IOException {
 
+//		throw new UnsupportedOperationException("TODO revise");
+
 		final int[] blockSize = datasetAttributes.getBlockSize();
 		final DType dType = datasetAttributes.getDType();
 
@@ -685,11 +687,9 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		else
 			numBytes = (numElements * dType.getNBits() + 7) / 8;
 
-		final ReadData data = ReadData
-				.from(in)
-				.decode(datasetAttributes.getCompression(), numBytes)
-				.order(dType.getOrder());
-		dataBlock.readData(data);
+		final ReadData data = datasetAttributes.getCompression().decode(
+				ReadData.from(in), numBytes);
+		dataBlock.readData(dType.getOrder(), data);
 
 		return dataBlock;
 	}

@@ -477,6 +477,8 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			final ZarrDatasetAttributes datasetAttributes,
 			final DataBlock<T> dataBlock) throws IOException {
 
+//		throw new UnsupportedOperationException("TODO revise");
+
 		final int[] blockSize = datasetAttributes.getBlockSize();
 		final DType dType = datasetAttributes.getDType();
 
@@ -491,8 +493,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 					datasetAttributes.getFillBytes());
 			readData = ReadData.from(padCropped);
 		}
-		readData.encode(datasetAttributes.getCompression())
-				.writeTo(out);
+		datasetAttributes.getCompression().encode(readData).writeTo(out);
 		out.flush();
 	}
 
