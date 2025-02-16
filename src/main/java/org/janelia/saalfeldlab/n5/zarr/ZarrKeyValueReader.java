@@ -53,6 +53,7 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
 import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
@@ -693,29 +694,9 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			final InputStream in,
 			final ZarrDatasetAttributes datasetAttributes,
 			final long... gridPosition) throws IOException {
-
-//		throw new UnsupportedOperationException("TODO revise");
-
-		final int[] blockSize = datasetAttributes.getBlockSize();
-		final DType dType = datasetAttributes.getDType();
-
-		final DataBlock<?> dataBlock = dType.createDataBlock(blockSize, gridPosition);
-
-		final int numElements = DataBlock.getNumElements(blockSize);
-		final int numBytes;
-		if ( dType.getDataType() == DataType.STRING ) {
-			numBytes = -1;
-		}
-		else if (dType.getNBytes() != 0)
-			numBytes = numElements * dType.getNBytes();
-		else
-			numBytes = (numElements * dType.getNBits() + 7) / 8;
-
-		final ReadData data = datasetAttributes.getCompression().decode(
-				ReadData.from(in), numBytes);
-		dataBlock.readData(dType.getOrder(), data);
-
-		return dataBlock;
+		final DataBlockCodec<?> codec = datasetAttributes.getDataBlockCodec();
+		final Compression compression = datasetAttributes.getCompression();
+		return codec.decode(ReadData.from(in), gridPosition, compression);
 	}
 
 	/**

@@ -57,6 +57,7 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
+import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
 
 import static net.imglib2.util.Util.safeInt;
@@ -477,23 +478,9 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			final ZarrDatasetAttributes datasetAttributes,
 			final DataBlock<T> dataBlock) throws IOException {
 
-//		throw new UnsupportedOperationException("TODO revise");
-
-		final int[] blockSize = datasetAttributes.getBlockSize();
-		final DType dType = datasetAttributes.getDType();
-
-		ReadData readData = dataBlock.writeData(dType.getOrder());
-		if (!Arrays.equals(blockSize, dataBlock.getSize())) {
-			final byte[] padCropped = padCrop(
-					readData.allBytes(),
-					dataBlock.getSize(),
-					blockSize,
-					dType.getNBytes(),
-					dType.getNBits(),
-					datasetAttributes.getFillBytes());
-			readData = ReadData.from(padCropped);
-		}
-		datasetAttributes.getCompression().encode(readData).writeTo(out);
+		final DataBlockCodec<T> codec = datasetAttributes.getDataBlockCodec();
+		final Compression compression = datasetAttributes.getCompression();
+		codec.encode(dataBlock, compression).writeTo(out);
 		out.flush();
 	}
 
