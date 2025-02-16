@@ -2,10 +2,14 @@ package org.janelia.saalfeldlab.n5.zarr.codec;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
+import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
 import org.janelia.saalfeldlab.n5.codec.DataCodec;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
@@ -15,19 +19,7 @@ import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter.padCrop;
 
 public class ZarrCodecs {
 
-
-	// codecs
-
 	private ZarrCodecs() {}
-
-
-	static DataCodec<?> getDataCodec(DType dType)
-	{
-		final ByteOrder order = dType.getOrder();
-		throw new UnsupportedOperationException("TODO revise");
-	}
-
-
 
 	public static class DefaultDataBlockCodec<T> implements DataBlockCodec<T> {
 
@@ -104,4 +96,74 @@ public class ZarrCodecs {
 			}
 		}
 	}
+
+	/**
+	 * DataBlockCodec for data type STRING
+	 */
+	public static class StringDataBlockCodec implements DataBlockCodec<String[]> {
+
+		private static final Charset ENCODING = StandardCharsets.UTF_8;
+
+		private final int[] blockSize;
+
+		public StringDataBlockCodec(final int[] blockSize) {
+			this.blockSize = blockSize;
+		}
+
+		@Override
+		public ReadData encode(final DataBlock<String[]> dataBlock, final Compression compression) throws IOException {
+			return ReadData.from(out -> {
+				final ReadData serialized = serialize(dataBlock.getData());
+				compression.encode(serialized).writeTo(out);
+				out.flush();
+			});
+		}
+
+		@Override
+		public DataBlock<String[]> decode(final ReadData readData, final long[] gridPosition, final Compression compression) throws IOException {
+			try (final InputStream in = readData.inputStream()) {
+				final ReadData decompressed = compression.decode(ReadData.from(in), -1);
+				final String[] actualData = deserialize(decompressed);
+				return new StringDataBlock(blockSize, gridPosition, actualData);
+			}
+		}
+
+		private static ReadData serialize(final String[] data) {
+			final int N = data.length;
+			final byte[][] encodedStrings = Arrays.stream(data).map((str) -> str.getBytes(ENCODING)).toArray(byte[][]::new);
+			final int[] lengths = Arrays.stream(encodedStrings).mapToInt(a -> a.length).toArray();
+			final int totalLength = Arrays.stream(lengths).sum();
+			final ByteBuffer buf = ByteBuffer.wrap(new byte[totalLength + 4 * N + 4]);
+			buf.order(ByteOrder.LITTLE_ENDIAN);
+			buf.putInt(N);
+			for (int i = 0; i < N; ++i) {
+				buf.putInt(lengths[i]);
+				buf.put(encodedStrings[i]);
+			}
+			return ReadData.from(buf.array());
+		}
+
+		private static String[] deserialize(final ReadData readData) throws IOException {
+			final ByteBuffer serialized =  readData.toByteBuffer();
+			serialized.order(ByteOrder.LITTLE_ENDIAN);
+
+			// sanity check to avoid out of memory errors
+			if (serialized.limit() < 4)
+				throw new RuntimeException("Corrupt buffer, data seems truncated.");
+
+			final int n = serialized.getInt();
+			if (serialized.limit() < n)
+				throw new RuntimeException("Corrupt buffer, data seems truncated.");
+
+			final String[] actualData = new String[n];
+			for (int i = 0; i < n; ++i) {
+				final int length = serialized.getInt();
+				final byte[] encodedString = new byte[length];
+				serialized.get(encodedString);
+				actualData[i] = new String(encodedString, ENCODING);
+			}
+			return actualData;
+		}
+	}
+
 }
