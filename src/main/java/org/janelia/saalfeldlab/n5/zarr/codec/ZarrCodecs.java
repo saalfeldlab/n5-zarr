@@ -24,19 +24,14 @@ public class ZarrCodecs {
 	static DataCodec<?> getDataCodec(DType dType)
 	{
 		final ByteOrder order = dType.getOrder();
-		dType.toString();
-
-
 		throw new UnsupportedOperationException("TODO revise");
-
-
 	}
 
 
 
-	static class DefaultDataBlockCodec<T> implements DataBlockCodec<T> {
+	public static class DefaultDataBlockCodec<T> implements DataBlockCodec<T> {
 
-		interface DataBlockFactory<T> {
+		public interface DataBlockFactory<T> {
 
 			DataBlock<T> createDataBlock(int[] blockSize, long[] gridPosition, T data);
 		}
@@ -50,7 +45,7 @@ public class ZarrCodecs {
 		private final byte[] fillBytes;
 		private final int numBytes;
 
-		DefaultDataBlockCodec(
+		public DefaultDataBlockCodec(
 				final int[] blockSize,
 				final DataCodec<T> dataCodec,
 				final int nBytes,
@@ -63,11 +58,12 @@ public class ZarrCodecs {
 			this.nBits = nBits;
 			this.fillBytes = fillBytes;
 
-			numElements = DataBlock.getNumElements(blockSize);
+			final int numEntries = DataBlock.getNumElements(blockSize);
 			if (nBytes != 0)
-				numBytes = numElements * nBytes;
+				numBytes = numEntries * nBytes;
 			else
-				numBytes = (numElements * nBits + 7) / 8;
+				numBytes = (numEntries * nBits + 7) / 8;
+			numElements = numBytes / dataCodec.bytesPerElement();
 
 			this.dataCodec = dataCodec;
 			this.dataBlockFactory = dataBlockFactory;

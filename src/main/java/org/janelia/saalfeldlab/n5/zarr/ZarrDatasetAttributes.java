@@ -6,13 +6,13 @@
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,6 +30,7 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
 
 
 /**
@@ -40,8 +41,8 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 
 	private final transient boolean isRowMajor;
 	private final transient DType dType;
-	private final transient byte[] fillBytes;
 	private final transient String dimensionSeparator;
+	private final DataBlockCodec<?> dataBlockCodec;
 
 	public ZarrDatasetAttributes(
 			final long[] dimensions,
@@ -55,8 +56,8 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		super(dimensions, blockSize, dType.getDataType(), compression);
 		this.dType = dType;
 		this.isRowMajor = isRowMajor;
-		this.fillBytes = dType.createFillBytes(fill_value);
 		this.dimensionSeparator = dimensionSeparator;
+		this.dataBlockCodec = dType.createDataBlockCodec(blockSize, fill_value);
 	}
 
 	public ZarrDatasetAttributes(
@@ -80,12 +81,11 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		return dType;
 	}
 
-	public byte[] getFillBytes() {
-
-		return fillBytes;
-	}
-
 	public String getDimensionSeparator() {
 		return dimensionSeparator;
+	}
+
+	public DataBlockCodec<?> getDataBlockCodec() {
+		return dataBlockCodec;
 	}
 }
