@@ -9,11 +9,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
+import org.janelia.saalfeldlab.n5.DataBlock.DataBlockFactory;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
 import org.janelia.saalfeldlab.n5.codec.DataCodec;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
-import org.janelia.saalfeldlab.n5.zarr.DType;
 
 import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter.padCrop;
 
@@ -23,11 +23,6 @@ public class ZarrCodecs {
 
 	public static class DefaultDataBlockCodec<T> implements DataBlockCodec<T> {
 
-		public interface DataBlockFactory<T> {
-
-			DataBlock<T> createDataBlock(int[] blockSize, long[] gridPosition, T data);
-		}
-
 		private final int[] blockSize;
 		private final DataCodec<T> dataCodec;
 		private final DataBlockFactory<T> dataBlockFactory;
@@ -36,6 +31,7 @@ public class ZarrCodecs {
 		private final int nBits;
 		private final byte[] fillBytes;
 		private final int numBytes;
+		private final Compression compression;
 
 		public DefaultDataBlockCodec(
 				final int[] blockSize,
@@ -43,12 +39,14 @@ public class ZarrCodecs {
 				final int nBytes,
 				final int nBits,
 				final byte[] fillBytes,
+				final Compression compression,
 				final DataBlockFactory<T> dataBlockFactory) {
 			this.blockSize = blockSize;
 
 			this.nBytes = nBytes;
 			this.nBits = nBits;
 			this.fillBytes = fillBytes;
+			this.compression = compression;
 
 			final int numEntries = DataBlock.getNumElements(blockSize);
 			if (nBytes != 0)
@@ -78,7 +76,7 @@ public class ZarrCodecs {
 		}
 
 		@Override
-		public ReadData encode(final DataBlock<T> dataBlock, final Compression compression) throws IOException {
+		public ReadData encode(final DataBlock<T> dataBlock) throws IOException {
 			final ReadData readData = encodePadded(dataBlock);
 			return ReadData.from(out -> {
 				compression.encode(readData).writeTo(out);
@@ -87,7 +85,7 @@ public class ZarrCodecs {
 		}
 
 		@Override
-		public DataBlock<T> decode(final ReadData readData, final long[] gridPosition, final Compression compression) throws IOException {
+		public DataBlock<T> decode(final ReadData readData, final long[] gridPosition) throws IOException {
 			try (final InputStream in = readData.inputStream()) {
 				final T data = dataCodec.createData(numElements);
 				final ReadData decompressed = compression.decode(ReadData.from(in), numBytes);
@@ -105,13 +103,15 @@ public class ZarrCodecs {
 		private static final Charset ENCODING = StandardCharsets.UTF_8;
 
 		private final int[] blockSize;
+		private final Compression compression;
 
-		public StringDataBlockCodec(final int[] blockSize) {
+		public StringDataBlockCodec(final int[] blockSize, final Compression compression) {
 			this.blockSize = blockSize;
+			this.compression = compression;
 		}
 
 		@Override
-		public ReadData encode(final DataBlock<String[]> dataBlock, final Compression compression) throws IOException {
+		public ReadData encode(final DataBlock<String[]> dataBlock) throws IOException {
 			return ReadData.from(out -> {
 				final ReadData serialized = serialize(dataBlock.getData());
 				compression.encode(serialized).writeTo(out);
@@ -120,7 +120,7 @@ public class ZarrCodecs {
 		}
 
 		@Override
-		public DataBlock<String[]> decode(final ReadData readData, final long[] gridPosition, final Compression compression) throws IOException {
+		public DataBlock<String[]> decode(final ReadData readData, final long[] gridPosition) throws IOException {
 			try (final InputStream in = readData.inputStream()) {
 				final ReadData decompressed = compression.decode(ReadData.from(in), -1);
 				final String[] actualData = deserialize(decompressed);

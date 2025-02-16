@@ -29,9 +29,7 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
 import org.janelia.saalfeldlab.n5.Compression;
-import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
 
 
 /**
@@ -43,7 +41,6 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 	private final transient boolean isRowMajor;
 	private final transient DType dType;
 	private final transient String dimensionSeparator;
-	private final DataBlockCodec<?> dataBlockCodec;
 
 	public ZarrDatasetAttributes(
 			final long[] dimensions,
@@ -54,11 +51,11 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final String fill_value,
 			final String dimensionSeparator ) {
 
-		super(dimensions, blockSize, dType.getDataType(), compression);
+		super(dimensions, blockSize, dType.getDataType(), compression,
+				dType.createDataBlockCodec(blockSize, fill_value, compression));
 		this.dType = dType;
 		this.isRowMajor = isRowMajor;
 		this.dimensionSeparator = dimensionSeparator;
-		this.dataBlockCodec = dType.createDataBlockCodec(blockSize, fill_value);
 	}
 
 	public ZarrDatasetAttributes(
@@ -84,17 +81,5 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 
 	public String getDimensionSeparator() {
 		return dimensionSeparator;
-	}
-
-	/**
-	 * Get the {@link DataBlockCodec} for this dataset.
-	 *
-	 * @param <T>
-	 * 		the returned codec is cast to {@code DataBlockCodec<T>} for convenience
-	 * 		(that is, the caller doesn't have to do the cast explicitly).
-	 * @return the {@code DataBlockCodec} for this dataset
-	 */
-	public <T> DataBlockCodec<T> getDataBlockCodec() {
-		return (DataBlockCodec<T>) dataBlockCodec;
 	}
 }

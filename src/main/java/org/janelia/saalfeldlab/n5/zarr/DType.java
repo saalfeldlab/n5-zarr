@@ -33,8 +33,9 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
-
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
+import org.janelia.saalfeldlab.n5.Compression;
+import org.janelia.saalfeldlab.n5.DataBlock.DataBlockFactory;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DoubleArrayDataBlock;
 import org.janelia.saalfeldlab.n5.FloatArrayDataBlock;
@@ -44,7 +45,6 @@ import org.janelia.saalfeldlab.n5.ShortArrayDataBlock;
 import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
 import org.janelia.saalfeldlab.n5.codec.DataCodec;
 import org.janelia.saalfeldlab.n5.zarr.codec.ZarrCodecs;
-import org.janelia.saalfeldlab.n5.zarr.codec.ZarrCodecs.DefaultDataBlockCodec.DataBlockFactory;
 
 import static org.janelia.saalfeldlab.n5.zarr.Filter.VLEN_UTF8;
 
@@ -92,7 +92,7 @@ public class DType {
 
 		private final char code;
 
-		private Primitive(final char code) {
+		Primitive(final char code) {
 
 			this.code = code;
 		}
@@ -129,36 +129,38 @@ public class DType {
 
 	public DataBlockCodec<?> createDataBlockCodec(
 			final int[] blockSize,
-			final String fill_value
+			final String fill_value,
+			final Compression compression
 	) {
 		final byte[] fillBytes = createFillBytes(fill_value);
-		return dataBlockCodecFactory.createDataBlockCodec(blockSize, nBytes, nBits, fillBytes);
+		return dataBlockCodecFactory.createDataBlockCodec(blockSize, nBytes, nBits, fillBytes, compression);
 	}
 
 	private interface DataBlockCodecFactory<T> {
 
-		DataBlockCodec<T> createDataBlockCodec(int[] blockSize, int nBytes, int nBits, byte[] fillBytes);
+		DataBlockCodec<T> createDataBlockCodec(int[] blockSize, int nBytes, int nBits, byte[] fillBytes, Compression compression);
 	}
 
-	private static class StringDataBlockCodecFactory implements DataBlockCodecFactory<String[]> {
+	private static class ZarrStringCodecFactory implements DataBlockCodecFactory<String[]> {
 
 		@Override
 		public DataBlockCodec<String[]> createDataBlockCodec(
 				final int[] blockSize,
 				final int nBytes,
 				final int nBits,
-				final byte[] fillBytes) {
-			return new ZarrCodecs.StringDataBlockCodec(blockSize);
+				final byte[] fillBytes,
+				final Compression compression) {
+			return new ZarrCodecs.StringDataBlockCodec(blockSize, compression);
 		}
 	}
 
-	private static class DefaultDataBlockCodecFactory<T> implements DataBlockCodecFactory<T> {
+	private static class ZarrCodecFactory<T> implements DataBlockCodecFactory<T> {
 
 		private final DataCodec<T> dataCodec;
 
 		private final DataBlockFactory<T> dataBlockFactory;
 
-		DefaultDataBlockCodecFactory(
+		ZarrCodecFactory(
 				final DataCodec<T> dataCodec,
 				final DataBlockFactory<T> dataBlockFactory) {
 			this.dataCodec = dataCodec;
@@ -170,10 +172,10 @@ public class DType {
 				final int[] blockSize,
 				final int nBytes,
 				final int nBits,
-				final byte[] fillBytes
-		) {
+				final byte[] fillBytes,
+				final Compression compression) {
 			return new ZarrCodecs.DefaultDataBlockCodec<>(
-					blockSize, dataCodec, nBytes, nBits, fillBytes, dataBlockFactory);
+					blockSize, dataCodec, nBytes, nBits, fillBytes, compression, dataBlockFactory);
 		}
 	}
 
@@ -189,12 +191,8 @@ public class DType {
 		case BIT:
 			nBytes = 0;
 			nBits = nB;
-			dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+			dataBlockCodecFactory = new ZarrCodecFactory<>(
 					DataCodec.BYTE, ByteArrayDataBlock::new);
-//			dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//					new ByteArrayDataBlock(blockSize, gridPosition, new byte[(numElements * nBits + 7) / 8]);
-//			byteBlockFactory = (blockSize, gridPosition, numElements) ->
-//					new ByteArrayDataBlock(blockSize, gridPosition, new byte[(numElements * nBits + 7) / 8]);
 			break;
 		case UNSIGNED_INT:
 		case INT:
@@ -202,108 +200,74 @@ public class DType {
 			nBits = 0;
 			switch (nBytes) {
 			case 1:
-				dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+				dataBlockCodecFactory = new ZarrCodecFactory<>(
 						DataCodec.BYTE, ByteArrayDataBlock::new);
-//				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//						new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements]);
 				break;
 			case 2:
-				dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+				dataBlockCodecFactory = new ZarrCodecFactory<>(
 						DataCodec.SHORT(order),
 						ShortArrayDataBlock::new);
-//				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//						new ShortArrayDataBlock(blockSize, gridPosition, new short[numElements]);
 				break;
 			case 4:
-				dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+				dataBlockCodecFactory = new ZarrCodecFactory<>(
 						DataCodec.INT(order),
 						IntArrayDataBlock::new);
-//				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//						new IntArrayDataBlock(blockSize, gridPosition, new int[numElements]);
 				break;
 			case 8:
-				dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+				dataBlockCodecFactory = new ZarrCodecFactory<>(
 						DataCodec.LONG(order),
 						LongArrayDataBlock::new);
-//				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//						new LongArrayDataBlock(blockSize, gridPosition, new long[numElements]);
 				break;
 			default: // because we do not know what else to do here
-				dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+				dataBlockCodecFactory = new ZarrCodecFactory<>(
 						DataCodec.BYTE, ByteArrayDataBlock::new);
-//				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//						new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			}
-//			byteBlockFactory = (blockSize, gridPosition, numElements) ->
-//					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			break;
 		case FLOAT:
 			nBytes = nB;
 			nBits = 0;
 			switch (nBytes) {
 			case 4:
-				dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+				dataBlockCodecFactory = new ZarrCodecFactory<>(
 						DataCodec.FLOAT(order),
 						FloatArrayDataBlock::new);
-//				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//						new FloatArrayDataBlock(blockSize, gridPosition, new float[numElements]);
 				break;
 			case 8:
-				dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+				dataBlockCodecFactory = new ZarrCodecFactory<>(
 						DataCodec.DOUBLE(order),
 						DoubleArrayDataBlock::new);
-//				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//						new DoubleArrayDataBlock(blockSize, gridPosition, new double[numElements]);
 				break;
 			default: // because we do not know what else to do here
-				dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+				dataBlockCodecFactory = new ZarrCodecFactory<>(
 						DataCodec.BYTE, ByteArrayDataBlock::new);
-//				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//						new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			}
-//			byteBlockFactory = (blockSize, gridPosition, numElements) ->
-//					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			break;
 		case COMPLEX_FLOAT:
 			nBytes = nB;
 			nBits = 0;
 			switch (nBytes) {
 			case 8: // this would support mapping onto an ImgLib2 ComplexFloatType
-				dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+				dataBlockCodecFactory = new ZarrCodecFactory<>(
 						DataCodec.FLOAT(order),
 						FloatArrayDataBlock::new);
-//				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//						new FloatArrayDataBlock(blockSize, gridPosition, new float[numElements * 2]);
 				break;
 			case 16: // this would support mapping onto an ImgLib2 ComplexDoubleType
-				dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+				dataBlockCodecFactory = new ZarrCodecFactory<>(
 						DataCodec.DOUBLE(order),
 						DoubleArrayDataBlock::new);
-//				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//						new DoubleArrayDataBlock(blockSize, gridPosition, new double[numElements * 2]);
 				break;
 			default: // because we do not know what else to do here
-				dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+				dataBlockCodecFactory = new ZarrCodecFactory<>(
 						DataCodec.BYTE, ByteArrayDataBlock::new);
-//				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//						new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			}
-//			byteBlockFactory = (blockSize, gridPosition, numElements) ->
-//					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			break;
 		case OBJECT:
 			nBytes = 1;
 			nBits = 0;
 			if (filters.contains(VLEN_UTF8)) {
-				dataBlockCodecFactory = new StringDataBlockCodecFactory();
-//				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//						new ZarrStringDataBlock(blockSize, gridPosition, new String[0]);
-//				byteBlockFactory = (blockSize, gridPosition, numElements) ->
-//						new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
+				dataBlockCodecFactory = new ZarrStringCodecFactory();
 			} else {
-				throw new UnsupportedOperationException("TODO not implemented yet");
-//				dataBlockFactory = null;
-//				byteBlockFactory = null;
+				dataBlockCodecFactory = null;
 			}
 			break;
 //		case BOOLEAN:
@@ -315,12 +279,8 @@ public class DType {
 		default:
 			nBytes = nB;
 			nBits = 0;
-			dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+			dataBlockCodecFactory = new ZarrCodecFactory<>(
 					DataCodec.BYTE, ByteArrayDataBlock::new);
-//			dataBlockFactory = (blockSize, gridPosition, numElements) ->
-//					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
-//			byteBlockFactory = (blockSize, gridPosition, numElements) ->
-//					new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 		}
 
 		dataType = getDataType(primitive, nBytes, filters);
@@ -338,45 +298,45 @@ public class DType {
 		case INT16:
 		case UINT16:
 			nBytes = 2 * nPrimitives;
-			dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+			dataBlockCodecFactory = new ZarrCodecFactory<>(
 					DataCodec.SHORT(order),
 					ShortArrayDataBlock::new);
 			break;
 		case INT32:
 		case UINT32:
 			nBytes = 4 * nPrimitives;
-			dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+			dataBlockCodecFactory = new ZarrCodecFactory<>(
 					DataCodec.INT(order),
 					IntArrayDataBlock::new);
 			break;
 		case INT64:
 		case UINT64:
 			nBytes = 8 * nPrimitives;
-			dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+			dataBlockCodecFactory = new ZarrCodecFactory<>(
 					DataCodec.LONG(order),
 					LongArrayDataBlock::new);
 			break;
 		case FLOAT32:
 			nBytes = 4 * nPrimitives;
-			dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+			dataBlockCodecFactory = new ZarrCodecFactory<>(
 					DataCodec.FLOAT(order),
 					FloatArrayDataBlock::new);
 			break;
 		case FLOAT64:
 			nBytes = 8 * nPrimitives;
-			dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+			dataBlockCodecFactory = new ZarrCodecFactory<>(
 					DataCodec.DOUBLE(order),
 					DoubleArrayDataBlock::new);
 			break;
 		case STRING:
 			nBytes = 1;
-			dataBlockCodecFactory = new StringDataBlockCodecFactory();
+			dataBlockCodecFactory = new ZarrStringCodecFactory();
 			break;
 		case INT8:
 		case UINT8:
 		default:
 			nBytes = nPrimitives;
-			dataBlockCodecFactory = new DefaultDataBlockCodecFactory<>(
+			dataBlockCodecFactory = new ZarrCodecFactory<>(
 					DataCodec.BYTE, ByteArrayDataBlock::new);
 		}
 	}
@@ -446,7 +406,6 @@ public class DType {
 			return DataType.UINT8; // fallback
 		}
 	}
-
 
 	@Override
 	public String toString() {

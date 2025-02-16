@@ -479,8 +479,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			final DataBlock<T> dataBlock) throws IOException {
 
 		final DataBlockCodec<T> codec = datasetAttributes.getDataBlockCodec();
-		final Compression compression = datasetAttributes.getCompression();
-		codec.encode(dataBlock, compression).writeTo(out);
+		codec.encode(dataBlock).writeTo(out);
 		out.flush();
 	}
 

@@ -695,8 +695,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			final ZarrDatasetAttributes datasetAttributes,
 			final long... gridPosition) throws IOException {
 		final DataBlockCodec<?> codec = datasetAttributes.getDataBlockCodec();
-		final Compression compression = datasetAttributes.getCompression();
-		return codec.decode(ReadData.from(in), gridPosition, compression);
+		return codec.decode(ReadData.from(in), gridPosition);
 	}
 
 	/**
