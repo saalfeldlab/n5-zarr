@@ -34,7 +34,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.Writer;
 import java.util.Arrays;
 import java.util.HashMap;
