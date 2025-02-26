@@ -78,10 +78,7 @@ public class ZarrCodecs {
 		@Override
 		public ReadData encode(final DataBlock<T> dataBlock) throws IOException {
 			final ReadData readData = encodePadded(dataBlock);
-			return ReadData.from(out -> {
-				compression.encode(readData).writeTo(out);
-				out.flush();
-			});
+			return ReadData.from(out -> compression.encode(readData).writeTo(out));
 		}
 
 		@Override
@@ -115,7 +112,6 @@ public class ZarrCodecs {
 			return ReadData.from(out -> {
 				final ReadData serialized = serialize(dataBlock.getData());
 				compression.encode(serialized).writeTo(out);
-				out.flush();
 			});
 		}
 

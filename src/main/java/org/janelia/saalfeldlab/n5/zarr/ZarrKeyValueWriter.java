@@ -34,6 +34,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.Writer;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -492,9 +493,12 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 				.compose(Arrays.stream(components).limit(components.length - 1).toArray(String[]::new));
 		try {
 			keyValueAccess.createDirectories(parent);
-			try (final LockedChannel lockedChannel = keyValueAccess.lockForWriting(path)) {
+			try (
+					final LockedChannel lockedChannel = keyValueAccess.lockForWriting(path);
+					final OutputStream out = lockedChannel.newOutputStream()
+			) {
 				DefaultBlockWriter.writeBlock(
-						lockedChannel.newOutputStream(),
+						out,
 						zarrDatasetAttributes,
 						dataBlock);
 			}
