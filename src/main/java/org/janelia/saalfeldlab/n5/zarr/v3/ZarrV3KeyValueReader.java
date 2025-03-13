@@ -42,7 +42,6 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
-import org.janelia.saalfeldlab.n5.ShardedDatasetAttributes;
 import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.saalfeldlab.n5.shard.Shard;
 import org.janelia.saalfeldlab.n5.zarr.Filter;
@@ -312,33 +311,6 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 			final Class<T> clazz) throws N5Exception {
 
 		return super.getAttribute(pathName, ZarrV3Node.ATTRIBUTES_KEY + "/" + key, clazz);
-	}
-
-	@Override
-	public DataBlock<?> readBlock(
-			final String pathName,
-			final DatasetAttributes datasetAttributes,
-			final long... gridPosition) throws N5Exception {
-
-		if (datasetAttributes instanceof ZarrV3ShardedDatasetAttributes) {
-			final ZarrV3ShardedDatasetAttributes shardedAttrs = (ZarrV3ShardedDatasetAttributes) datasetAttributes;
-			final long[] shardPosition = shardedAttrs.getShardPositionForBlock(gridPosition);
-			final Shard<?> shard = getShard(pathName, shardedAttrs, shardPosition);
-			return shard.getBlock(gridPosition);
-		}
-
-		final String path = absoluteDataBlockPath(N5URI.normalizeGroupPath(pathName), gridPosition);
-
-		try (final LockedChannel lockedChannel = getKeyValueAccess().lockForReading(path)) {
-			return DefaultBlockReader.readBlock(lockedChannel.newInputStream(), datasetAttributes,
-					gridPosition);
-		} catch (final N5Exception.N5NoSuchKeyException e) {
-			return null;
-		} catch (final IOException | UncheckedIOException e) {
-			throw new N5IOException(
-					"Failed to read block " + Arrays.toString(gridPosition) + " from dataset " + path,
-					e);
-		}
 	}
 
 	@Override

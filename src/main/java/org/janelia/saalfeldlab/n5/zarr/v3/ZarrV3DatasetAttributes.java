@@ -38,7 +38,6 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.codec.Codec;
-import org.janelia.saalfeldlab.n5.shard.ShardingCodec;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
@@ -92,27 +91,15 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final ChunkAttributes chunkAttributes,
 			final ZarrV3DataType dataType,
 			final String fillValue,
-			final Compression compression,
-			final Codec[] codecs) {
+			final Codec... codecs) {
 
-		super(shape, chunkAttributes.getGrid().getShape(), dataType.getDataType(), compression, removeRawCompression(codecs));
+		super(shape, chunkAttributes.getGrid().getShape(), dataType.getDataType(), removeRawCompression(codecs));
 		this.zarrFormat = zarrFormat;
 		this.shape = shape;
 		this.chunkAttributes = chunkAttributes;
 		this.dataType = dataType;
 		this.fillValue = parseFillValue(fillValue, dataType.getDataType());
 		this.fillBytes = dataType.createFillBytes(fillValue);
-	}
-
-	public ZarrV3DatasetAttributes(
-			final int zarrFormat,
-			final long[] shape,
-			final ChunkAttributes chunkAttributes,
-			final ZarrV3DataType dataType,
-			final String fillValue,
-			final Codec[] codecs) {
-
-		this(zarrFormat, shape, chunkAttributes, dataType, fillValue, inferCompression(codecs), codecs);
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -258,27 +245,13 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				ArrayUtils.reverse(shape);
 
 				final ChunkAttributes chunkAttributes = context.deserialize(obj, ChunkAttributes.class);
-
-				if( codecs[0] instanceof ShardingCodec ) {
-
-					return new ZarrV3ShardedDatasetAttributes(
-							zarrFormat,
-							shape,
-							chunkAttributes,
-							dataType,
-							obj.get("fill_value").getAsString(),
-							codecs);
-
-				} else {
-
-					return new ZarrV3DatasetAttributes(
-							zarrFormat,
-							shape,
-							chunkAttributes,
-							dataType,
-							obj.get("fill_value").getAsString(),
-							codecs);
-				}
+				return new ZarrV3DatasetAttributes(
+						zarrFormat,
+						shape,
+						chunkAttributes,
+						dataType,
+						obj.get("fill_value").getAsString(),
+						codecs);
 
 			} catch (final Exception e) {
 				return null;

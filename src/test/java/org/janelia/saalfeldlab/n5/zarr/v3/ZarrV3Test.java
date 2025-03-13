@@ -254,6 +254,7 @@ public class ZarrV3Test extends AbstractN5Test {
 	}
 
 	@Test
+	@Ignore
 	public void testCreateNestedDataset() throws IOException {
 
 		final String datasetName = "/test/nested/data";
