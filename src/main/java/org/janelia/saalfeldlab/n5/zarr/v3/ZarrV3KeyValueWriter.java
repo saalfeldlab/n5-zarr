@@ -49,6 +49,7 @@ import org.janelia.saalfeldlab.n5.codec.N5BlockCodec;
 import org.janelia.saalfeldlab.n5.shard.ShardParameters;
 import org.janelia.saalfeldlab.n5.shard.ShardingCodec;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
+import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkPad;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
@@ -212,10 +213,31 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		writeAttributes(normalPath, attributes);
 	}
 
+	@Override
 	public <T> void writeBlock(final String path, final DatasetAttributes datasetAttributes,
 			final DataBlock<T> dataBlock) throws N5Exception {
 
-		CachedGsonKeyValueN5Writer.super.writeBlock(path, createZArrayAttributes(datasetAttributes), dataBlock);
+		ZarrV3DatasetAttributes zarrAttributes = createZArrayAttributes(datasetAttributes);
+		CachedGsonKeyValueN5Writer.super.writeBlock(path, zarrAttributes,
+				padBlockIfNeeded(zarrAttributes, dataBlock));
+	}
+
+	public <T> DataBlock<T> padBlockIfNeeded(
+			final ZarrV3DatasetAttributes datasetAttributes,
+			final DataBlock<T> dataBlock) throws N5Exception {
+
+		final int[] blockSize = datasetAttributes.getBlockSize();
+		if (!Arrays.equals(blockSize, dataBlock.getSize())) {
+
+			@SuppressWarnings("unchecked")
+			final DataBlock<T> paddedDataBlock = (DataBlock<T>)datasetAttributes.getDataType()
+				.createDataBlock(blockSize, dataBlock.getGridPosition());
+
+			ChunkPad.padDataBlock(dataBlock, paddedDataBlock);
+			return paddedDataBlock;
+		}
+
+		return dataBlock;
 	}
 
 	protected ZarrV3DatasetAttributes createZArrayAttributes(final DatasetAttributes datasetAttributes) {

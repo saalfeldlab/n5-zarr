@@ -25,25 +25,20 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.DefaultBlockReader;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
-import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.codec.Codec;
-import org.janelia.saalfeldlab.n5.shard.Shard;
 import org.janelia.saalfeldlab.n5.zarr.Filter;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
@@ -253,7 +248,7 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	}
 
 	@Override
-	public DatasetAttributes createDatasetAttributes(final JsonElement attributes) {
+	public ZarrV3DatasetAttributes createDatasetAttributes(final JsonElement attributes) {
 
 		return gson.fromJson(attributes, ZarrV3DatasetAttributes.class);
 	}
@@ -379,6 +374,25 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 			return ZarrV3DatasetAttributes.CODECS_KEY;
 		default:
 			return attributePath;
+		}
+	}
+
+	protected static <T> void fillWithFillValue(final ZarrV3DatasetAttributes datasetAttributes, final DataBlock<T> dataBlock) {
+
+		final JsonElement fillValueJson = datasetAttributes.fillValue;
+		final T data = dataBlock.getData();
+		if (data instanceof byte[]) {
+			Arrays.fill((byte[])data, fillValueJson.getAsByte());
+		} else if (data instanceof short[]) {
+			Arrays.fill((short[])data, fillValueJson.getAsShort());
+		} else if (data instanceof int[]) {
+			Arrays.fill((int[])data, fillValueJson.getAsInt());
+		} else if (data instanceof long[]) {
+			Arrays.fill((long[])data, fillValueJson.getAsLong());
+		} else if (data instanceof float[]) {
+			Arrays.fill((float[])data, fillValueJson.getAsFloat());
+		} else if (data instanceof double[]) {
+			Arrays.fill((double[])data, fillValueJson.getAsDouble());
 		}
 	}
 

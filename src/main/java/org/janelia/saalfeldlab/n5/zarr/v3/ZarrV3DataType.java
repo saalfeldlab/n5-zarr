@@ -18,6 +18,17 @@ public enum ZarrV3DataType {
 		return DataType.valueOf(toString().toUpperCase());
 	}
 
+	/**
+	 * Returns the number of bytes of this type.  If the type counts the number
+	 * of bits, this method returns 0.
+	 *
+	 * @return number of bytes
+	 */
+	public int getNBytes() {
+
+		return nBytes;
+	}
+
 	public static ZarrV3DataType fromDataType(final DataType dataType) {
 
 		return valueOf(dataType.toString().toLowerCase());
