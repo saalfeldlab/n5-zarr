@@ -355,7 +355,7 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
 	protected boolean isAttributes(final String attributePath) {
 
-		if (!Arrays.stream(ZarrV3DatasetAttributes.requiredKeys).anyMatch(attributePath::equals))
+		if (!Arrays.stream(ZarrV3DatasetAttributes.REQUIRED_KEYS).anyMatch(attributePath::equals))
 			return false;
 
 		if (mapN5DatasetAttributes &&

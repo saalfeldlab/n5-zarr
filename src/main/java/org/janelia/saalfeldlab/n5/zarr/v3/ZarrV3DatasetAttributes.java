@@ -65,7 +65,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	public static final String CHUNK_KEY_ENCODING_KEY = "chunk_key_encoding";
 	public static final String CODECS_KEY = "codecs";
 
-	public static final String[] requiredKeys = new String[]{
+	public static final String[] REQUIRED_KEYS = new String[]{
 			ZARR_FORMAT_KEY, NODE_TYPE_KEY,
 			SHAPE_KEY, DATA_TYPE_KEY, CHUNK_GRID_KEY, CHUNK_KEY_ENCODING_KEY,
 			FILL_VALUE_KEY, CODECS_KEY,
