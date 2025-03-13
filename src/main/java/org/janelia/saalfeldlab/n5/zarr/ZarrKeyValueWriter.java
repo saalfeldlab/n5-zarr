@@ -601,19 +601,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final int n = srcBlockSize.length;
 
 		if (nBytes != 0) {
-			final int[] srcStrides = new int[n];
-			final int[] dstStrides = new int[n];
-			final int[] srcSkip = new int[n];
-			final int[] dstSkip = new int[n];
-			srcStrides[0] = dstStrides[0] = nBytes;
-			for (int d = 1; d < n; ++d) {
-				srcStrides[d] = srcBlockSize[d] * srcBlockSize[d - 1];
-				dstStrides[d] = dstBlockSize[d] * dstBlockSize[d - 1];
-			}
-			for (int d = 0; d < n; ++d) {
-				srcSkip[d] = Math.max(1, dstBlockSize[d] - srcBlockSize[d]);
-				dstSkip[d] = Math.max(1, srcBlockSize[d] - dstBlockSize[d]);
-			}
 
 			/* this is getting hairy, ImgLib2 alternative */
 			/* byte images with 0-dimension d[0] * nBytes */
