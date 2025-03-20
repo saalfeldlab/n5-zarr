@@ -338,11 +338,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	@Override
 	public boolean datasetExists(final String pathName) throws N5Exception.N5IOException {
 
+		final String normalPathName = N5URI.normalizeGroupPath(pathName);
 		if (cacheMeta()) {
-			final String normalPathName = N5URI.normalizeGroupPath(pathName);
 			return cache.isDataset(normalPathName, ZARRAY_FILE);
 		}
-		return isDatasetFromContainer(pathName);
+		return isDatasetFromContainer(normalPathName);
 	}
 
 	@Override
