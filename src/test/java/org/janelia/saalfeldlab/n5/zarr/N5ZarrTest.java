@@ -100,7 +100,7 @@ import net.imglib2.view.Views;
  */
 public class N5ZarrTest extends AbstractN5Test {
 
-	static private final String testZarrDatasetName = "/test/data";
+	static private final String testZarrDatasetName = "test/data";
 
 	public static KeyValueAccess createKeyValueAccess() {
 		return new FileSystemKeyValueAccess(FileSystems.getDefault());
