@@ -60,6 +60,7 @@ public interface ZarrCompressor {
 
 	/* idiotic stream based initialization because Java cannot have static initialization code in interfaces */
 	public static Map<String, Class<? extends ZarrCompressor>> registry = Stream.of(
+			new SimpleImmutableEntry<>("raw", Raw.class),
 			new SimpleImmutableEntry<>("zstd", Zstandard.class),
 			new SimpleImmutableEntry<>("blosc", Blosc.class),
 			new SimpleImmutableEntry<>("zlib", Zlib.class),

@@ -469,6 +469,27 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		}
 	}
 
+	protected static JsonElement postProcessJson(final JsonElement elem) {
+		return reverseAttrsWhenCOrder(
+				handleNullCompression(elem));
+	}
+
+	protected static JsonElement handleNullCompression(final JsonElement elem) {
+
+		if (elem == null || !elem.isJsonObject())
+			return elem;
+
+		final String key = ZArrayAttributes.compressorKey;
+		final JsonObject attrs = elem.getAsJsonObject();
+		if (attrs.has(key) && attrs.get(key).isJsonNull()) {
+
+			final JsonObject compressionValue = new JsonObject();
+			compressionValue.addProperty("id", "raw");
+			attrs.add(key, compressionValue);
+		}
+		return attrs;
+	}
+
 	protected static JsonElement reverseAttrsWhenCOrder(final JsonElement elem) {
 
 		if (elem == null || !elem.isJsonObject())
@@ -536,8 +557,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		if (e == JsonNull.INSTANCE || e == null) {
 			attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(new RawCompression()));
 		} else {
-			attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(
-					gson.fromJson(attrs.get(ZArrayAttributes.compressorKey), ZarrCompressor.class).getCompression()));
+			final JsonElement compressionValue = attrs.get(ZArrayAttributes.compressorKey);
+			if( compressionValue.isJsonNull())
+				attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(new RawCompression()));
+			else
+				attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(gson.fromJson(compressionValue, ZarrCompressor.class).getCompression()));
 		}
 		return attrs;
 	}
@@ -598,7 +622,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			out= combineAll(
 					getJsonResource(N5URI.normalizeGroupPath(path), ZGROUP_FILE),
 					zarrToN5DatasetAttributes(
-							reverseAttrsWhenCOrder(getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE))),
+							postProcessJson(getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE))),
 					getJsonResource(N5URI.normalizeGroupPath(path), ZATTRS_FILE));
 		} else
 			out = getZAttributes(path);
@@ -613,7 +637,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 			out= combineAll(
 					getJsonResource(N5URI.normalizeGroupPath(path), ZGROUP_FILE),
-					reverseAttrsWhenCOrder(getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE)),
+					postProcessJson(getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE)),
 					getJsonResource(N5URI.normalizeGroupPath(path), ZATTRS_FILE));
 		} else
 			out = getZAttributes(path);
