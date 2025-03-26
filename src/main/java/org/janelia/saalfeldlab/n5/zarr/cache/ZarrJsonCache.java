@@ -53,7 +53,6 @@ public class ZarrJsonCache extends N5JsonCache {
 	}
 
 	@Override public N5CacheInfo addNewCacheInfo(String normalPathKey, String normalCacheKey, JsonElement uncachedAttributes) {
-
 		return cacheGroupAndDataset(normalPathKey);
 	}
 
