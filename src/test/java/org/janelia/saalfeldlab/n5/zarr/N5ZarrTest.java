@@ -56,6 +56,7 @@ import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.GsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
@@ -687,15 +688,15 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testRawCompressorNullInZarray() throws IOException, ParseException, URISyntaxException {
 
-		final ZarrKeyValueWriter n5 = (ZarrKeyValueWriter) createTempN5Writer();
+		final GsonKeyValueN5Writer n5 = (GsonKeyValueN5Writer) createTempN5Writer();
 		n5.createDataset(
 				testZarrDatasetName,
 				new long[]{1, 2, 3},
 				new int[]{1, 2, 3},
 				DataType.UINT16,
 				new RawCompression());
-		final String zarrayLocation = n5.keyValueAccess.compose(n5.uri, testZarrDatasetName, ".zarray");
-		final LockedChannel zarrayChannel = n5.keyValueAccess.lockForReading(zarrayLocation);
+		final String zarrayLocation = n5.getKeyValueAccess().compose(n5.getURI(), testZarrDatasetName, ".zarray");
+		final LockedChannel zarrayChannel = n5.getKeyValueAccess().lockForReading(zarrayLocation);
 		final JSONParser jsonParser = new JSONParser();
 		try (Reader reader = zarrayChannel.newReader()) {
 			final JSONObject zarray = (JSONObject)jsonParser.parse(reader);
