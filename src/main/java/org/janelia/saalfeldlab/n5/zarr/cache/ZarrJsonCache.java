@@ -52,6 +52,10 @@ public class ZarrJsonCache extends N5JsonCache {
 		updateCache(normalPathKey, cacheInfo);
 	}
 
+	@Override public N5CacheInfo addNewCacheInfo(String normalPathKey, String normalCacheKey, JsonElement uncachedAttributes) {
+		return cacheGroupAndDataset(normalPathKey);
+	}
+
 	@Deprecated
 	public N5CacheInfo forceAddNewCacheInfo(final String normalPathKey, final String normalCacheKey, final JsonElement uncachedAttributes,
 			final boolean isGroup, final boolean isDataset) {
