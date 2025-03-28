@@ -208,8 +208,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		// These three lines are preferable to setDatasetAttributes because they
 		// are more efficient wrt caching
 		final ZarrV3DatasetAttributes zarray = createZArrayAttributes(datasetAttributes);
-		final HashMap<String, Object> zarrayMap = zarray.asMap();
-		final JsonElement attributes = gson.toJsonTree(zarrayMap);
+		final JsonElement attributes = gson.toJsonTree(zarray);
 		writeAttributes(normalPath, attributes);
 	}
 

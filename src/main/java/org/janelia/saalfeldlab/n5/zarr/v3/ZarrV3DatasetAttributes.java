@@ -30,7 +30,6 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.lang.reflect.Type;
 import java.util.Arrays;
-import java.util.HashMap;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.Compression;
@@ -203,30 +202,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	}
 
 	@Override
-	public HashMap<String, Object> asMap() {
-
-		final HashMap<String, Object> map = new HashMap<>();
-
-		final long[] shapeReversed = new long[shape.length];
-		System.arraycopy(shape, 0, shapeReversed, 0, shape.length);
-		ArrayUtils.reverse(shapeReversed);
-
-		map.put(ZARR_FORMAT_KEY, FORMAT);
-		map.put(NodeType.key(), NodeType.ARRAY.toString());
-		map.put(SHAPE_KEY, shapeReversed);
-		map.put(DATA_TYPE_KEY, dataType.toString());
-		map.put(CHUNK_GRID_KEY, getChunkAttributes().getGrid());
-		map.put(CHUNK_KEY_ENCODING_KEY, getChunkAttributes().getKeyEncoding());
-
-		map.put(FILL_VALUE_KEY, fillValue);
-		map.put(DIMENSION_NAMES_KEY, dimensionNames);
-		// map.put(CODECS_KEY, codecsToZarrCompressors(getCodecs()));
-		map.put(CODECS_KEY, prependArrayToBytes(getArrayCodec(), getCodecs()));
-
-		return map;
-	}
-
-	@Override
 	public NodeType getType() {
 
 		return NodeType.ARRAY;
@@ -251,7 +226,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				// final DType dType = new DType(typestr, codecs);
 				final String typestr = obj.get(DATA_TYPE_KEY).getAsString();
 				final ZarrV3DataType dataType = ZarrV3DataType.valueOf(typestr.toLowerCase());
-
 
 				final long[] shape = context.deserialize(obj.get(SHAPE_KEY), long[].class);
 				ArrayUtils.reverse(shape);
@@ -289,6 +263,10 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			jsonObject.add(DATA_TYPE_KEY, context.serialize(src.getDType().toString()));
 
 			jsonObject.add(FILL_VALUE_KEY, src.fillValue);
+
+			final JsonElement dimNamesArray = context.serialize(src.getDimensionNames());
+			jsonObject.add(DIMENSION_NAMES_KEY, reverseJsonArray(dimNamesArray));
+
 			jsonObject.add(CODECS_KEY, context.serialize(src.getCodecs()));
 
 			return jsonObject;
