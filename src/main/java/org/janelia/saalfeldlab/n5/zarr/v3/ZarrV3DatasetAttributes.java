@@ -254,8 +254,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			jsonObject.addProperty(ZARR_FORMAT_KEY, src.getZarrFormat());
 
 			final JsonElement shapeArray = context.serialize(src.getShape());
-			reverseJsonArray(shapeArray);
-			jsonObject.add(SHAPE_KEY, shapeArray);
+			jsonObject.add(SHAPE_KEY, reverseJsonArray(shapeArray));
 
 			final JsonObject chunkAttrs = context.serialize(src.chunkAttributes).getAsJsonObject();
 			chunkAttrs.entrySet().forEach(entry -> jsonObject.add(entry.getKey(), entry.getValue()));
