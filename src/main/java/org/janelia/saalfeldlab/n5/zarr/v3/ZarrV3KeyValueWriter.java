@@ -257,7 +257,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 				new DefaultChunkKeyEncoding(dimensionSeparator));
 
 		return new ZarrV3DatasetAttributes(ZarrV3KeyValueReader.VERSION.getMajor(), shape, chunkAttrs,
-				ZarrV3DataType.fromDataType(datasetAttributes.getDataType()), "0",
+				ZarrV3DataType.fromDataType(datasetAttributes.getDataType()), "0", null,
 				buildCodecs(datasetAttributes));
 	}
 
