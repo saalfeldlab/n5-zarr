@@ -263,8 +263,11 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 			jsonObject.add(FILL_VALUE_KEY, src.fillValue);
 
-			final JsonElement dimNamesArray = context.serialize(src.getDimensionNames());
-			jsonObject.add(DIMENSION_NAMES_KEY, reverseJsonArray(dimNamesArray));
+			final String[] dimNames = src.getDimensionNames();
+			if( dimNames != null ) {
+				final JsonElement dimNamesArray = context.serialize(src.getDimensionNames());
+				jsonObject.add(DIMENSION_NAMES_KEY, reverseJsonArray(dimNamesArray));
+			}
 
 			jsonObject.add(CODECS_KEY, context.serialize(src.getCodecs()));
 
