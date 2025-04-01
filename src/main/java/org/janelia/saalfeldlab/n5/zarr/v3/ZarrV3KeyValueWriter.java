@@ -27,7 +27,6 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -123,7 +122,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			throw new N5Exception("Can't make a group on existing dataset.");
 
 		final JsonObject obj = new JsonObject();
-		obj.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, super.VERSION.getMajor());
+		obj.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
 		obj.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.GROUP.toString());
 
 		writeAttributes(normalPath, obj);
@@ -148,16 +147,6 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			createGroupNonrecursive(childPath);
 			parent = childPath;
 		}
-
-	}
-
-	private void writeGroupMetadata(final String normalPath) {
-
-		final JsonObject obj = new JsonObject();
-		obj.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
-		obj.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.GROUP.toString());
-
-		writeAttributes(normalPath, obj);
 	}
 
 	@Override
