@@ -145,7 +145,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		for (final String child : pathParts) {
 
 			final String childPath = parent.isEmpty() ? child : parent + "/" + child;
-			createGroupNonrecursive(path);
+			createGroupNonrecursive(childPath);
 			parent = childPath;
 		}
 
