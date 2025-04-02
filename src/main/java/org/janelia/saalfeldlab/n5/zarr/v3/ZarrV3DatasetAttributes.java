@@ -251,6 +251,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		public JsonElement serialize(ZarrV3DatasetAttributes src, Type typeOfSrc, JsonSerializationContext context) {
 
 			final JsonObject jsonObject = new JsonObject();
+			jsonObject.addProperty(ZarrV3Node.NODE_TYPE_KEY, ZarrV3Node.NodeType.ARRAY.toString());
 			jsonObject.addProperty(ZARR_FORMAT_KEY, src.getZarrFormat());
 
 			final JsonElement shapeArray = context.serialize(src.getShape());
@@ -269,7 +270,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				jsonObject.add(DIMENSION_NAMES_KEY, reverseJsonArray(dimNamesArray));
 			}
 
-			jsonObject.add(CODECS_KEY, context.serialize(src.getCodecs()));
+			jsonObject.add(CODECS_KEY, context.serialize(src.concatenateCodecs()));
 
 			return jsonObject;
 		}
