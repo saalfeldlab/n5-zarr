@@ -31,12 +31,15 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 
+import javax.annotation.Nullable;
+
 import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.codec.Codec;
+import org.janelia.saalfeldlab.n5.shard.ShardingCodec;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
@@ -94,7 +97,10 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final String[] dimensionNames,
 			final Codec... codecs) {
 
-		super(shape, chunkAttributes.getGrid().getShape(), dataType.getDataType(), removeRawCompression(codecs));
+		super(shape,
+				inferShardShape(chunkAttributes, codecs[0]),
+				inferChunkShape(chunkAttributes, codecs[0]),
+				dataType.getDataType(), removeRawCompression(codecs));
 		this.shape = shape;
 		this.chunkAttributes = chunkAttributes;
 		this.dataType = dataType;
@@ -129,6 +135,22 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				new DefaultChunkKeyEncoding(dimensionSeparator), codecs);
 	}
 
+	protected static int[] inferChunkShape(final ChunkAttributes chunkAttributes, final Codec arrayCodec) {
+
+		if (arrayCodec instanceof ShardingCodec)
+			return ((ShardingCodec)arrayCodec).getBlockSize();
+
+		return chunkAttributes.getGrid().getShape();
+	}
+
+	protected static int[] inferShardShape(final ChunkAttributes chunkAttributes, final Codec arrayCodec) {
+
+		if (arrayCodec instanceof ShardingCodec)
+			return chunkAttributes.getGrid().getShape();
+
+		return null;
+	}
+
 	protected static Codec[] prependArrayToBytes(Codec.ArrayCodec arrayToBytes, Codec[] codecs) {
 
 		final Codec[] out = new Codec[codecs.length + 1];
@@ -145,7 +167,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		else
 			return new RawCompression();
 	}
-
 
 	private static JsonElement parseFillValue(String fillValue, DataType dtype) {
 
