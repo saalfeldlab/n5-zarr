@@ -860,7 +860,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertTrue(n5.datasetExists(datasetName));
 
 			final ZarrDatasetAttributes dsetAttrs = (ZarrDatasetAttributes) n5.getDatasetAttributes(datasetName);
-			assertArrayEquals(zero, dsetAttrs.getFillBytes());
+			assertArrayEquals(zero, dsetAttrs.getDType().createFillBytes("0"));
 		}
 	}
 
