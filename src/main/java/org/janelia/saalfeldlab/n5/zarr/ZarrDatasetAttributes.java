@@ -6,13 +6,13 @@
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -40,7 +40,6 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 
 	private final transient boolean isRowMajor;
 	private final transient DType dType;
-	private final transient byte[] fillBytes;
 	private final transient String dimensionSeparator;
 
 	public ZarrDatasetAttributes(
@@ -52,10 +51,10 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final String fill_value,
 			final String dimensionSeparator ) {
 
-		super(dimensions, blockSize, dType.getDataType(), compression);
+		super(dimensions, blockSize, dType.getDataType(), compression,
+				dType.createDataBlockCodec(blockSize, fill_value, compression));
 		this.dType = dType;
 		this.isRowMajor = isRowMajor;
-		this.fillBytes = dType.createFillBytes(fill_value);
 		this.dimensionSeparator = dimensionSeparator;
 	}
 
@@ -78,11 +77,6 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 	public DType getDType() {
 
 		return dType;
-	}
-
-	public byte[] getFillBytes() {
-
-		return fillBytes;
 	}
 
 	public String getDimensionSeparator() {

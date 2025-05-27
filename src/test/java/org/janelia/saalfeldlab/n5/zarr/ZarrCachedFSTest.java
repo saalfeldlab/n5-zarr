@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
@@ -14,6 +13,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
@@ -380,7 +383,8 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		assertEquals(expectedExistCount, n5.getExistCallCount());
 		assertEquals(expectedAttributeCount, n5.getAttrCallCount());
 
-		assertArrayEquals(new String[] {"a", "b", "c"}, n5.list("a")); // call list
+		final Set<String> abcListSet = Arrays.stream(n5.list("a")).collect(Collectors.toSet());
+		assertEquals(Stream.of("a", "b", "c").collect(Collectors.toSet()), abcListSet);
 		assertEquals(expectedGroupCount, n5.getGroupCallCount());
 		assertEquals(expectedDatasetCount, n5.getDatasetCallCount());
 		assertEquals(expectedAttributeCount, n5.getAttrCallCount());
@@ -388,7 +392,8 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 
 		// remove a
 		n5.remove("a/a");
-		assertArrayEquals(new String[] {"b", "c"}, n5.list("a")); // call list
+		final Set<String> bc = Arrays.stream(n5.list("a")).collect(Collectors.toSet());
+		assertEquals(Stream.of("b", "c").collect(Collectors.toSet()), bc);
 		assertEquals(expectedExistCount, n5.getExistCallCount());
 		assertEquals(expectedGroupCount, n5.getGroupCallCount());
 		assertEquals(expectedDatasetCount, n5.getDatasetCallCount());

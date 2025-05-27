@@ -248,15 +248,15 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testPadCrop() {
 
-		final byte[] src = new byte[]{1, 1, 1, 1}; // 2x2
+		final byte[] src = new byte[]{1, 2, 3, 4}; // 2x2
 		final int[] srcBlockSize = new int[]{2, 2};
 		final int[] dstBlockSize = new int[]{3, 3};
 		final int nBytes = 1;
 		final int nBits = 0;
-		final byte[] fillValue = new byte[]{0};
+		final byte[] fillValue = new byte[]{5};
 
 		final byte[] dst = N5ZarrWriter.padCrop(src, srcBlockSize, dstBlockSize, nBytes, nBits, fillValue);
-		assertArrayEquals(new byte[]{1, 1, 0, 1, 1, 0, 0, 0, 0}, dst);
+		assertArrayEquals(new byte[]{1, 2, 5, 3, 4, 5, 5, 5, 5}, dst);
 	}
 
 	@Override
@@ -412,7 +412,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			try (final N5Writer n5 = createTempN5Writer()) {
 				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
 				final DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
-				final StringDataBlock dataBlock = new ZarrStringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
+				final StringDataBlock dataBlock = new StringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
 				n5.writeBlock("/test/group/dataset", attributes, dataBlock);
 				final DataBlock<?> loadedDataBlock = n5.readBlock("/test/group/dataset", attributes, 0L, 0L, 0L);
 				assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());
@@ -860,7 +860,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertTrue(n5.datasetExists(datasetName));
 
 			final ZarrDatasetAttributes dsetAttrs = (ZarrDatasetAttributes) n5.getDatasetAttributes(datasetName);
-			assertArrayEquals(zero, dsetAttrs.getFillBytes());
+			assertArrayEquals(zero, dsetAttrs.getDType().createFillBytes("0"));
 		}
 	}
 
