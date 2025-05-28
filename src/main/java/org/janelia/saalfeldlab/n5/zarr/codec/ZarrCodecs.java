@@ -31,11 +31,18 @@ package org.janelia.saalfeldlab.n5.zarr.codec;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.stream.Stream;
+
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataBlock.DataBlockFactory;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.codec.Codec;
+import org.janelia.saalfeldlab.n5.codec.ConcatenatedBytesCodec;
 import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
 import org.janelia.saalfeldlab.n5.codec.DataCodec;
+import org.janelia.saalfeldlab.n5.codec.N5Codecs;
+import org.janelia.saalfeldlab.n5.codec.Codec.BytesCodec;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.saalfeldlab.n5.zarr.DType;
 import org.janelia.saalfeldlab.n5.zarr.DType.CodecProps;
@@ -46,23 +53,33 @@ public class ZarrCodecs {
 
 	private ZarrCodecs() {}
 
-	public static <T> DataBlockCodec<T> createDataBlockCodec(
+	public static <T> Codec.ArrayCodec<T> createDataBlockCodec(
 			final DType dtype,
 			final int[] blockSize,
 			final String fill_value,
-			final Compression compression) {
+			final Codec... codecs) {
 
 		final int nBytes = dtype.getNBytes();
 		final int nBits = dtype.getNBits();
 		final byte[] fillBytes = dtype.createFillBytes(fill_value);
+
 		@SuppressWarnings("unchecked")
 		final CodecProps<T> codecProps = (CodecProps<T>) dtype.getCodecProps();
 		final DataCodec<T> dataCodec = codecProps.getDataCodec();
 		final DataBlockFactory<T> dataBlockFactory = codecProps.getDataBlockFactory();
-		return new DefaultDataBlockCodec<>(blockSize, nBytes, nBits, fillBytes, compression, dataCodec, dataBlockFactory);
+		
+		// FIXME
+		BytesCodec[] bytesCodecs = (BytesCodec[])codecs;
+//		BytesCodec[] byteCodecs = Stream.of(filteredCodecs)
+//				.skip(1)
+//				.filter(c -> c instanceof BytesCodec)
+//				.toArray(BytesCodec[]::new);
+
+		final ConcatenatedBytesCodec concatenatedBytesCodec = new ConcatenatedBytesCodec(bytesCodecs);
+		return new DefaultZarrBlockCodec<>(blockSize, nBytes, nBits, fillBytes, dataCodec, dataBlockFactory, concatenatedBytesCodec);
 	}
 
-	private static class DefaultDataBlockCodec<T> implements DataBlockCodec<T> {
+	private static class DefaultZarrBlockCodec<T> implements Codec.ArrayCodec<T> {
 
 		private final int[] blockSize;
 		private final DataCodec<T> dataCodec;
@@ -71,22 +88,22 @@ public class ZarrCodecs {
 		private final int nBytes;
 		private final int nBits;
 		private final byte[] fillBytes;
-		private final Compression compression;
+		private final Codec.BytesCodec codec;
 
-		public DefaultDataBlockCodec(
+		public DefaultZarrBlockCodec(
 				final int[] blockSize,
 				final int nBytes,
 				final int nBits,
 				final byte[] fillBytes,
-				final Compression compression,
 				final DataCodec<T> dataCodec,
-				final DataBlockFactory<T> dataBlockFactory) {
+				final DataBlockFactory<T> dataBlockFactory,
+				final Codec.BytesCodec codec) {
 
 			this.blockSize = blockSize;
 			this.nBytes = nBytes;
 			this.nBits = nBits;
 			this.fillBytes = fillBytes;
-			this.compression = compression;
+			this.codec = codec;
 
 			final int numEntries = DataBlock.getNumElements(blockSize);
 			final int numBytes = (nBytes != 0)
@@ -117,16 +134,29 @@ public class ZarrCodecs {
 		@Override
 		public ReadData encode(final DataBlock<T> dataBlock) throws IOException {
 			final ReadData readData = encodePadded(dataBlock);
-			return ReadData.from(out -> compression.encode(readData).writeTo(out));
+			return ReadData.from(out -> codec.encode(readData).writeTo(out));
 		}
 
 		@Override
 		public DataBlock<T> decode(final ReadData readData, final long[] gridPosition) throws IOException {
 			try (final InputStream in = readData.inputStream()) {
-				final ReadData decompressed = compression.decode(ReadData.from(in));
+				final ReadData decompressed = codec.decode(ReadData.from(in));
 				final T data = dataCodec.deserialize(decompressed, numElements);
 				return dataBlockFactory.createDataBlock(blockSize, gridPosition, data);
 			}
+		}
+
+		@Override
+		public String getType() {
+			return "internal-zarr-default";
+		}
+
+		@Override
+		public void initialize(DatasetAttributes attributes, BytesCodec... byteCodecs) {
+//			/*TODO: Consider an attributes.createDataBlockCodec() without parameters? */
+//			final ConcatenatedBytesCodec concatenatedBytesCodec = new ConcatenatedBytesCodec(byteCodecs);
+//			this.dataBlockCodec = N5Codecs.createDataBlockCodec(attributes.getDataType(), concatenatedBytesCodec);
+//			this.attributes = attributes;	
 		}
 	}
 }

@@ -6,13 +6,13 @@
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,6 +30,7 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.codec.Codec;
 
 
 /**
@@ -46,13 +47,13 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final long[] dimensions,
 			final int[] blockSize,
 			final DType dType,
-			final Compression compression,
 			final boolean isRowMajor,
 			final String fill_value,
-			final String dimensionSeparator ) {
+			final String dimensionSeparator, 
+			final Codec... codecs) {
 
-		super(dimensions, blockSize, dType.getDataType(), compression,
-				dType.createDataBlockCodec(blockSize, fill_value, compression));
+		super(dimensions, blockSize, dType.getDataType(),
+				dType.createDataBlockCodec(blockSize, fill_value, codecs));
 		this.dType = dType;
 		this.isRowMajor = isRowMajor;
 		this.dimensionSeparator = dimensionSeparator;
@@ -62,11 +63,11 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final long[] dimensions,
 			final int[] blockSize,
 			final DType dType,
-			final Compression compression,
 			final boolean isRowMajor,
-			final String fill_value) {
+			final String fill_value,
+			Codec... codecs) {
 
-		this( dimensions, blockSize, dType, compression, isRowMajor, fill_value, ".");
+		this( dimensions, blockSize, dType, isRowMajor, fill_value, ".", codecs);
 	}
 
 	public boolean isRowMajor() {

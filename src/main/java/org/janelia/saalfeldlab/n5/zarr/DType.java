@@ -33,6 +33,8 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
+import java.util.Map;
+
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock.DataBlockFactory;
@@ -43,6 +45,7 @@ import org.janelia.saalfeldlab.n5.IntArrayDataBlock;
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.ShortArrayDataBlock;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
+import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
 import org.janelia.saalfeldlab.n5.codec.DataCodec;
 import org.janelia.saalfeldlab.n5.zarr.codec.ZarrCodecs;
@@ -61,7 +64,7 @@ import static org.janelia.saalfeldlab.n5.zarr.Filter.VLEN_UTF8;
 public class DType {
 
 	private static final EnumMap<DataType, String> typestrs = new EnumMap<>(DataType.class);
-	{
+	static {
 		typestrs.put(DataType.INT8, "|i1");
 		typestrs.put(DataType.UINT8, "|u1");
 		typestrs.put(DataType.INT16, ">i2");
@@ -132,13 +135,12 @@ public class DType {
 		return codecProps;
 	}
 
-	public DataBlockCodec<?> createDataBlockCodec(
+	public Codec.ArrayCodec<?> createDataBlockCodec(
 			final int[] blockSize,
 			final String fill_value,
-			final Compression compression
-	) {
-		return ZarrCodecs.createDataBlockCodec(this,
-				blockSize, fill_value, compression);
+			final Codec... codecs) {
+
+		return ZarrCodecs.createDataBlockCodec(this, blockSize, fill_value, codecs);
 	}
 
 	public static class CodecProps<T> {
@@ -270,6 +272,15 @@ public class DType {
 		}
 
 		dataType = getDataType(primitive, nBytes, filters);
+	}
+
+	public static String getTypeStr(String typestr) {
+
+		for (Map.Entry<DataType, String> entry : typestrs.entrySet()) {
+			if (entry.getKey().name().toLowerCase().equals(typestr.toLowerCase()))
+				return entry.getValue();
+		}
+		return null;
 	}
 
 	public DType(final DataType dataType, final int nPrimitives) {

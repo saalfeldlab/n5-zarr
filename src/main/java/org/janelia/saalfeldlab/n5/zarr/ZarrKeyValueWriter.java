@@ -71,6 +71,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import net.imglib2.blocks.SubArrayCopy;
 import net.imglib2.util.Intervals;
+
+import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
@@ -149,7 +151,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		Version version = null;
 		if (exists("/")) {
 			version = getVersion();
-			if (!ZarrKeyValueReader.VERSION.isCompatible(version))
+			if (!isCompatible(version))
 				throw new N5Exception.N5IOException(
 						"Incompatible version " + version + " (this is " + ZarrKeyValueReader.VERSION + ").");
 		}
@@ -158,6 +160,11 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			createGroup("/");
 			setVersion("/");
 		}
+	}
+
+	public boolean isCompatible(Version version) {
+
+		return ZarrKeyValueReader.VERSION.isCompatible(version);
 	}
 
 	@Override
@@ -391,9 +398,9 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 	protected ZArrayAttributes createZArrayAttributes(final DatasetAttributes datasetAttributes) {
 
 		final long[] shape = datasetAttributes.getDimensions().clone();
-		reorder(shape);
+		ArrayUtils.reverse(shape);
 		final int[] chunks = datasetAttributes.getBlockSize().clone();
-		reorder(chunks);
+		ArrayUtils.reverse(chunks);
 		final DType dType = new DType(datasetAttributes.getDataType());
 
 		final ZArrayAttributes zArrayAttributes = new ZArrayAttributes(
@@ -502,9 +509,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		if (datasetAttributes instanceof ZarrDatasetAttributes)
 			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
 		else
-			zarrDatasetAttributes = getDatasetAttributes(pathName); // TODO is
-																	// this
-																	// correct?
+			zarrDatasetAttributes = (ZarrDatasetAttributes)getDatasetAttributes(pathName);
 
 		final String normalPath = N5URI.normalizeGroupPath(pathName);
 		final String path = keyValueAccess
@@ -543,7 +548,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			final long... gridPosition) throws N5Exception {
 
 		final String normPath = N5URI.normalizeGroupPath(path);
-		final ZarrDatasetAttributes zarrDatasetAttributes = getDatasetAttributes(normPath);
+		final ZarrDatasetAttributes zarrDatasetAttributes = (ZarrDatasetAttributes)getDatasetAttributes(normPath);
 		final String absolutePath = keyValueAccess
 				.compose(
 						uri,
@@ -648,7 +653,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			if (dsetAttrs != null) {
 				final JsonElement e = src.get(srcKey);
 				if (e.isJsonArray() && dsetAttrs.isRowMajor())
-					reorder(e.getAsJsonArray());
+					reverse(e.getAsJsonArray());
 
 				zarrElems.getOrMakeZarray().add(destKey, e);
 				src.remove(srcKey);
@@ -667,7 +672,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			if (dsetAttrs != null) {
 				final JsonElement e = src.get(srcKey);
 				if (e.isJsonArray() && dsetAttrs.isRowMajor())
-					reorder(e.getAsJsonArray());
+					reverse(e.getAsJsonArray());
 
 				zarrElems.getOrMakeZarray().add(destKey, e);
 				src.remove(srcKey);
@@ -798,39 +803,4 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 	}
 
-	static void reorder(final long[] array) {
-
-		long a;
-		final int max = array.length - 1;
-		for (int i = (max - 1) / 2; i >= 0; --i) {
-			final int j = max - i;
-			a = array[i];
-			array[i] = array[j];
-			array[j] = a;
-		}
-	}
-
-	static void reorder(final int[] array) {
-
-		int a;
-		final int max = array.length - 1;
-		for (int i = (max - 1) / 2; i >= 0; --i) {
-			final int j = max - i;
-			a = array[i];
-			array[i] = array[j];
-			array[j] = a;
-		}
-	}
-
-	static void reorder(final JsonArray array) {
-
-		JsonElement a;
-		final int max = array.size() - 1;
-		for (int i = (max - 1) / 2; i >= 0; --i) {
-			final int j = max - i;
-			a = array.get(i);
-			array.set(i, array.get(j));
-			array.set(j, a);
-		}
-	}
 }

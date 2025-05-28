@@ -61,11 +61,14 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+
+import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Reader;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.CompressionAdapter;
@@ -85,8 +88,7 @@ import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
 import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
 
 /**
- * {@link N5Reader} implementation through {@link KeyValueAccess} with JSON
- * attributes parsed with {@link Gson}.
+ * {@link N5Reader} implementation through {@link KeyValueAccess} with JSON attributes parsed with {@link Gson}.
  *
  * @author Stephan Saalfeld
  * @author John Bogovic
@@ -116,8 +118,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	final protected boolean mergeAttributes;
 
 	/**
-	 * Opens an {@link ZarrKeyValueReader} at a given base path with a custom
-	 * {@link GsonBuilder} to support custom attributes.
+	 * Opens an {@link ZarrKeyValueReader} at a given base path with a custom {@link GsonBuilder} to support custom
+	 * attributes.
 	 *
 	 * @param checkVersion
 	 *            perform version check
@@ -127,35 +129,21 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 * @param gsonBuilder
 	 *            the gson builder
 	 * @param mapN5DatasetAttributes
-	 *            If true, getAttributes and variants of getAttribute methods
-	 *            will
-	 *            contain keys used by n5 datasets, and whose values are those
-	 *            for
-	 *            their corresponding zarr fields. For example, if true, the key
-	 *            "dimensions"
-	 *            (from n5) may be used to obtain the value of the key "shape"
-	 *            (from zarr).
+	 *            If true, getAttributes and variants of getAttribute methods will contain keys used by n5 datasets, and
+	 *            whose values are those for their corresponding zarr fields. For example, if true, the key "dimensions"
+	 *            (from n5) may be used to obtain the value of the key "shape" (from zarr).
 	 * @param mergeAttributes
-	 *            If true, fields from .zgroup, .zarray, and .zattrs will be
-	 *            merged
-	 *            when calling getAttributes, and variants of getAttribute
+	 *            If true, fields from .zgroup, .zarray, and .zattrs will be merged when calling getAttributes, and
+	 *            variants of getAttribute
 	 * @param cacheMeta
-	 *            cache attributes and meta data
-	 *            Setting this to true avoids frequent reading and parsing of
-	 *            JSON
-	 *            encoded attributes and other meta data that requires accessing
-	 *            the
-	 *            store. This is most interesting for high latency backends.
-	 *            Changes
-	 *            of cached attributes and meta data by an independent writer
-	 *            will
-	 *            not be tracked.
+	 *            cache attributes and meta data Setting this to true avoids frequent reading and parsing of JSON
+	 *            encoded attributes and other meta data that requires accessing the store. This is most interesting for
+	 *            high latency backends. Changes of cached attributes and meta data by an independent writer will not be
+	 *            tracked.
 	 *
 	 * @throws N5Exception
-	 *             if the base path cannot be read or does not exist,
-	 *             if the N5 version of the container is not compatible with
-	 *             this
-	 *             implementation.
+	 *             if the base path cannot be read or does not exist, if the N5 version of the container is not
+	 *             compatible with this implementation.
 	 */
 	public ZarrKeyValueReader(
 			final boolean checkVersion,
@@ -167,7 +155,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			final boolean cacheMeta)
 			throws N5Exception {
 
-		this(checkVersion, keyValueAccess, basePath, gsonBuilder, mapN5DatasetAttributes, mergeAttributes, cacheMeta, true);
+		this(checkVersion, keyValueAccess, basePath, gsonBuilder, mapN5DatasetAttributes, mergeAttributes, cacheMeta,
+				true);
 	}
 
 	protected ZarrKeyValueReader(
@@ -178,9 +167,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			final boolean mapN5DatasetAttributes,
 			final boolean mergeAttributes,
 			final boolean cacheMeta,
-			final boolean checkRootExists
-	) {
-
+			final boolean checkRootExists) {
 
 		this.keyValueAccess = keyValueAccess;
 		this.gson = registerGson(gsonBuilder);
@@ -203,36 +190,28 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		else
 			cache = null;
 
- 		if( checkRootExists && !exists("/"))
-			throw new N5Exception.N5IOException("No container exists at " + basePath );
+		if (checkRootExists && !exists("/"))
+			throw new N5Exception.N5IOException("No container exists at " + basePath);
 
 	}
 
 	/**
-	 * Opens an {@link ZarrKeyValueReader} at a given base path with a custom
-	 * {@link GsonBuilder} to support custom attributes.
+	 * Opens an {@link ZarrKeyValueReader} at a given base path with a custom {@link GsonBuilder} to support custom
+	 * attributes.
 	 *
 	 * @param keyValueAccess
 	 * @param basePath
 	 *            N5 base path
 	 * @param gsonBuilder
 	 * @param cacheMeta
-	 *            cache attributes and meta data
-	 *            Setting this to true avoids frequent reading and parsing of
-	 *            JSON
-	 *            encoded attributes and other meta data that requires accessing
-	 *            the
-	 *            store. This is most interesting for high latency backends.
-	 *            Changes
-	 *            of cached attributes and meta data by an independent writer
-	 *            will
-	 *            not be tracked.
+	 *            cache attributes and meta data Setting this to true avoids frequent reading and parsing of JSON
+	 *            encoded attributes and other meta data that requires accessing the store. This is most interesting for
+	 *            high latency backends. Changes of cached attributes and meta data by an independent writer will not be
+	 *            tracked.
 	 *
 	 * @throws N5Exception
-	 *             if the base path cannot be read or does not exist,
-	 *             if the N5 version of the container is not compatible with
-	 *             this
-	 *             implementation.
+	 *             if the base path cannot be read or does not exist, if the N5 version of the container is not
+	 *             compatible with this implementation.
 	 */
 	public ZarrKeyValueReader(
 			final KeyValueAccess keyValueAccess,
@@ -244,6 +223,13 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			throws N5Exception {
 
 		this(true, keyValueAccess, basePath, gsonBuilder, mapN5DatasetAttributes, mergeAttributes, cacheMeta);
+	}
+
+	@Override
+	public String getAttributesKey() {
+
+		// not used internally, since the methods that use this are overridden
+		return ZATTRS_FILE;
 	}
 
 	@Override
@@ -311,9 +297,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	/**
-	 * Tests whether the key at normalPathName exists for the backend.
-	 * Such a key may exist for paths that are neither zarr groups nor zarr
-	 * datasets.
+	 * Tests whether the key at normalPathName exists for the backend. Such a key may exist for paths that are neither
+	 * zarr groups nor zarr datasets.
 	 *
 	 * @param normalPathName
 	 *            normalized path name
@@ -324,8 +309,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		// A cloud keyValueAccess may return false for
 		// exists(groupPath(normalPathName)),
 		// so instead need to check for existence of either .zarray or .zgroup
-		return
-				keyValueAccess.exists(keyValueAccess.compose(uri, normalPathName, ZGROUP_FILE)) ||
+		return keyValueAccess.exists(keyValueAccess.compose(uri, normalPathName, ZGROUP_FILE)) ||
 				keyValueAccess.exists(keyValueAccess.compose(uri, normalPathName, ZARRAY_FILE));
 	}
 
@@ -384,8 +368,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	/**
-	 * Returns the {@link ZarrDatasetAttributes} located at the given path, if
-	 * present.
+	 * Returns the {@link ZarrDatasetAttributes} located at the given path, if present.
 	 *
 	 * @param pathName
 	 *            the path relative to the container's root
@@ -408,8 +391,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	/**
-	 * Returns the {@link ZArrayAttributes} located at the given path, if
-	 * present.
+	 * Returns the {@link ZArrayAttributes} located at the given path, if present.
 	 *
 	 * @param pathName
 	 *            the path relative to the container's root
@@ -466,9 +448,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	/**
-	 * Returns a {@link JsonElement} representing the contents of a JSON file
-	 * located at the given path if present, and null if not.  Also updates the
-	 * cache.
+	 * Returns a {@link JsonElement} representing the contents of a JSON file located at the given path if present, and
+	 * null if not. Also updates the cache.
 	 *
 	 * @param normalPath
 	 *            the normalized path
@@ -517,19 +498,19 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		if (attrs.get(ZArrayAttributes.orderKey).getAsString().equals("C")) {
 
 			final JsonArray shape = attrs.get(ZArrayAttributes.shapeKey).getAsJsonArray();
-			ZarrKeyValueWriter.reorder(shape);
+			reverse(shape);
 			attrs.add(ZArrayAttributes.shapeKey, shape);
 
 			final JsonArray chunkSize = attrs.get(ZArrayAttributes.chunksKey).getAsJsonArray();
-			ZarrKeyValueWriter.reorder(chunkSize);
+			reverse(chunkSize);
 			attrs.add(ZArrayAttributes.chunksKey, chunkSize);
 		}
 		return attrs;
 	}
 
 	/**
-	 * Returns a {@link JsonElement} representing the contents of .zgroup
-	 * located at the given path if present, and null if not.
+	 * Returns a {@link JsonElement} representing the contents of .zgroup located at the given path if present, and null
+	 * if not.
 	 *
 	 * @param path
 	 *            the path
@@ -543,8 +524,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	/**
-	 * Returns a {@link JsonElement} representing the contents of .zarray
-	 * located at the given path if present, and null if not.
+	 * Returns a {@link JsonElement} representing the contents of .zarray located at the given path if present, and null
+	 * if not.
 	 *
 	 * @param path
 	 *            the path
@@ -557,9 +538,9 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		return getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE);
 	}
 
-	protected JsonElement zarrToN5DatasetAttributes(final JsonElement elem ) {
+	protected JsonElement zarrToN5DatasetAttributes(final JsonElement elem) {
 
-		if( !mapN5DatasetAttributes || elem == null || !elem.isJsonObject())
+		if (!mapN5DatasetAttributes || elem == null || !elem.isJsonObject())
 			return elem;
 
 		final JsonObject attrs = elem.getAsJsonObject();
@@ -584,9 +565,9 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		return attrs;
 	}
 
-	protected JsonElement n5ToZarrDatasetAttributes(final JsonElement elem ) {
+	protected JsonElement n5ToZarrDatasetAttributes(final JsonElement elem) {
 
-		if( !mapN5DatasetAttributes || elem == null || !elem.isJsonObject())
+		if (!mapN5DatasetAttributes || elem == null || !elem.isJsonObject())
 			return elem;
 
 		final JsonObject attrs = elem.getAsJsonObject();
@@ -603,8 +584,15 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	/**
-	 * Returns a {@link JsonElement} representing the contents of .zattrs
-	 * located at the given path if present, and null if not.
+	 * Returns a {@link JsonElement} representing the contents of .zattrs located at the given path if present, and null
+	 * if not. public static JsonObject serialize(JsonSerializationContext context, final DefaultChunkKeyEncoding cke) {
+	 *
+	 * final JsonObject out = new JsonObject(); out.addProperty("name", "default");
+	 *
+	 * final JsonObject config = new JsonObject(); config.addProperty("separator", cke.separator);
+	 * out.add("configuration", config);
+	 *
+	 * return out; }
 	 *
 	 * @param path
 	 *            the path
@@ -637,7 +625,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 		JsonElement out;
 		if (mergeAttributes) {
-			out= combineAll(
+			out = combineAll(
 					getJsonResource(N5URI.normalizeGroupPath(path), ZGROUP_FILE),
 					zarrToN5DatasetAttributes(
 							postProcessJson(getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE))),
@@ -653,7 +641,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		JsonElement out;
 		if (mergeAttributes) {
 
-			out= combineAll(
+			out = combineAll(
 					getJsonResource(N5URI.normalizeGroupPath(path), ZGROUP_FILE),
 					postProcessJson(getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE)),
 					getJsonResource(N5URI.normalizeGroupPath(path), ZATTRS_FILE));
@@ -690,7 +678,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		if (datasetAttributes instanceof ZarrDatasetAttributes)
 			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
 		else
-			zarrDatasetAttributes = getDatasetAttributes(pathName);
+			zarrDatasetAttributes = (ZarrDatasetAttributes)getDatasetAttributes(pathName);
 
 		final String normalPathName = N5URI.normalizeGroupPath(pathName);
 		final String absolutePath = absoluteDataBlockPath(normalPathName, gridPosition);
@@ -702,7 +690,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 					gridPosition);
 		} catch (final N5Exception.N5NoSuchKeyException e) {
 			return null;
-		} catch (final Throwable  e) {
+		} catch (final Throwable e) {
 			throw new N5IOException(
 					"Failed to read block " + Arrays.toString(gridPosition) + " from dataset " + pathName,
 					e);
@@ -784,22 +772,13 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	/**
-	 * Returns one {@link JsonElement} that combines two others. The returned
-	 * instance
-	 * is a deep copy, and the arguments are not modified.
-	 * A copy of base element is returned if the two arguments can not be
-	 * combined.
-	 * The two arguments may be combined if they are both {@link JsonObject}s or
-	 * both
-	 * {@link JsonArray}s.
+	 * Returns one {@link JsonElement} that combines two others. The returned instance is a deep copy, and the arguments
+	 * are not modified. A copy of base element is returned if the two arguments can not be combined. The two arguments
+	 * may be combined if they are both {@link JsonObject}s or both {@link JsonArray}s.
 	 * <p>
-	 * If both arguments are {@link JsonObject}s, every key-value pair in the
-	 * add argument
-	 * is added to the (copy of) the base argument, overwriting any duplicate
-	 * keys.
-	 * If both arguments are {@link JsonArray}s, the add argument is
-	 * concatenated to the
-	 * (copy of) the base argument.
+	 * If both arguments are {@link JsonObject}s, every key-value pair in the add argument is added to the (copy of) the
+	 * base argument, overwriting any duplicate keys. If both arguments are {@link JsonArray}s, the add argument is
+	 * concatenated to the (copy of) the base argument.
 	 *
 	 * @param base
 	 *            the base element
@@ -849,6 +828,17 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		gsonBuilder.disableHtmlEscaping();
 
 		return gsonBuilder;
+	}
+
+	protected static void reverse(final JsonArray array) {
+		JsonElement a;
+		final int max = array.size() - 1;
+		for (int i = (max - 1) / 2; i >= 0; --i) {
+			final int j = max - i;
+			a = array.get(i);
+			array.set(i, array.get(j));
+			array.set(j, a);
+		}
 	}
 
 }
