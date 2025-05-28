@@ -1,3 +1,31 @@
+/*-
+ * #%L
+ * Not HDF5
+ * %%
+ * Copyright (C) 2019 - 2025 Stephan Saalfeld
+ * %%
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ * #L%
+ */
 /**
  * Copyright (c) 2017--2021, Stephan Saalfeld
  * All rights reserved.
@@ -25,6 +53,14 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Writer;
@@ -33,15 +69,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import net.imglib2.blocks.SubArrayCopy;
+import net.imglib2.util.Intervals;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.janelia.saalfeldlab.n5.BlockWriter;
-import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.DefaultBlockWriter;
+import org.janelia.saalfeldlab.n5.GsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
@@ -51,26 +89,10 @@ import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSyntaxException;
-
-import net.imglib2.Cursor;
-import net.imglib2.FinalInterval;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.basictypeaccess.array.ByteArray;
-import net.imglib2.type.numeric.integer.ByteType;
-import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.n5.serialization.JsonArrayUtils;
+import static net.imglib2.util.Util.safeInt;
 
 /**
- * Zarr {@link KeyValueWriter} implementation.
+ * Zarr {@link GsonKeyValueN5Writer} implementation.
  *
  * @author Stephan Saalfeld
  * @author John Bogovic
@@ -304,7 +326,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		newAttributes = GsonUtils.insertAttributes(newAttributes, attributes, gson);
 
 		if (newAttributes.isJsonObject()) {
-			final ZarrJsonElements zje = build(newAttributes.getAsJsonObject(), getGson());
+			final ZarrJsonElements zje = build(newAttributes.getAsJsonObject(), getGson(), mapN5DatasetAttributes);
 			// the three methods below handle caching
 			writeZArray(normalPath, zje.zarray);
 			writeZAttrs(normalPath, zje.zattrs);
@@ -477,46 +499,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			cache.updateCacheInfo(normalGroupPath, ZATTRS_FILE, attributes);
 	}
 
-	/**
-	 * Writes a {@link DataBlock} into an {@link OutputStream}.
-	 *
-	 * @param out the output stream
-	 * @param datasetAttributes dataset attributes
-	 * @param dataBlock the data block
-	 * @throws IOException the exception
-	 */
-	public static <T> void writeBlock(
-			final OutputStream out,
-			final ZarrDatasetAttributes datasetAttributes,
-			final DataBlock<T> dataBlock) throws IOException {
-
-		final int[] blockSize = datasetAttributes.getBlockSize();
-		final DType dType = datasetAttributes.getDType();
-		final BlockWriter writer = datasetAttributes.getCompression().getWriter();
-
-		if (!Arrays.equals(blockSize, dataBlock.getSize())) {
-
-			final byte[] padCropped = padCrop(
-					dataBlock.toByteBuffer().array(),
-					dataBlock.getSize(),
-					blockSize,
-					dType.getNBytes(),
-					dType.getNBits(),
-					datasetAttributes.getFillBytes());
-
-			final DataBlock<byte[]> padCroppedDataBlock = new ByteArrayDataBlock(
-					blockSize,
-					dataBlock.getGridPosition(),
-					padCropped);
-
-			writer.write(padCroppedDataBlock, out);
-
-		} else {
-
-			writer.write(dataBlock, out);
-		}
-	}
-
 	@Override
 	public <T> void writeBlock(
 			final String pathName,
@@ -544,10 +526,12 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 				.compose(Arrays.stream(components).limit(components.length - 1).toArray(String[]::new));
 		try {
 			keyValueAccess.createDirectories(parent);
-			try (final LockedChannel lockedChannel = keyValueAccess.lockForWriting(path)) {
-
-				writeBlock(
-						lockedChannel.newOutputStream(),
+			try (
+					final LockedChannel lockedChannel = keyValueAccess.lockForWriting(path);
+					final OutputStream out = lockedChannel.newOutputStream()
+			) {
+				DefaultBlockWriter.writeBlock(
+						out,
 						zarrDatasetAttributes,
 						dataBlock);
 			}
@@ -601,38 +585,38 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final int n = srcBlockSize.length;
 
 		if (nBytes != 0) {
-
-			/* this is getting hairy, ImgLib2 alternative */
-			/* byte images with 0-dimension d[0] * nBytes */
-			final long[] srcIntervalDimensions = new long[n];
-			final long[] dstIntervalDimensions = new long[n];
-			srcIntervalDimensions[0] = srcBlockSize[0] * nBytes;
-			dstIntervalDimensions[0] = dstBlockSize[0] * nBytes;
-			for (int d = 1; d < n; ++d) {
-				srcIntervalDimensions[d] = srcBlockSize[d];
-				dstIntervalDimensions[d] = dstBlockSize[d];
+			int[] zero = new int[n];
+			int[] srcSize = new int[n];
+			int[] dstSize = new int[n];
+			int[] size = new int[n];
+			Arrays.setAll(srcSize, d -> srcBlockSize[d] * (d == 0 ? nBytes : 1));
+			Arrays.setAll(dstSize, d -> dstBlockSize[d] * (d == 0 ? nBytes : 1));
+			Arrays.setAll(size, d -> Math.min(srcSize[d], dstSize[d]));
+			final byte[] dst = new byte[safeInt(Intervals.numElements(dstSize))];
+			if (!Arrays.equals(dstSize, size)) {
+				fill(dst, fill_value);
 			}
-
-			final byte[] dst = new byte[(int)Intervals.numElements(dstIntervalDimensions)];
-			/* fill dst */
-			for (int i = 0, j = 0; i < n; ++i) {
-				dst[i] = fill_value[j];
-				if (++j == fill_value.length)
-					j = 0;
-			}
-			final ArrayImg<ByteType, ByteArray> srcImg = ArrayImgs.bytes(src, srcIntervalDimensions);
-			final ArrayImg<ByteType, ByteArray> dstImg = ArrayImgs.bytes(dst, dstIntervalDimensions);
-
-			final FinalInterval intersection = Intervals.intersect(srcImg, dstImg);
-			final Cursor<ByteType> srcCursor = Views.interval(srcImg, intersection).cursor();
-			final Cursor<ByteType> dstCursor = Views.interval(dstImg, intersection).cursor();
-			while (srcCursor.hasNext())
-				dstCursor.next().set(srcCursor.next());
-
+			SubArrayCopy.copy(src, srcSize, zero, dst, dstSize, zero, size);
 			return dst;
 		} else {
 			/* TODO deal with bit streams */
 			return null;
+		}
+	}
+
+	private static void fill(final byte[] dst, final byte[] fill_value) {
+		byte allZero = 0;
+		for (byte b : fill_value) {
+			allZero |= b;
+		}
+		if (allZero != 0) {
+			if (fill_value.length == 1) {
+				Arrays.fill(dst, fill_value[0]);
+			} else {
+				for (int i = 0; i < dst.length; i++) {
+					dst[i] = fill_value[i % fill_value.length];
+				}
+			}
 		}
 	}
 
@@ -669,7 +653,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			if (dsetAttrs != null) {
 				final JsonElement e = src.get(srcKey);
 				if (e.isJsonArray() && dsetAttrs.isRowMajor())
-					JsonArrayUtils.reverse(e.getAsJsonArray());
+					reverse(e.getAsJsonArray());
 
 				zarrElems.getOrMakeZarray().add(destKey, e);
 				src.remove(srcKey);
@@ -688,7 +672,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			if (dsetAttrs != null) {
 				final JsonElement e = src.get(srcKey);
 				if (e.isJsonArray() && dsetAttrs.isRowMajor())
-					JsonArrayUtils.reverse(e.getAsJsonArray());
+					reverse(e.getAsJsonArray());
 
 				zarrElems.getOrMakeZarray().add(destKey, e);
 				src.remove(srcKey);

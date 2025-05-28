@@ -29,8 +29,6 @@
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.AbstractMap.SimpleImmutableEntry;
@@ -43,6 +41,7 @@ import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.codec.Codec;
+import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 
 import org.janelia.saalfeldlab.n5.serialization.NameConfig;
@@ -86,12 +85,12 @@ public interface ZarrV3Compressor extends Codec.BytesCodec {
 	}
 
 	@Override
-	public default OutputStream encode(final OutputStream in) throws IOException {
+	public default ReadData encode(final ReadData in) throws IOException {
     	return getCompression().encode(in);
     }
 
 	@Override
-	public default InputStream decode(final InputStream in) throws IOException {
+	public default ReadData decode(final ReadData in) throws IOException {
     	return getCompression().decode(in);
     }
 

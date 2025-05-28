@@ -2,7 +2,7 @@
  * #%L
  * Not HDF5
  * %%
- * Copyright (C) 2019 - 2022 Stephan Saalfeld
+ * Copyright (C) 2019 - 2025 Stephan Saalfeld
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,6 +41,7 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
+import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 
 import com.google.gson.JsonDeserializationContext;
@@ -56,10 +57,11 @@ import com.google.gson.stream.JsonWriter;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  *
  */
-public interface ZarrCompressor {
+public interface ZarrCompressor extends Compression {
 
 	/* idiotic stream based initialization because Java cannot have static initialization code in interfaces */
 	public static Map<String, Class<? extends ZarrCompressor>> registry = Stream.of(
+			new SimpleImmutableEntry<>("raw", Raw.class),
 			new SimpleImmutableEntry<>("zstd", Zstandard.class),
 			new SimpleImmutableEntry<>("blosc", Blosc.class),
 			new SimpleImmutableEntry<>("zlib", Zlib.class),
@@ -91,35 +93,17 @@ public interface ZarrCompressor {
 		}
 	}
 
-	// @Override
-	// public default String getType() {
-	//
-	// return getCompression().getType();
-	// }
-	//
-	// @Override
-	// default BlockReader getReader() {
-	//
-	// return getCompression().getReader();
-	// }
-	//
-	// @Override
-	// default BlockWriter getWriter() {
-	//
-	// return getCompression().getWriter();
-	// }
+	@Override
+	default ReadData decode(ReadData readData) throws IOException {
 
-	// @Override
-	// default InputStream decode(final InputStream in) throws IOException {
-	//
-	// return getCompression().decode(in);
-	// }
-	//
-	// @Override
-	// default OutputStream encode(OutputStream out) throws IOException {
-	//
-	// return getCompression().encode(out);
-	// }
+		return getCompression().decode(readData);
+	}
+
+	@Override
+	default public ReadData encode(ReadData readData) throws IOException {
+
+		return getCompression().encode(readData);
+	}
 
 	public Compression getCompression();
 
@@ -213,6 +197,7 @@ public interface ZarrCompressor {
 
 			return new BloscCompression(cname, clevel, shuffle, blocksize, Math.max(1, nthreads));
 		}
+
 	}
 
 	public static class Zlib implements ZarrCompressor {

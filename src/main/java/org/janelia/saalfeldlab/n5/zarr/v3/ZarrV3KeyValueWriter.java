@@ -25,6 +25,7 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
+import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -41,7 +42,6 @@ import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.ShardedDatasetAttributes;
 import org.janelia.saalfeldlab.n5.codec.RawBytes;
 import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.saalfeldlab.n5.codec.N5BlockCodec;
@@ -283,9 +283,9 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 	private static Codec.ArrayCodec convert(Codec.ArrayCodec arrayCodec) {
 
 		if (arrayCodec instanceof RawBytes)
-			return (RawBytes) arrayCodec;
+			return arrayCodec;
 		else if (arrayCodec instanceof N5BlockCodec)
-			return new RawBytes(((N5BlockCodec) arrayCodec).getByteOrder());
+			return new RawBytes(ByteOrder.BIG_ENDIAN);
 		else
 			return new RawBytes();
 

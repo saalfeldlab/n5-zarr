@@ -2,7 +2,7 @@
  * #%L
  * Not HDF5
  * %%
- * Copyright (C) 2019 - 2022 Stephan Saalfeld
+ * Copyright (C) 2019 - 2025 Stephan Saalfeld
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,7 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.codec.Codec;
 
 
 /**
@@ -38,24 +39,23 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
  */
 public class ZarrDatasetAttributes extends DatasetAttributes {
 
-	protected final transient boolean isRowMajor;
-	protected final transient DType dType;
-	protected final transient byte[] fillBytes;
-	protected final transient String dimensionSeparator;
+	private final transient boolean isRowMajor;
+	private final transient DType dType;
+	private final transient String dimensionSeparator;
 
 	public ZarrDatasetAttributes(
 			final long[] dimensions,
 			final int[] blockSize,
 			final DType dType,
-			final Compression compression,
 			final boolean isRowMajor,
 			final String fill_value,
-			final String dimensionSeparator ) {
+			final String dimensionSeparator, 
+			final Codec... codecs) {
 
-		super(dimensions, blockSize, dType.getDataType(), compression);
+		super(dimensions, blockSize, dType.getDataType(),
+				dType.createDataBlockCodec(blockSize, fill_value, codecs));
 		this.dType = dType;
 		this.isRowMajor = isRowMajor;
-		this.fillBytes = dType.createFillBytes(fill_value);
 		this.dimensionSeparator = dimensionSeparator;
 	}
 
@@ -63,11 +63,11 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final long[] dimensions,
 			final int[] blockSize,
 			final DType dType,
-			final Compression compression,
 			final boolean isRowMajor,
-			final String fill_value) {
+			final String fill_value,
+			Codec... codecs) {
 
-		this( dimensions, blockSize, dType, compression, isRowMajor, fill_value, ".");
+		this( dimensions, blockSize, dType, isRowMajor, fill_value, ".", codecs);
 	}
 
 	public boolean isRowMajor() {
@@ -78,11 +78,6 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 	public DType getDType() {
 
 		return dType;
-	}
-
-	public byte[] getFillBytes() {
-
-		return fillBytes;
 	}
 
 	public String getDimensionSeparator() {

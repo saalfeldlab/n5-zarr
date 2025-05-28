@@ -22,7 +22,11 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.n5.codec.Codec;
+import org.janelia.saalfeldlab.n5.codec.DeterministicSizeCodec;
+import org.janelia.saalfeldlab.n5.codec.RawBytes;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.shard.ShardingCodec.IndexLocation;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter;
 import org.junit.After;
@@ -371,12 +375,19 @@ public class TensorstoreTest {
 
 			// sharded
 			String dsetSharded = String.format("3x2_%s_shard", dtype.toString());
-			N5Utils.save(img, n5Zarr, dsetSharded, new int[] { 1, 2 }, new int[] { 3, 2 }, new RawCompression());
+			N5Utils.save(img, n5Zarr, dsetSharded, new int[] { 3, 2 }, new int[] { 1, 2  },
+					new Codec[]{new RawCompression()},
+					new DeterministicSizeCodec[]{},
+					IndexLocation.END);
 			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetSharded, "-d",version.toString()));
 
 			// sharded big
 			String dsetBigSharded = String.format("12x9%s_shard", dtype.toString());
-			N5Utils.save(imgBig, n5Zarr, dsetBigSharded, new int[] { 2, 3 }, new int[] { 6, 9 }, new RawCompression());
+			N5Utils.save(imgBig, n5Zarr, dsetBigSharded, 
+					new int[] { 6, 9 }, new int[] { 2, 3 }, 
+					new Codec[]{new RawBytes(), new RawCompression()},
+					new DeterministicSizeCodec[]{new RawBytes()},
+					IndexLocation.END);
 			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBigSharded, "-d",version.toString()));
 		}
 	}

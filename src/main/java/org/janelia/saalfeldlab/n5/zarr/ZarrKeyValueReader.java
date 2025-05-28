@@ -1,3 +1,31 @@
+/*-
+ * #%L
+ * Not HDF5
+ * %%
+ * Copyright (C) 2019 - 2025 Stephan Saalfeld
+ * %%
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ * #L%
+ */
 /**
  * Copyright (c) 2017--2021, Stephan Saalfeld
  * All rights reserved.
@@ -25,19 +53,21 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import org.apache.commons.compress.utils.IOUtils;
-import org.janelia.saalfeldlab.n5.BlockReader;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Reader;
 import org.janelia.saalfeldlab.n5.Compression;
@@ -54,18 +84,8 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
-import org.janelia.saalfeldlab.n5.serialization.JsonArrayUtils;
 import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
 
 /**
  * {@link N5Reader} implementation through {@link KeyValueAccess} with JSON attributes parsed with {@link Gson}.
@@ -320,11 +340,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	@Override
 	public boolean datasetExists(final String pathName) throws N5Exception.N5IOException {
 
+		final String normalPathName = N5URI.normalizeGroupPath(pathName);
 		if (cacheMeta()) {
-			final String normalPathName = N5URI.normalizeGroupPath(pathName);
 			return cache.isDataset(normalPathName, ZARRAY_FILE);
 		}
-		return isDatasetFromContainer(pathName);
+		return isDatasetFromContainer(normalPathName);
 	}
 
 	@Override
@@ -357,9 +377,17 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 *             the exception
 	 */
 	@Override
-	public DatasetAttributes getDatasetAttributes(final String pathName) throws N5Exception {
+	public ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws N5Exception {
 
 		return createDatasetAttributes(getZArray(pathName));
+	}
+
+	@Override
+	public String absoluteDataBlockPath(final String normalPath, long... gridPosition) {
+
+		final ZarrDatasetAttributes zarrDatasetAttributes = getDatasetAttributes(normalPath);
+		return keyValueAccess.compose(uri, normalPath,
+				getZarrDataBlockPath(gridPosition, zarrDatasetAttributes.getDimensionSeparator(), zarrDatasetAttributes.isRowMajor()));
 	}
 
 	/**
@@ -389,7 +417,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	@Override
-	public DatasetAttributes createDatasetAttributes(final JsonElement attributes) {
+	public ZarrDatasetAttributes createDatasetAttributes(final JsonElement attributes) {
 
 		final ZArrayAttributes zarray = getZArrayAttributes(attributes);
 		return zarray != null ? zarray.getDatasetAttributes() : null;
@@ -440,6 +468,27 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		}
 	}
 
+	protected static JsonElement postProcessJson(final JsonElement elem) {
+		return reverseAttrsWhenCOrder(
+				handleNullCompression(elem));
+	}
+
+	protected static JsonElement handleNullCompression(final JsonElement elem) {
+
+		if (elem == null || !elem.isJsonObject())
+			return elem;
+
+		final String key = ZArrayAttributes.compressorKey;
+		final JsonObject attrs = elem.getAsJsonObject();
+		if (attrs.has(key) && attrs.get(key).isJsonNull()) {
+
+			final JsonObject compressionValue = new JsonObject();
+			compressionValue.addProperty("id", "raw");
+			attrs.add(key, compressionValue);
+		}
+		return attrs;
+	}
+
 	protected static JsonElement reverseAttrsWhenCOrder(final JsonElement elem) {
 
 		if (elem == null || !elem.isJsonObject())
@@ -449,11 +498,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		if (attrs.get(ZArrayAttributes.orderKey).getAsString().equals("C")) {
 
 			final JsonArray shape = attrs.get(ZArrayAttributes.shapeKey).getAsJsonArray();
-			JsonArrayUtils.reverse(shape);
+			reverse(shape);
 			attrs.add(ZArrayAttributes.shapeKey, shape);
 
 			final JsonArray chunkSize = attrs.get(ZArrayAttributes.chunksKey).getAsJsonArray();
-			JsonArrayUtils.reverse(chunkSize);
+			reverse(chunkSize);
 			attrs.add(ZArrayAttributes.chunksKey, chunkSize);
 		}
 		return attrs;
@@ -507,8 +556,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		if (e == JsonNull.INSTANCE || e == null) {
 			attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(new RawCompression()));
 		} else {
-			attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(
-					gson.fromJson(attrs.get(ZArrayAttributes.compressorKey), ZarrCompressor.class).getCompression()));
+			final JsonElement compressionValue = attrs.get(ZArrayAttributes.compressorKey);
+			if( compressionValue.isJsonNull())
+				attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(new RawCompression()));
+			else
+				attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(gson.fromJson(compressionValue, ZarrCompressor.class).getCompression()));
 		}
 		return attrs;
 	}
@@ -556,9 +608,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	/**
 	 * Returns the attributes at the given path.
 	 * <p>
-	 * If this reader was constructed with mergeAttributes as true, this method will attempt to combine the contents of
-	 * .zgroup, .zarray, and .zattrs, when present using {@link ZarrUtils#combineAll(JsonElement...)}. Otherwise, this
-	 * method will return only the contents of .zattrs, as {@link getZAttributes}.
+	 * If this reader was constructed with mergeAttributes as true, this method
+	 * will attempt to combine the contents of .zgroup, .zarray, and .zattrs,
+	 * when present using {@link #combineAll(JsonElement...)}.
+	 * Otherwise, this method will return only the contents of .zattrs, as
+	 * {@link #getZAttributes}.
 	 *
 	 * @param path
 	 *            the path
@@ -574,7 +628,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			out = combineAll(
 					getJsonResource(N5URI.normalizeGroupPath(path), ZGROUP_FILE),
 					zarrToN5DatasetAttributes(
-							reverseAttrsWhenCOrder(getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE))),
+							postProcessJson(getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE))),
 					getJsonResource(N5URI.normalizeGroupPath(path), ZATTRS_FILE));
 		} else
 			out = getZAttributes(path);
@@ -589,7 +643,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 			out = combineAll(
 					getJsonResource(N5URI.normalizeGroupPath(path), ZGROUP_FILE),
-					reverseAttrsWhenCOrder(getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE)),
+					postProcessJson(getJsonResource(N5URI.normalizeGroupPath(path), ZARRAY_FILE)),
 					getJsonResource(N5URI.normalizeGroupPath(path), ZATTRS_FILE));
 		} else
 			out = getZAttributes(path);
@@ -626,17 +680,14 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		else
 			zarrDatasetAttributes = (ZarrDatasetAttributes)getDatasetAttributes(pathName);
 
-		final String absolutePath = keyValueAccess
-				.compose(
-						uri,
-						pathName,
-						getZarrDataBlockPath(
-								gridPosition,
-								zarrDatasetAttributes.getDimensionSeparator(),
-								zarrDatasetAttributes.isRowMajor()));
+		final String normalPathName = N5URI.normalizeGroupPath(pathName);
+		final String absolutePath = absoluteDataBlockPath(normalPathName, gridPosition);
 
 		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
-			return readBlock(lockedChannel.newInputStream(), zarrDatasetAttributes, gridPosition);
+			return DefaultBlockReader.readBlock(
+					lockedChannel.newInputStream(),
+					zarrDatasetAttributes,
+					gridPosition);
 		} catch (final N5Exception.N5NoSuchKeyException e) {
 			return null;
 		} catch (final Throwable e) {
@@ -647,73 +698,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	/**
-	 * Reads a {@link DataBlock} from an {@link InputStream}.
-	 *
-	 * @param in
-	 * @param datasetAttributes
-	 * @param gridPosition
-	 * @return
-	 * @throws IOException
-	 */
-	@SuppressWarnings("incomplete-switch")
-	protected static DataBlock<?> readBlock(
-			final InputStream in,
-			final ZarrDatasetAttributes datasetAttributes,
-			final long... gridPosition) throws IOException {
-
-		final int[] blockSize = datasetAttributes.getBlockSize();
-		final DType dType = datasetAttributes.getDType();
-
-		final ByteArrayDataBlock byteBlock = dType.createByteBlock(blockSize, gridPosition);
-		final BlockReader reader = datasetAttributes.getCompression().getReader();
-
-		if (dType.getDataType() == DataType.STRING) {
-			return readVLenStringBlock(in, reader, byteBlock);
-		}
-
-		reader.read(byteBlock, in);
-
-		switch (dType.getDataType()) {
-		case UINT8:
-		case INT8:
-			return byteBlock;
-		}
-
-		/* else translate into target type */
-		final DataBlock<?> dataBlock = dType.createDataBlock(blockSize, gridPosition);
-		final ByteBuffer byteBuffer = byteBlock.toByteBuffer();
-		byteBuffer.order(dType.getOrder());
-		dataBlock.readData(byteBuffer);
-
-		return dataBlock;
-	}
-
-	private static ZarrStringDataBlock readVLenStringBlock(final InputStream in, final BlockReader reader,
-			final ByteArrayDataBlock byteBlock) throws IOException {
-
-		// read whole chunk and deserialize; this should be improved
-		final ZarrStringDataBlock dataBlock = new ZarrStringDataBlock(byteBlock.getSize(), byteBlock.getGridPosition(),
-				new String[0]);
-		if (reader instanceof BloscCompression) {
-			// Blosc reader reads actual data and doesn't care about buffer size (but needs special treatment in data
-			// block)
-			reader.read(dataBlock, in);
-		} else if (reader instanceof DefaultBlockReader) {
-			try (final InputStream inflater = ((DefaultBlockReader)reader).getInputStream(in)) {
-				final DataInputStream dis = new DataInputStream(inflater);
-				final ByteArrayOutputStream out = new ByteArrayOutputStream();
-				IOUtils.copy(dis, out);
-				dataBlock.readData(ByteBuffer.wrap(out.toByteArray()));
-			}
-		} else {
-			throw new UnsupportedOperationException(
-					"Only Blosc compression or algorithms that use DefaultBlockReader are supported.");
-		}
-		return dataBlock;
-	}
-
-	/**
-	 * Constructs the path for a data block in a dataset at a given grid position.
+	 * Constructs the path for a data block in a dataset at a given grid
+	 * position.
 	 *
 	 * The returned path is
 	 *
@@ -772,8 +758,9 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	/**
-	 * Returns one {@link JsonElement} that (attempts to) combine all passed json elements. Reduces the list by
-	 * repeatedly calling the two-argument {@link combine} method.
+	 * Returns one {@link JsonElement} that (attempts to) combine all
+	 * passed json elements. Reduces the list by repeatedly calling the
+	 * two-argument {@link #combine} method.
 	 *
 	 * @param elements
 	 *            an array of json elements
@@ -841,6 +828,17 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		gsonBuilder.disableHtmlEscaping();
 
 		return gsonBuilder;
+	}
+
+	protected static void reverse(final JsonArray array) {
+		JsonElement a;
+		final int max = array.size() - 1;
+		for (int i = (max - 1) / 2; i >= 0; --i) {
+			final int j = max - i;
+			a = array.get(i);
+			array.set(i, array.get(j));
+			array.set(j, a);
+		}
 	}
 
 }

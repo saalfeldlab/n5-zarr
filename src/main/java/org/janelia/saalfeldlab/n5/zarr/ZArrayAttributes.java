@@ -2,7 +2,7 @@
  * #%L
  * Not HDF5
  * %%
- * Copyright (C) 2019 - 2022 Stephan Saalfeld
+ * Copyright (C) 2019 - 2025 Stephan Saalfeld
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -90,7 +90,7 @@ public class ZArrayAttributes {
 			final int[] chunks,
 			final DType dtype,
 			final ZarrCompressor compressor,
-			final String fill_value,
+			final JsonElement fillValue,
 			final char order,
 			final String dimensionSeparator,
 			final Collection<Filter> filters) {
@@ -100,11 +100,27 @@ public class ZArrayAttributes {
 		this.chunks = chunks;
 		this.dtype = dtype;
 		this.compressor = compressor == null ? new ZarrCompressor.Raw() : compressor;
-		this.fill_value = parseFillValue(fill_value, dtype.getDataType());
+		this.fill_value = fillValue;
 		this.order = order;
 		this.dimensionSeparator = dimensionSeparator;
 		if (filters != null)
 			this.filters.addAll(filters);
+	}
+
+	public ZArrayAttributes(
+			final int zarr_format,
+			final long[] shape,
+			final int[] chunks,
+			final DType dtype,
+			final ZarrCompressor compressor,
+			final String fill_value,
+			final char order,
+			final String dimensionSeparator,
+			final Collection<Filter> filters) {
+
+		this( zarr_format, shape, chunks, dtype, compressor,
+				parseFillValue(fill_value, dtype.getDataType()),
+				order, dimensionSeparator, filters);
 	}
 
 	public ZArrayAttributes(
@@ -136,15 +152,15 @@ public class ZArrayAttributes {
 				dimensions,
 				blockSize,
 				dtype,
-				compressor.getCompression(),
 				isRowMajor,
-				fill_value.getAsString(),
-				dimensionSeparator);
+				(fill_value == null || fill_value.isJsonNull()) ? null : fill_value.getAsString(),
+				dimensionSeparator,
+				compressor.getCompression());
 	}
 
 	private static JsonElement parseFillValue(String fillValue, DataType dtype) {
 
-		if (fillValue == null || fillValue.isEmpty())
+		if (fillValue == null || fillValue.isEmpty() || fillValue.equals("null"))
 			return JsonNull.INSTANCE;
 
 		// Long is more than Double, so try that first
@@ -199,6 +215,11 @@ public class ZArrayAttributes {
 		return fill_value.getAsString();
 	}
 
+	public JsonElement getFillValueJson() {
+
+		return fill_value;
+	}
+
 	public HashMap<String, Object> asMap() {
 
 		final HashMap<String, Object> map = new HashMap<>();
@@ -232,6 +253,8 @@ public class ZArrayAttributes {
 
 			final JsonObject obj = json.getAsJsonObject();
 			final JsonElement sepElem = obj.get("dimension_separator");
+			final JsonElement fillValueJson = obj.get(ZArrayAttributes.fillValueKey);
+
 			try {
 				final Collection<Filter> filters = context.deserialize(obj.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType());
 				final String typestr = context.deserialize(obj.get("dtype"), String.class);
@@ -242,8 +265,8 @@ public class ZArrayAttributes {
 						context.deserialize( obj.get("shape"), long[].class),
 						context.deserialize( obj.get("chunks"), int[].class),
 						dType, // fix
-						context.deserialize( obj.get("compressor"), ZarrCompressor.class), // fix
-						obj.get("fill_value").getAsString(),
+						context.deserialize( obj.get("compressor"), ZarrCompressor.class),
+						fillValueJson,
 						obj.get("order").getAsCharacter(),
 						sepElem != null ? sepElem.getAsString() : ".",
 						filters);
@@ -263,7 +286,7 @@ public class ZArrayAttributes {
 
 			jsonObject.add("dtype", context.serialize(src.getDType().toString()));
 			jsonObject.add("compressor", context.serialize(src.getCompressor()));
-			jsonObject.addProperty("fill_value", src.getFillValue());
+			jsonObject.add("fill_value", src.getFillValueJson());
 			jsonObject.addProperty("order", src.getOrder());
 			jsonObject.addProperty("dimension_separator", src.getDimensionSeparator());
 			jsonObject.add("filters", context.serialize(src.getFilters()));

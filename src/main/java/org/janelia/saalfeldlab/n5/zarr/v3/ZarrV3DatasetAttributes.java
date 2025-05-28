@@ -31,8 +31,6 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 
-import javax.annotation.Nullable;
-
 import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
