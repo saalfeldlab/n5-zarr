@@ -35,14 +35,17 @@ import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.Deflater;
 
 import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
+import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
+import org.janelia.saalfeldlab.n5.serialization.NameConfig;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -57,7 +60,7 @@ import com.google.gson.stream.JsonWriter;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  *
  */
-public interface ZarrCompressor extends Compression {
+public interface ZarrCompressor extends Codec.BytesCodec {
 
 	/* idiotic stream based initialization because Java cannot have static initialization code in interfaces */
 	public static Map<String, Class<? extends ZarrCompressor>> registry = Stream.of(
@@ -107,12 +110,21 @@ public interface ZarrCompressor extends Compression {
 
 	public Compression getCompression();
 
+	@NameConfig.Name("blosc")
 	public static class Zstandard implements ZarrCompressor {
 
-		@SuppressWarnings("unused")
 		private final String id = "zstd";
+
+		@NameConfig.Parameter
 		private final int level;
+
+		@NameConfig.Parameter
 		private final transient int nbWorkers;
+
+		public Zstandard() {
+			this.level = ZstandardCompression.ZSTD_CLEVEL_DEFAULT;
+			this.nbWorkers = 0;
+		}
 
 		public Zstandard(int level) {
 			this(level, 0);
@@ -136,17 +148,40 @@ public interface ZarrCompressor extends Compression {
 			return compression;
 		}
 
+		@Override
+		public String getType() {
+			return id;
+		}
 	}
 
+	@NameConfig.Name("blosc")
 	public static class Blosc implements ZarrCompressor {
 
-		@SuppressWarnings("unused")
 		private final String id = "blosc";
+
+		@NameConfig.Parameter
 		private final String cname;
+
+		@NameConfig.Parameter
 		private final int clevel;
+
+		@NameConfig.Parameter
 		private final int shuffle;
+
+		@NameConfig.Parameter
 		private final int blocksize;
+
+		@NameConfig.Parameter
 		private final transient int nthreads;
+
+		public Blosc() {
+
+			this.cname = "blosclz";
+			this.clevel = 6;
+			this.shuffle = BloscCompression.NOSHUFFLE;
+			this.blocksize = 0; // auto
+			this.nthreads = 1;
+		}
 
 		public Blosc(
 				final String cname,
@@ -198,16 +233,25 @@ public interface ZarrCompressor extends Compression {
 			return new BloscCompression(cname, clevel, shuffle, blocksize, Math.max(1, nthreads));
 		}
 
+		@Override
+		public String getType() {
+			return id;
+		}
 	}
 
+	@NameConfig.Name("zlib")
 	public static class Zlib implements ZarrCompressor {
 
-		@SuppressWarnings("unused")
 		private final String id = "zlib";
+
+		@NameConfig.Parameter
 		private final int level;
 
-		public Zlib(final int level) {
+		public Zlib() {
+			this.level = Deflater.DEFAULT_COMPRESSION;
+		}
 
+		public Zlib(final int level) {
 			this.level = level;
 		}
 
@@ -223,19 +267,28 @@ public interface ZarrCompressor extends Compression {
 
 		@Override
 		public GzipCompression getCompression() {
-
 			return new GzipCompression(level, true);
+		}
+
+		@Override
+		public String getType() {
+			return id;
 		}
 	}
 
+	@NameConfig.Name("gzip")
 	public static class Gzip implements ZarrCompressor {
 
-		@SuppressWarnings("unused")
 		private final String id = "gzip";
+
+		@NameConfig.Parameter
 		private final int level;
 
-		public Gzip(final int level) {
+		public Gzip() {
+			this.level = Deflater.DEFAULT_COMPRESSION;
+		}
 
+		public Gzip(final int level) {
 			this.level = level;
 		}
 
@@ -254,13 +307,25 @@ public interface ZarrCompressor extends Compression {
 
 			return new GzipCompression(level);
 		}
+
+		@Override
+		public String getType() {
+			return id;
+		}
 	}
 
+	@NameConfig.Name("bz2")
 	public static class Bz2 implements ZarrCompressor {
 
-		@SuppressWarnings("unused")
 		private final String id = "bz2";
+
+		@NameConfig.Parameter
 		private final int level;
+
+		public Bz2()
+		{
+			this.level = 2;
+		}
 
 		public Bz2(final int level) {
 
@@ -282,14 +347,26 @@ public interface ZarrCompressor extends Compression {
 
 			return new Bzip2Compression(level);
 		}
+
+		@Override
+		public String getType() {
+			return id;
+		}
 	}
 
+	@NameConfig.Name("raw")
 	class Raw implements ZarrCompressor {
+
 		public Raw() {}
+
 		@Override
 		public RawCompression getCompression() {
-
 			return new RawCompression();
+		}
+
+		@Override
+		public String getType() {
+			return "raw";
 		}
 	}
 
