@@ -69,11 +69,10 @@ public class ZarrCodecs {
 		final DataBlockFactory<T> dataBlockFactory = codecProps.getDataBlockFactory();
 		
 		// FIXME
-		BytesCodec[] bytesCodecs = (BytesCodec[])codecs;
-//		BytesCodec[] byteCodecs = Stream.of(filteredCodecs)
-//				.skip(1)
-//				.filter(c -> c instanceof BytesCodec)
-//				.toArray(BytesCodec[]::new);
+		BytesCodec[] bytesCodecs = Stream.of(codecs)
+				.skip(1)
+				.filter(c -> c instanceof BytesCodec)
+				.toArray(BytesCodec[]::new);
 
 		final ConcatenatedBytesCodec concatenatedBytesCodec = new ConcatenatedBytesCodec(bytesCodecs);
 		return new DefaultZarrBlockCodec<>(blockSize, nBytes, nBits, fillBytes, dataCodec, dataBlockFactory, concatenatedBytesCodec);
