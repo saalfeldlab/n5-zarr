@@ -466,6 +466,13 @@ public class ZarrV3Test extends AbstractN5Test {
 		}
 	}
 
+	@Test
+	@Override
+	@Ignore(value = "need to decide behavior")
+	public void testWriteInvalidBlock()  {
+		// TODO
+	}
+
 	private boolean runPythonTest(final String script, final String containerPath) throws InterruptedException {
 
 		try {
