@@ -246,6 +246,12 @@ public class N5ZarrTest extends AbstractN5Test {
 	}
 
 	@Test
+	@Ignore
+	public void testWriteInvalidBlock() {
+
+	}
+
+	@Test
 	public void testPadCrop() {
 
 		final byte[] src = new byte[]{1, 2, 3, 4}; // 2x2
