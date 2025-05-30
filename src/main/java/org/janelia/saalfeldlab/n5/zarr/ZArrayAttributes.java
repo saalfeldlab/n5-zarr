@@ -155,7 +155,7 @@ public class ZArrayAttributes {
 				isRowMajor,
 				(fill_value == null || fill_value.isJsonNull()) ? null : fill_value.getAsString(),
 				dimensionSeparator,
-				compressor.getCompression());
+				compressor);
 	}
 
 	private static JsonElement parseFillValue(String fillValue, DataType dtype) {

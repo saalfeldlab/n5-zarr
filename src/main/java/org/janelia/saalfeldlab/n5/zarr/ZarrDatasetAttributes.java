@@ -28,7 +28,6 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
-import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.codec.Codec;
 
@@ -50,10 +49,9 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final boolean isRowMajor,
 			final String fill_value,
 			final String dimensionSeparator, 
-			final Codec... codecs) {
+			final ZarrCompressor compressor) {
 
-		super(dimensions, blockSize, dType.getDataType(),
-				dType.createDataBlockCodec(blockSize, fill_value, codecs));
+		super(dimensions, blockSize, dType.getDataType(), compressor.getCompression());
 		this.dType = dType;
 		this.isRowMajor = isRowMajor;
 		this.dimensionSeparator = dimensionSeparator;
@@ -65,9 +63,9 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final DType dType,
 			final boolean isRowMajor,
 			final String fill_value,
-			Codec... codecs) {
+			ZarrCompressor compressor) {
 
-		this( dimensions, blockSize, dType, isRowMajor, fill_value, ".", codecs);
+		this( dimensions, blockSize, dType, isRowMajor, fill_value, ".", compressor);
 	}
 
 	public boolean isRowMajor() {
