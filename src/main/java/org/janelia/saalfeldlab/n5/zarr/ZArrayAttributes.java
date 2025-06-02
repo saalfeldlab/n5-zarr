@@ -148,7 +148,7 @@ public class ZArrayAttributes {
 			ArrayUtils.reverse(blockSize);
 		}
 
-		return new ZarrDatasetAttributes(
+		return ZarrDatasetAttributes.build(
 				dimensions,
 				blockSize,
 				dtype,

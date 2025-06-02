@@ -158,7 +158,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			final Compression compression) throws N5Exception {
 
 		createDataset(datasetPath,
-				new DatasetAttributes(dimensions, null, blockSize, dataType,
+				DatasetAttributes.build(dimensions, null, blockSize, dataType,
 				new RawBytes(), compression));
 	}
 
@@ -244,7 +244,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 				new RegularChunkGrid(chunkShape),
 				new DefaultChunkKeyEncoding(dimensionSeparator));
 
-		return new ZarrV3DatasetAttributes(shape, chunkAttrs,
+		return ZarrV3DatasetAttributes.build(shape, chunkAttrs,
 				ZarrV3DataType.fromDataType(datasetAttributes.getDataType()), "0", null,
 				buildCodecs(datasetAttributes));
 	}

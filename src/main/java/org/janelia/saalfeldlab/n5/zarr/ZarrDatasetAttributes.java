@@ -30,8 +30,7 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.codec.Codec;
-import org.janelia.saalfeldlab.n5.zarr.codec.ZarrCodecs;
-
+import org.janelia.saalfeldlab.n5.zarr.codec.ZarrBlockCodec;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -42,33 +41,55 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 	private final transient boolean isRowMajor;
 	private final transient DType dType;
 	private final transient String dimensionSeparator;
+	private final transient String fillValue;
 
-	public ZarrDatasetAttributes(
+	protected ZarrDatasetAttributes(
 			final long[] dimensions,
 			final int[] blockSize,
 			final DType dType,
 			final boolean isRowMajor,
-			final String fill_value,
-			final String dimensionSeparator, 
+			final String fillValue,
+			final String dimensionSeparator,
 			final ZarrCompressor compressor) {
 
-		super(dimensions, blockSize, dType.getDataType(),
-				ZarrCodecs.createDataBlockCodec(dType, blockSize, fill_value, compressor.getCompression()));
+		super(dimensions, blockSize, dType.getDataType(), compressor.getCompression());
 		this.dType = dType;
 		this.isRowMajor = isRowMajor;
+		this.fillValue = fillValue;
 		this.dimensionSeparator = dimensionSeparator;
 	}
 
-	public ZarrDatasetAttributes(
+	protected ZarrDatasetAttributes(
 			final long[] dimensions,
 			final int[] blockSize,
 			final DType dType,
 			final boolean isRowMajor,
-			final String fill_value,
+			final String fillValue,
 			ZarrCompressor compressor) {
 
-		this( dimensions, blockSize, dType, isRowMajor, fill_value, ".", compressor);
+		this( dimensions, blockSize, dType, isRowMajor, fillValue, ".", compressor);
 	}
+
+	public static ZarrDatasetAttributes build(
+			final long[] dimensions,
+			final int[] blockSize,
+			final DType dType,
+			final boolean isRowMajor,
+			final String fillValue,
+			final String dimensionSeparator,
+			final ZarrCompressor compressor) {
+
+		final ZarrDatasetAttributes attributes = new ZarrDatasetAttributes(
+				dimensions, blockSize, dType, isRowMajor, fillValue, dimensionSeparator, compressor);
+		attributes.arrayCodec.initialize(attributes, attributes.byteCodecs);
+		return attributes;
+	}
+
+	@Override
+	protected Codec.ArrayCodec<?> defaultArrayCodec() {
+		return new ZarrBlockCodec<>();
+	}
+
 
 	public boolean isRowMajor() {
 
@@ -81,6 +102,12 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 	}
 
 	public String getDimensionSeparator() {
+
 		return dimensionSeparator;
+	}
+
+	public String getFillValue() {
+
+		return fillValue;
 	}
 }

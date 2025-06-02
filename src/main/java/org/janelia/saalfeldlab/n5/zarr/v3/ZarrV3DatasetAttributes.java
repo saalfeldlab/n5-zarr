@@ -41,6 +41,7 @@ import org.janelia.saalfeldlab.n5.shard.ShardingCodec;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
+import org.janelia.saalfeldlab.n5.zarr.codec.ZarrBlockCodec;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
@@ -87,7 +88,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return newCodecs;
 	}
 
-	public ZarrV3DatasetAttributes(
+	protected ZarrV3DatasetAttributes(
 			final long[] shape,
 			final ChunkAttributes chunkAttributes,
 			final ZarrV3DataType dataType,
@@ -107,7 +108,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		this.fillBytes = dataType.createFillBytes(fillValue);
 	}
 
-	public ZarrV3DatasetAttributes(
+	protected ZarrV3DatasetAttributes(
 			final long[] shape,
 			final int[] chunkShape,
 			final ZarrV3DataType dataType,
@@ -120,7 +121,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				dimensionNames, codecs);
 	}
 
-	public ZarrV3DatasetAttributes(
+	protected ZarrV3DatasetAttributes(
 			final long[] shape,
 			final int[] chunkShape,
 			final ZarrV3DataType dataType,
@@ -131,6 +132,49 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 		this(shape, chunkShape, dataType, fillValue, dimensionNames,
 				new DefaultChunkKeyEncoding(dimensionSeparator), codecs);
+	}
+
+	public static ZarrV3DatasetAttributes build(
+			final long[] shape,
+			final ChunkAttributes chunkAttributes,
+			final ZarrV3DataType dataType,
+			final String fillValue,
+			final String[] dimensionNames,
+			final Codec... codecs) {
+
+		ZarrV3DatasetAttributes attributes = new ZarrV3DatasetAttributes(shape, chunkAttributes, dataType, fillValue, dimensionNames, codecs);
+		attributes.arrayCodec.initialize(attributes, attributes.byteCodecs);
+		return attributes;
+	}
+
+	public static ZarrV3DatasetAttributes build(
+			final long[] shape,
+			final int[] chunkShape,
+			final ZarrV3DataType dataType,
+			final String fillValue,
+			final String[] dimensionNames,
+			final DefaultChunkKeyEncoding chunkKeyEncoding,
+			final Codec[] codecs) {
+
+		return build(shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dataType, fillValue,
+				dimensionNames, codecs);
+	}
+
+	public static ZarrV3DatasetAttributes build(
+			final long[] shape,
+			final int[] chunkShape,
+			final ZarrV3DataType dataType,
+			final String fillValue,
+			final String[] dimensionNames,
+			final String dimensionSeparator,
+			final Codec[] codecs) {
+
+		return build(shape, chunkShape, dataType, fillValue, dimensionNames, new DefaultChunkKeyEncoding(dimensionSeparator), codecs);
+	}
+
+	@Override
+	protected Codec.ArrayCodec<?> defaultArrayCodec() {
+		return new ZarrBlockCodec<>();
 	}
 
 	protected static int[] inferChunkShape(final ChunkAttributes chunkAttributes, final Codec arrayCodec) {
@@ -253,7 +297,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				ArrayUtils.reverse(dimensionNames);
 
 				final ChunkAttributes chunkAttributes = context.deserialize(obj, ChunkAttributes.class);
-				return new ZarrV3DatasetAttributes(
+				return ZarrV3DatasetAttributes.build(
 						shape,
 						chunkAttributes,
 						dataType,
