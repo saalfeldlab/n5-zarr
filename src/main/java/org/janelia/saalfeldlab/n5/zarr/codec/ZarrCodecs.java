@@ -28,42 +28,24 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.codec;
 
-import java.util.stream.Stream;
+import java.nio.ByteOrder;
 
-import org.janelia.saalfeldlab.n5.DataBlock.DataBlockFactory;
 import org.janelia.saalfeldlab.n5.codec.Codec;
-import org.janelia.saalfeldlab.n5.codec.ConcatenatedBytesCodec;
-import org.janelia.saalfeldlab.n5.codec.DataCodec;
-import org.janelia.saalfeldlab.n5.codec.Codec.BytesCodec;
-import org.janelia.saalfeldlab.n5.zarr.DType;
-import org.janelia.saalfeldlab.n5.zarr.DType.CodecProps;
+import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
+import org.janelia.saalfeldlab.n5.codec.RawBlockCodecs;
+import org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes;
 
 public class ZarrCodecs {
 
-	private ZarrCodecs() {}
+	public static <T> DataBlockCodec<T> createDataBlockCodec(
+			final ZarrDatasetAttributes attributes,
+			final Codec.BytesCodec codec) {
 
-	public static <T> Codec.ArrayCodec<T> createDataBlockCodec(
-			final DType dtype,
-			final int[] blockSize,
-			final String fill_value,
-			final Codec... codecs) {
-
-		final int nBytes = dtype.getNBytes();
-		final int nBits = dtype.getNBits();
-		final byte[] fillBytes = dtype.createFillBytes(fill_value);
-
-		@SuppressWarnings("unchecked")
-		final CodecProps<T> codecProps = (CodecProps<T>) dtype.getCodecProps();
-		final DataCodec<T> dataCodec = codecProps.getDataCodec();
-		final DataBlockFactory<T> dataBlockFactory = codecProps.getDataBlockFactory();
-
-		final BytesCodec[] bytesCodecs = Stream.of(codecs)
-				.skip(1)
-				.filter(c -> c instanceof BytesCodec)
-				.toArray(BytesCodec[]::new);
-
-		final ConcatenatedBytesCodec concatenatedBytesCodec = new ConcatenatedBytesCodec(bytesCodecs);
-		return new ZarrBlockCodec<>(blockSize, nBytes, nBits, fillBytes, dataCodec, dataBlockFactory, concatenatedBytesCodec);
+		return RawBlockCodecs.createDataBlockCodec(
+				attributes.getDataType(),
+				ByteOrder.LITTLE_ENDIAN, // FIXME
+				attributes.getBlockSize(),
+				codec);
 	}
 
 }
