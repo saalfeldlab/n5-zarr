@@ -56,6 +56,7 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 
 /**
  * Zarr v3 {@link KeyValueWriter} implementation.
@@ -309,7 +310,8 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 	public <T> void setAttribute(final String groupPath, final String attributePath, final T attribute)
 			throws N5Exception {
 
-		setRawAttribute(groupPath, mapAttributeKey(attributePath), attribute);
+		final String normalizedAttributePath = N5URI.normalizeAttributePath(attributePath);
+		setRawAttribute(groupPath, mapAttributeKey(normalizedAttributePath), attribute);
 	}
 
 	public void setRawAttributes(final String path, final Map<String, ?> attributes) throws N5Exception {
@@ -373,6 +375,25 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			root = GsonUtils.insertAttributes(root, attributes, getGson());
 			writeAttributes(normalGroupPath, root);
 		}
+	}
+
+	@Override
+	public <T> T removeAttribute(final String pathName, final String key, final Class<T> cls) throws N5Exception {
+
+		final String normalPath = N5URI.normalizeGroupPath(pathName);
+		final String normalKey = ZarrV3Node.ATTRIBUTES_KEY + "/" + N5URI.normalizeAttributePath(key);
+
+		final JsonElement attributes = getRawAttributes(normalPath);
+		final T obj;
+		try {
+			obj = GsonUtils.removeAttribute(attributes, normalKey, cls, getGson());
+		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
+			throw new N5Exception.N5ClassCastException(e);
+		}
+		if (obj != null) {
+			writeAttributes(normalPath, attributes);
+		}
+		return obj;
 	}
 
 	protected static String userAttributePath( final String key ) {
