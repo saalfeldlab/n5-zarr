@@ -36,7 +36,6 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
-import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock.DataBlockFactory;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DoubleArrayDataBlock;
@@ -45,10 +44,7 @@ import org.janelia.saalfeldlab.n5.IntArrayDataBlock;
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.ShortArrayDataBlock;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
-import org.janelia.saalfeldlab.n5.codec.Codec;
-import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
 import org.janelia.saalfeldlab.n5.codec.DataCodec;
-import org.janelia.saalfeldlab.n5.zarr.codec.ZarrCodecs;
 
 import static org.janelia.saalfeldlab.n5.zarr.Filter.VLEN_UTF8;
 
@@ -133,14 +129,6 @@ public class DType {
 
 	public CodecProps<?> getCodecProps() {
 		return codecProps;
-	}
-
-	public Codec.ArrayCodec<?> createDataBlockCodec(
-			final int[] blockSize,
-			final String fill_value,
-			final Codec... codecs) {
-
-		return ZarrCodecs.createDataBlockCodec(this, blockSize, fill_value, codecs);
 	}
 
 	public static class CodecProps<T> {
