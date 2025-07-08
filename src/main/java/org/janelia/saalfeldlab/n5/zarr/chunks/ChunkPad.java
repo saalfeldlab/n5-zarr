@@ -46,7 +46,8 @@ public class ChunkPad {
 
 		final long[] p = new long[srcSize.length];
 		for (int i = 0; i < src.length; i++) {
-			GridIterator.indexToPosition(i, srcSize, p);
+			// TODO re-using p as zero-offset here
+			GridIterator.indexToPosition(i, srcSize, p, p);
 			final int j = (int)GridIterator.positionToIndex(destSize, p);
 			dest[j] = src[i];
 		}
@@ -60,7 +61,7 @@ public class ChunkPad {
 
 		final long[] p = new long[srcSize.length];
 		for (int i = 0; i < src.length; i++) {
-			GridIterator.indexToPosition(i, srcSize, p);
+			GridIterator.indexToPosition(i, srcSize, p, p);
 			final int j = (int)GridIterator.positionToIndex(destSize, p);
 			dest[j] = src[i];
 		}
@@ -74,7 +75,7 @@ public class ChunkPad {
 
 		final long[] p = new long[srcSize.length];
 		for (int i = 0; i < src.length; i++) {
-			GridIterator.indexToPosition(i, srcSize, p);
+			GridIterator.indexToPosition(i, srcSize, p, p);
 			final int j = (int)GridIterator.positionToIndex(destSize, p);
 			dest[j] = src[i];
 		}
@@ -88,7 +89,7 @@ public class ChunkPad {
 
 		final long[] p = new long[srcSize.length];
 		for (int i = 0; i < src.length; i++) {
-			GridIterator.indexToPosition(i, srcSize, p);
+			GridIterator.indexToPosition(i, srcSize, p, p);
 			final int j = (int)GridIterator.positionToIndex(destSize, p);
 			dest[j] = src[i];
 		}
@@ -102,7 +103,7 @@ public class ChunkPad {
 
 		final long[] p = new long[srcSize.length];
 		for (int i = 0; i < src.length; i++) {
-			GridIterator.indexToPosition(i, srcSize, p);
+			GridIterator.indexToPosition(i, srcSize, p, p);
 			final int j = (int)GridIterator.positionToIndex(destSize, p);
 			dest[j] = src[i];
 		}
@@ -116,7 +117,7 @@ public class ChunkPad {
 
 		final long[] p = new long[srcSize.length];
 		for (int i = 0; i < src.length; i++) {
-			GridIterator.indexToPosition(i, srcSize, p);
+			GridIterator.indexToPosition(i, srcSize, p, p);
 			final int j = (int)GridIterator.positionToIndex(destSize, p);
 			dest[j] = src[i];
 		}

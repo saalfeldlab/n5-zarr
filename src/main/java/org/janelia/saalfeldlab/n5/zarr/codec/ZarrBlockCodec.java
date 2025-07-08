@@ -2,53 +2,55 @@ package org.janelia.saalfeldlab.n5.zarr.codec;
 
 import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter.padCrop;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Arrays;
 
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.DataBlock.DataBlockFactory;
 import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.saalfeldlab.n5.codec.ConcatenatedBytesCodec;
 import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
-import org.janelia.saalfeldlab.n5.codec.DataCodec;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.saalfeldlab.n5.zarr.DType;
 import org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes;
 
-public class ZarrBlockCodec <T> implements Codec.ArrayCodec<T> {
+public class ZarrBlockCodec implements Codec.ArrayCodec {
 
-	private DataBlockCodec<T> dataBlockCodec;
+	private static final long serialVersionUID = 8468192075427909345L;
 
-	private int nBytes;
-	private int nBits;
-	private byte[] fillBytes;
+	private transient ZarrDatasetAttributes zAttributes;
+
+	private transient BytesCodec bytesCodec;
+
 	private int[] blockSize;
 
 	public ZarrBlockCodec() {
 	}
 
 	@Override
-	public ReadData encode(final DataBlock<T> dataBlock) throws IOException {
-		final ReadData readData = dataBlockCodec.encode(dataBlock);
+	public <T> ReadData encode(final DataBlock<T> dataBlock) {
+		final ReadData readData = this.<T>getDataBlockCodec().encode(dataBlock);
 		if (Arrays.equals(blockSize, dataBlock.getSize())) {
 			return readData;
 		} else {
+			final DType dtype = zAttributes.getDType();
 			final byte[] padCropped = padCrop(
 					readData.allBytes(),
 					dataBlock.getSize(),
 					blockSize,
-					nBytes,
-					nBits,
-					fillBytes);
+					dtype.getNBytes(),
+					dtype.getNBits(),
+					dtype.createFillBytes(zAttributes.getFillValue()));
 			return ReadData.from(padCropped);
 		}
 	}
 
 	@Override
-	public DataBlock<T> decode(final ReadData readData, final long[] gridPosition) throws IOException {
-		return dataBlockCodec.decode(readData, gridPosition);
+	public <T> DataBlock<T> decode(final ReadData readData, final long[] gridPosition) {
+		return this.<T>getDataBlockCodec().decode(readData, gridPosition);
+	}
+
+	private <T> DataBlockCodec<T> getDataBlockCodec() {
+		return ZarrCodecs.createDataBlockCodec(zAttributes, bytesCodec);
 	}
 
 	@Override
@@ -60,17 +62,8 @@ public class ZarrBlockCodec <T> implements Codec.ArrayCodec<T> {
 	public void initialize(DatasetAttributes attributes, BytesCodec... byteCodecs) {
 
 		// TODO check this cast?
-		final ZarrDatasetAttributes zAttributes = (ZarrDatasetAttributes)attributes;
-
-		final ConcatenatedBytesCodec concatenatedBytesCodec = new ConcatenatedBytesCodec(byteCodecs);
-		this.dataBlockCodec = ZarrCodecs.createDataBlockCodec(zAttributes, concatenatedBytesCodec);
-
+		zAttributes = (ZarrDatasetAttributes)attributes;
+		bytesCodec = new ConcatenatedBytesCodec(byteCodecs);
 		blockSize = zAttributes.getBlockSize();
-
-		final DType dtype = zAttributes.getDType();
-		nBytes = dtype.getNBytes();
-		nBits = dtype.getNBits();
-		fillBytes = dtype.createFillBytes(zAttributes.getFillValue());
-
 	}
 }

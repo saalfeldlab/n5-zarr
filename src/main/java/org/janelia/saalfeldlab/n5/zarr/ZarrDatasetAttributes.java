@@ -34,7 +34,6 @@ import org.janelia.saalfeldlab.n5.zarr.codec.ZarrBlockCodec;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
- *
  */
 public class ZarrDatasetAttributes extends DatasetAttributes {
 
@@ -70,24 +69,9 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		this( dimensions, blockSize, dType, isRowMajor, fillValue, ".", compressor);
 	}
 
-	public static ZarrDatasetAttributes build(
-			final long[] dimensions,
-			final int[] blockSize,
-			final DType dType,
-			final boolean isRowMajor,
-			final String fillValue,
-			final String dimensionSeparator,
-			final ZarrCompressor compressor) {
-
-		final ZarrDatasetAttributes attributes = new ZarrDatasetAttributes(
-				dimensions, blockSize, dType, isRowMajor, fillValue, dimensionSeparator, compressor);
-		attributes.arrayCodec.initialize(attributes, attributes.byteCodecs);
-		return attributes;
-	}
-
 	@Override
-	protected Codec.ArrayCodec<?> defaultArrayCodec() {
-		return new ZarrBlockCodec<>();
+	protected Codec.ArrayCodec defaultArrayCodec() {
+		return new ZarrBlockCodec();
 	}
 
 

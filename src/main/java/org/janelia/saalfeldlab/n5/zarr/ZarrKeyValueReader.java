@@ -73,7 +73,6 @@ import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.DefaultBlockReader;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
@@ -83,6 +82,8 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
+import org.janelia.saalfeldlab.n5.codec.Codec.ArrayCodec;
+import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
 
 /**
@@ -681,11 +682,10 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		final String normalPathName = N5URI.normalizeGroupPath(pathName);
 		final String absolutePath = absoluteDataBlockPath(normalPathName, gridPosition);
 
-		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
-			return DefaultBlockReader.readBlock(
-					lockedChannel.newInputStream(),
-					zarrDatasetAttributes,
-					gridPosition);
+		try {
+			final ReadData readData = getKeyValueAccess().createReadData(absolutePath);
+			final ArrayCodec arrayCodec = datasetAttributes.getArrayCodec();
+			return arrayCodec.decode(readData, gridPosition);
 		} catch (final N5Exception.N5NoSuchKeyException e) {
 			return null;
 		} catch (final Throwable e) {

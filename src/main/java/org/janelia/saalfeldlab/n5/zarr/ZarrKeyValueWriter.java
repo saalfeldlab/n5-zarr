@@ -77,7 +77,6 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.DefaultBlockWriter;
 import org.janelia.saalfeldlab.n5.GsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
@@ -87,6 +86,7 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
+import org.janelia.saalfeldlab.n5.codec.Codec.ArrayCodec;
 
 import static net.imglib2.util.Util.safeInt;
 
@@ -529,10 +529,8 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 					final LockedChannel lockedChannel = keyValueAccess.lockForWriting(path);
 					final OutputStream out = lockedChannel.newOutputStream()
 			) {
-				DefaultBlockWriter.writeBlock(
-						out,
-						zarrDatasetAttributes,
-						dataBlock);
+				final ArrayCodec codec = zarrDatasetAttributes.getArrayCodec();
+				codec.encode(dataBlock).writeTo(out);
 			}
 		} catch (final Throwable e) {
 			throw new N5IOException(
@@ -559,16 +557,17 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 										zarrDatasetAttributes.isRowMajor()));
 
 		try {
-			if (keyValueAccess.exists(absolutePath))
+			if (keyValueAccess.exists(absolutePath)) {
 				keyValueAccess.delete(absolutePath);
+				return true;
+			}
+			else
+				return false;
 		} catch (final Throwable e) {
 			throw new N5IOException(
 					"Failed to delete block " + Arrays.toString(gridPosition) + " from dataset " + path,
 					e);
 		}
-
-		/* an IOException should have occurred if anything had failed midway */
-		return true;
 	}
 
 	public static byte[] padCrop(

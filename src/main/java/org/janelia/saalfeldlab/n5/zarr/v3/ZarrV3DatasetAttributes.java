@@ -35,8 +35,11 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.codec.Codec;
+import org.janelia.saalfeldlab.n5.codec.Codec.ArrayCodec;
+import org.janelia.saalfeldlab.n5.codec.Codec.BytesCodec;
 import org.janelia.saalfeldlab.n5.shard.ShardingCodec;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
@@ -134,47 +137,9 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				new DefaultChunkKeyEncoding(dimensionSeparator), codecs);
 	}
 
-	public static ZarrV3DatasetAttributes build(
-			final long[] shape,
-			final ChunkAttributes chunkAttributes,
-			final ZarrV3DataType dataType,
-			final String fillValue,
-			final String[] dimensionNames,
-			final Codec... codecs) {
-
-		ZarrV3DatasetAttributes attributes = new ZarrV3DatasetAttributes(shape, chunkAttributes, dataType, fillValue, dimensionNames, codecs);
-		attributes.arrayCodec.initialize(attributes, attributes.byteCodecs);
-		return attributes;
-	}
-
-	public static ZarrV3DatasetAttributes build(
-			final long[] shape,
-			final int[] chunkShape,
-			final ZarrV3DataType dataType,
-			final String fillValue,
-			final String[] dimensionNames,
-			final DefaultChunkKeyEncoding chunkKeyEncoding,
-			final Codec[] codecs) {
-
-		return build(shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dataType, fillValue,
-				dimensionNames, codecs);
-	}
-
-	public static ZarrV3DatasetAttributes build(
-			final long[] shape,
-			final int[] chunkShape,
-			final ZarrV3DataType dataType,
-			final String fillValue,
-			final String[] dimensionNames,
-			final String dimensionSeparator,
-			final Codec[] codecs) {
-
-		return build(shape, chunkShape, dataType, fillValue, dimensionNames, new DefaultChunkKeyEncoding(dimensionSeparator), codecs);
-	}
-
 	@Override
-	protected Codec.ArrayCodec<?> defaultArrayCodec() {
-		return new ZarrBlockCodec<>();
+	protected Codec.ArrayCodec defaultArrayCodec() {
+		return new ZarrBlockCodec();
 	}
 
 	protected static int[] inferChunkShape(final ChunkAttributes chunkAttributes, final Codec arrayCodec) {
@@ -187,10 +152,8 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 	protected static int[] inferShardShape(final ChunkAttributes chunkAttributes, final Codec arrayCodec) {
 
-		if (arrayCodec instanceof ShardingCodec)
-			return chunkAttributes.getGrid().getShape();
-
-		return null;
+		// shard shape is block shape if not a sharding codec
+		return chunkAttributes.getGrid().getShape();
 	}
 
 	protected static Codec[] prependArrayToBytes(Codec.ArrayCodec arrayToBytes, Codec[] codecs) {
@@ -272,6 +235,17 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 	public static JsonAdapter jsonAdapter = new JsonAdapter();
 
+	private static Codec[] concatenateCodecs(final DatasetAttributes attributes) {
+
+		final BytesCodec[] byteCodecs = attributes.getCodecs();
+		final ArrayCodec arrayCodec = attributes.getArrayCodec();
+		final Codec[] allCodecs = new Codec[byteCodecs.length + 1];
+		allCodecs[0] = arrayCodec;
+		System.arraycopy(byteCodecs, 0, allCodecs, 1, byteCodecs.length);
+
+		return allCodecs;
+	}
+
 	public static class JsonAdapter implements JsonDeserializer<ZarrV3DatasetAttributes>, JsonSerializer<ZarrV3DatasetAttributes> {
 
 		@Override
@@ -297,7 +271,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				ArrayUtils.reverse(dimensionNames);
 
 				final ChunkAttributes chunkAttributes = context.deserialize(obj, ChunkAttributes.class);
-				return ZarrV3DatasetAttributes.build(
+				return new ZarrV3DatasetAttributes(
 						shape,
 						chunkAttributes,
 						dataType,
@@ -333,9 +307,18 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				jsonObject.add(DIMENSION_NAMES_KEY, reverseJsonArray(dimNamesArray));
 			}
 
-			jsonObject.add(CODECS_KEY, context.serialize(src.concatenateCodecs()));
+			jsonObject.add(CODECS_KEY, serializeCodecs(concatenateCodecs(src), context));
 
 			return jsonObject;
+		}
+
+		static final NameConfigAdapter<Codec> codecAdapter = NameConfigAdapter.getJsonAdapter(Codec.class);
+		private static JsonArray serializeCodecs(Codec[] codecs, JsonSerializationContext context) {
+			final JsonArray arr = new JsonArray(codecs.length);
+			for (Codec codec : codecs)
+				arr.add(codecAdapter.serialize(codec, codec.getClass(), context));
+
+			return arr;
 		}
 
 		private static JsonArray reverseJsonArray(JsonElement paramJson) {

@@ -437,13 +437,6 @@ public class ZarrV3Test extends AbstractN5Test {
 	}
 
 	@Test
-	@Ignore
-	@Override
-	public void testWriteReadByteBlockMultipleCodecs() {
-		// not yet supported
-	}
-
-	@Test
 	@Override
 	@Ignore(value = "No String type in Zarr v3")
 	public void testWriteReadStringBlock()  {

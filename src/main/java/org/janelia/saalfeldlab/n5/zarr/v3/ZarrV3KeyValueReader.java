@@ -324,13 +324,9 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
 		gsonBuilder.registerTypeAdapter(DataType.class, new DataType.JsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZarrV3DatasetAttributes.class, ZarrV3DatasetAttributes.jsonAdapter);
-
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkGrid.class, NameConfigAdapter.getJsonAdapter(ChunkGrid.class));
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkKeyEncoding.class, NameConfigAdapter.getJsonAdapter(ChunkKeyEncoding.class));
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkAttributes.class, ChunkAttributes.getJsonAdapter());
-
-		gsonBuilder.registerTypeHierarchyAdapter(Filter.class, Filter.jsonAdapter);
-
 		gsonBuilder.registerTypeAdapter(Codec.class, NameConfigAdapter.getJsonAdapter(Codec.class));
 		gsonBuilder.disableHtmlEscaping();
 

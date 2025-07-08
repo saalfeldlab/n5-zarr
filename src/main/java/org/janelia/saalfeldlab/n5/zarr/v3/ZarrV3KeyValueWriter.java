@@ -32,9 +32,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
-import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
-import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
@@ -45,7 +43,6 @@ import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.codec.RawBytes;
 import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.saalfeldlab.n5.codec.N5BlockCodec;
-import org.janelia.saalfeldlab.n5.shard.ShardParameters;
 import org.janelia.saalfeldlab.n5.shard.ShardingCodec;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkPad;
@@ -152,21 +149,8 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 	@Override
 	public void createDataset(
-			final String datasetPath,
-			final long[] dimensions,
-			final int[] blockSize,
-			final DataType dataType,
-			final Compression compression) throws N5Exception {
-
-		createDataset(datasetPath,
-				DatasetAttributes.build(dimensions, null, blockSize, dataType,
-				new RawBytes(), compression));
-	}
-
-	@Override
-	public void createDataset(
 			final String path,
-			final DatasetAttributes datasetAttributes) throws N5Exception {
+			final DatasetAttributes datasetAttributes) {
 
 		final String normalPath = N5URI.normalizeGroupPath(path);
 		boolean wasGroup = false;
@@ -245,7 +229,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 				new RegularChunkGrid(chunkShape),
 				new DefaultChunkKeyEncoding(dimensionSeparator));
 
-		return ZarrV3DatasetAttributes.build(shape, chunkAttrs,
+		return new ZarrV3DatasetAttributes(shape, chunkAttrs,
 				ZarrV3DataType.fromDataType(datasetAttributes.getDataType()), "0", null,
 				buildCodecs(datasetAttributes));
 	}

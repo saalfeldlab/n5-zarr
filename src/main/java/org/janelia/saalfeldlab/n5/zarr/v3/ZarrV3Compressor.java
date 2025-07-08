@@ -85,12 +85,12 @@ public interface ZarrV3Compressor extends Codec.BytesCodec {
 	}
 
 	@Override
-	public default ReadData encode(final ReadData in) throws IOException {
+	public default ReadData encode(final ReadData in) {
     	return getCompression().encode(in);
     }
 
 	@Override
-	public default ReadData decode(final ReadData in) throws IOException {
+	public default ReadData decode(final ReadData in) {
     	return getCompression().decode(in);
     }
 
