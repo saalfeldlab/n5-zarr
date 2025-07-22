@@ -245,6 +245,13 @@ public class DType {
 						DataCodec.BYTE, ByteArrayDataBlock::new);
 			}
 			break;
+		case UNICODE:
+			int fixedLen = nB;
+			nBytes = 4 * fixedLen;
+			nBits = 0;
+			codecProps = new CodecProps<>(
+				DataCodec.ZARR_UNICODE(fixedLen, order), StringDataBlock::new);
+			break;
 		case OBJECT:
 			nBytes = 1;
 			nBits = 0;
@@ -259,7 +266,6 @@ public class DType {
 //		case BOOLEAN:
 //		case OTHER:     // not sure about this
 //		case STRING:    // not sure about this
-//		case UNICODE:   // not sure about this
 //		case TIMEDELTA: // not sure about this
 //		case DATETIME:  // not sure about this
 		default:
@@ -385,6 +391,8 @@ public class DType {
 			default:
 				return DataType.UINT8; // fallback
 			}
+		case UNICODE:
+			return DataType.STRING;
 		case OBJECT:
 			if (filters.contains(VLEN_UTF8))
 				return DataType.STRING;

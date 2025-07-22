@@ -34,6 +34,8 @@ import java.util.Arrays;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataBlock.DataBlockFactory;
+import org.janelia.saalfeldlab.n5.N5Exception;
+import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
 import org.janelia.saalfeldlab.n5.codec.DataCodec;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
@@ -115,17 +117,26 @@ public class ZarrCodecs {
 		}
 
 		@Override
-		public ReadData encode(final DataBlock<T> dataBlock) throws IOException {
-			final ReadData readData = encodePadded(dataBlock);
-			return ReadData.from(out -> compression.encode(readData).writeTo(out));
+		public ReadData encode(final DataBlock<T> dataBlock) {
+			ReadData readData;
+			try {
+				readData = encodePadded(dataBlock);
+				return ReadData.from(out -> compression.encode(readData).writeTo(out));
+			} catch (IOException e) {
+				throw new N5IOException(e);
+			}
 		}
 
 		@Override
-		public DataBlock<T> decode(final ReadData readData, final long[] gridPosition) throws IOException {
+		public DataBlock<T> decode(final ReadData readData, final long[] gridPosition) {
 			try (final InputStream in = readData.inputStream()) {
 				final ReadData decompressed = compression.decode(ReadData.from(in));
 				final T data = dataCodec.deserialize(decompressed, numElements);
 				return dataBlockFactory.createDataBlock(blockSize, gridPosition, data);
+			} catch (IllegalStateException e) {
+				throw new N5Exception(e);
+			} catch (IOException e) {
+				throw new N5IOException(e);
 			}
 		}
 	}
