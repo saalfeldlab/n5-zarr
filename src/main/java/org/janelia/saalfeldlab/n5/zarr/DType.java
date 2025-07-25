@@ -250,14 +250,14 @@ public class DType {
 			nBytes = 4 * fixedLen;
 			nBits = 0;
 			codecProps = new CodecProps<>(
-				DataCodec.ZARR_UNICODE(fixedLen, order), StringDataBlock::new);
+				DataCodec.ZARR_FIXED_STRING(fixedLen, order), StringDataBlock::new);
 			break;
 		case OBJECT:
 			nBytes = 1;
 			nBits = 0;
 			if (filters.contains(VLEN_UTF8)) {
 				codecProps = new CodecProps<>(
-						DataCodec.ZARR_STRING,
+						DataCodec.ZARR_VAR_STRING,
 						StringDataBlock::new);
 			} else {
 				codecProps = null;
@@ -323,7 +323,7 @@ public class DType {
 		case STRING:
 			nBytes = 1;
 			codecProps = new CodecProps<>(
-					DataCodec.ZARR_STRING,
+					DataCodec.ZARR_VAR_STRING,
 					StringDataBlock::new);
 			break;
 		case INT8:
