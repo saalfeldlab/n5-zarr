@@ -72,7 +72,6 @@ import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.DefaultBlockReader;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
@@ -82,6 +81,7 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
+import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
 
 /**
@@ -677,35 +677,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 			return GsonUtils.readAttributes(lockedChannel.newReader(), gson);
 		} catch (final IOException | UncheckedIOException e) {
 			throw new N5IOException("Failed to read " + absolutePath, e);
-		}
-	}
-
-	@Override
-	public DataBlock<?> readBlock(
-			final String pathName,
-			final DatasetAttributes datasetAttributes,
-			final long... gridPosition) throws N5Exception {
-
-		final ZarrDatasetAttributes zarrDatasetAttributes;
-		if (datasetAttributes instanceof ZarrDatasetAttributes)
-			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
-		else
-			zarrDatasetAttributes = getDatasetAttributes(pathName);
-
-		final String normalPathName = N5URI.normalizeGroupPath(pathName);
-		final String absolutePath = absoluteDataBlockPath(normalPathName, gridPosition);
-
-		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
-			return DefaultBlockReader.readBlock(
-					lockedChannel.newInputStream(),
-					zarrDatasetAttributes,
-					gridPosition);
-		} catch (final N5Exception.N5NoSuchKeyException e) {
-			return null;
-		} catch (final Throwable  e) {
-			throw new N5IOException(
-					"Failed to read block " + Arrays.toString(gridPosition) + " from dataset " + pathName,
-					e);
 		}
 	}
 

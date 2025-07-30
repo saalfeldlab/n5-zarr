@@ -30,6 +30,8 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.codec.RawBytesArrayCodec;
+import org.janelia.saalfeldlab.n5.zarr.codec.ZarrBytesArrayCodec;
 
 
 /**
@@ -51,8 +53,9 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final String fill_value,
 			final String dimensionSeparator ) {
 
-		super(dimensions, blockSize, dType.getDataType(), compression,
-				dType.createDataBlockCodec(blockSize, fill_value, compression));
+		// TODO should we expose ByteOrder as a parameter?
+		super(dimensions, blockSize, dType.getDataType(), 
+				new ZarrBytesArrayCodec(dType, fill_value), compression);
 		this.dType = dType;
 		this.isRowMajor = isRowMajor;
 		this.dimensionSeparator = dimensionSeparator;
@@ -80,6 +83,8 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 	}
 
 	public String getDimensionSeparator() {
+
 		return dimensionSeparator;
 	}
+
 }

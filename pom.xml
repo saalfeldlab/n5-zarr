@@ -138,7 +138,7 @@
 
 		<json-simple.version>1.1.1</json-simple.version>
 
-		<n5.version>4.0.0-alpha-1</n5.version>
+		<n5.version>4.0.0-alpha-3</n5.version>
 		<n5-blosc.version>2.0.0-alpha-1</n5-blosc.version>
 		<n5-zstandard.version>2.0.0-alpha1</n5-zstandard.version>
 
