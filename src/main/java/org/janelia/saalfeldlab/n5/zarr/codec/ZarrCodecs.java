@@ -28,36 +28,36 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.codec;
 
+import static net.imglib2.util.Util.safeInt;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
-import java.util.stream.Stream;
 
-import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataBlock.DataBlockFactory;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.codec.Codec;
-import org.janelia.saalfeldlab.n5.codec.ConcatenatedBytesCodec;
-import org.janelia.saalfeldlab.n5.codec.DataBlockCodec;
-import org.janelia.saalfeldlab.n5.codec.DataCodec;
-import org.janelia.saalfeldlab.n5.codec.N5Codecs;
-import org.janelia.saalfeldlab.n5.codec.Codec.BytesCodec;
+import org.janelia.saalfeldlab.n5.N5Exception;
+import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
+import org.janelia.saalfeldlab.n5.codec.BytesCodec;
+import org.janelia.saalfeldlab.n5.codec.DataBlockSerializer;
+import org.janelia.saalfeldlab.n5.codec.FlatArraySerializer;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.saalfeldlab.n5.zarr.DType;
 import org.janelia.saalfeldlab.n5.zarr.DType.CodecProps;
 
-import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter.padCrop;
+import net.imglib2.blocks.SubArrayCopy;
+import net.imglib2.util.Intervals;
 
 public class ZarrCodecs {
 
 	private ZarrCodecs() {}
 
-	public static <T> Codec.ArrayCodec<T> createDataBlockCodec(
+	public static <T> DataBlockSerializer<T> createDataBlockCodec(
+
 			final DType dtype,
 			final int[] blockSize,
 			final String fill_value,
-			final Codec... codecs) {
+			final BytesCodec... bytesCodecs) {
 
 		final int nBytes = dtype.getNBytes();
 		final int nBits = dtype.getNBits();
@@ -65,39 +65,31 @@ public class ZarrCodecs {
 
 		@SuppressWarnings("unchecked")
 		final CodecProps<T> codecProps = (CodecProps<T>) dtype.getCodecProps();
-		final DataCodec<T> dataCodec = codecProps.getDataCodec();
+		final FlatArraySerializer<T> dataCodec = codecProps.getDataBlockSerializer();
 		final DataBlockFactory<T> dataBlockFactory = codecProps.getDataBlockFactory();
-		
-		// FIXME
-		BytesCodec[] bytesCodecs = (BytesCodec[])codecs;
-//		BytesCodec[] byteCodecs = Stream.of(filteredCodecs)
-//				.skip(1)
-//				.filter(c -> c instanceof BytesCodec)
-//				.toArray(BytesCodec[]::new);
-
-		final ConcatenatedBytesCodec concatenatedBytesCodec = new ConcatenatedBytesCodec(bytesCodecs);
-		return new DefaultZarrBlockCodec<>(blockSize, nBytes, nBits, fillBytes, dataCodec, dataBlockFactory, concatenatedBytesCodec);
+		final BytesCodec concatenatedBytesCodec = BytesCodec.concatenate(bytesCodecs);
+		return new DefaultDataBlockCodec<>(blockSize, nBytes, nBits, fillBytes, concatenatedBytesCodec, dataCodec, dataBlockFactory);
 	}
 
-	private static class DefaultZarrBlockCodec<T> implements Codec.ArrayCodec<T> {
+	private static class DefaultDataBlockCodec<T> implements DataBlockSerializer<T> {
 
 		private final int[] blockSize;
-		private final DataCodec<T> dataCodec;
+		private final FlatArraySerializer<T> dataSerializer;
 		private final DataBlockFactory<T> dataBlockFactory;
 		private final int numElements;
 		private final int nBytes;
 		private final int nBits;
 		private final byte[] fillBytes;
-		private final Codec.BytesCodec codec;
+		private final BytesCodec codec;
 
-		public DefaultZarrBlockCodec(
+		public DefaultDataBlockCodec(
 				final int[] blockSize,
 				final int nBytes,
 				final int nBits,
 				final byte[] fillBytes,
-				final DataCodec<T> dataCodec,
-				final DataBlockFactory<T> dataBlockFactory,
-				final Codec.BytesCodec codec) {
+				final BytesCodec codec,
+				final FlatArraySerializer<T> dataSerializer,
+				final DataBlockFactory<T> dataBlockFactory) {
 
 			this.blockSize = blockSize;
 			this.nBytes = nBytes;
@@ -109,14 +101,14 @@ public class ZarrCodecs {
 			final int numBytes = (nBytes != 0)
 					? numEntries * nBytes
 					: ((numEntries * nBits + 7) / 8);
-			numElements = numBytes / dataCodec.bytesPerElement();
+			numElements = numBytes / dataSerializer.bytesPerElement();
 
-			this.dataCodec = dataCodec;
+			this.dataSerializer = dataSerializer;
 			this.dataBlockFactory = dataBlockFactory;
 		}
 
-		private ReadData encodePadded(final DataBlock<T> dataBlock) throws IOException {
-			final ReadData readData = dataCodec.serialize(dataBlock.getData());
+		private ReadData encodePadded(final DataBlock<T> dataBlock) {
+			final ReadData readData = dataSerializer.serialize(dataBlock.getData());
 			if (Arrays.equals(blockSize, dataBlock.getSize())) {
 				return readData;
 			} else {
@@ -132,31 +124,72 @@ public class ZarrCodecs {
 		}
 
 		@Override
-		public ReadData encode(final DataBlock<T> dataBlock) throws IOException {
+		public ReadData encode(final DataBlock<T> dataBlock) {
 			final ReadData readData = encodePadded(dataBlock);
 			return ReadData.from(out -> codec.encode(readData).writeTo(out));
 		}
 
 		@Override
-		public DataBlock<T> decode(final ReadData readData, final long[] gridPosition) throws IOException {
+		public DataBlock<T> decode(final ReadData readData, final long[] gridPosition) {
 			try (final InputStream in = readData.inputStream()) {
+
 				final ReadData decompressed = codec.decode(ReadData.from(in));
-				final T data = dataCodec.deserialize(decompressed, numElements);
+				final T data = dataSerializer.deserialize(decompressed, numElements);
 				return dataBlockFactory.createDataBlock(blockSize, gridPosition, data);
+			} catch (IllegalStateException e) {
+				throw new N5Exception(e);
+			} catch (IOException e) {
+				throw new N5IOException(e);
 			}
 		}
+	}
 
-		@Override
-		public String getType() {
-			return "internal-zarr-default";
-		}
+	static byte[] padCrop(
+			final byte[] src,
+			final int[] srcBlockSize,
+			final int[] dstBlockSize,
+			final int nBytes,
+			final int nBits,
+			final byte[] fill_value) {
 
-		@Override
-		public void initialize(DatasetAttributes attributes, BytesCodec... byteCodecs) {
-//			/*TODO: Consider an attributes.createDataBlockCodec() without parameters? */
-//			final ConcatenatedBytesCodec concatenatedBytesCodec = new ConcatenatedBytesCodec(byteCodecs);
-//			this.dataBlockCodec = N5Codecs.createDataBlockCodec(attributes.getDataType(), concatenatedBytesCodec);
-//			this.attributes = attributes;	
+		assert srcBlockSize.length == dstBlockSize.length : "Dimensions do not match.";
+
+		final int n = srcBlockSize.length;
+
+		if (nBytes != 0) {
+			int[] zero = new int[n];
+			int[] srcSize = new int[n];
+			int[] dstSize = new int[n];
+			int[] size = new int[n];
+			Arrays.setAll(srcSize, d -> srcBlockSize[d] * (d == 0 ? nBytes : 1));
+			Arrays.setAll(dstSize, d -> dstBlockSize[d] * (d == 0 ? nBytes : 1));
+			Arrays.setAll(size, d -> Math.min(srcSize[d], dstSize[d]));
+			final byte[] dst = new byte[safeInt(Intervals.numElements(dstSize))];
+			if (!Arrays.equals(dstSize, size)) {
+				fill(dst, fill_value);
+			}
+			SubArrayCopy.copy(src, srcSize, zero, dst, dstSize, zero, size);
+			return dst;
+		} else {
+			/* TODO deal with bit streams */
+			return null;
 		}
 	}
+
+	private static void fill(final byte[] dst, final byte[] fill_value) {
+		byte allZero = 0;
+		for (byte b : fill_value) {
+			allZero |= b;
+		}
+		if (allZero != 0) {
+			if (fill_value.length == 1) {
+				Arrays.fill(dst, fill_value[0]);
+			} else {
+				for (int i = 0; i < dst.length; i++) {
+					dst[i] = fill_value[i % fill_value.length];
+				}
+			}
+		}
+	}
+	
 }

@@ -55,30 +55,24 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.Writer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import net.imglib2.blocks.SubArrayCopy;
-import net.imglib2.util.Intervals;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.Compression;
-import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.DefaultBlockWriter;
 import org.janelia.saalfeldlab.n5.GsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
@@ -89,7 +83,6 @@ import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
 
-import static net.imglib2.util.Util.safeInt;
 
 /**
  * Zarr {@link GsonKeyValueN5Writer} implementation.
@@ -500,49 +493,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 	}
 
 	@Override
-	public <T> void writeBlock(
-			final String pathName,
-			final DatasetAttributes datasetAttributes,
-			final DataBlock<T> dataBlock) throws N5Exception {
-
-		final ZarrDatasetAttributes zarrDatasetAttributes;
-		if (datasetAttributes instanceof ZarrDatasetAttributes)
-			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
-		else
-			zarrDatasetAttributes = (ZarrDatasetAttributes)getDatasetAttributes(pathName);
-
-		final String normalPath = N5URI.normalizeGroupPath(pathName);
-		final String path = keyValueAccess
-				.compose(
-						uri,
-						normalPath,
-						getZarrDataBlockPath(
-								dataBlock.getGridPosition(),
-								zarrDatasetAttributes.getDimensionSeparator(),
-								zarrDatasetAttributes.isRowMajor()).toString());
-
-		final String[] components = keyValueAccess.components(path);
-		final String parent = keyValueAccess
-				.compose(Arrays.stream(components).limit(components.length - 1).toArray(String[]::new));
-		try {
-			keyValueAccess.createDirectories(parent);
-			try (
-					final LockedChannel lockedChannel = keyValueAccess.lockForWriting(path);
-					final OutputStream out = lockedChannel.newOutputStream()
-			) {
-				DefaultBlockWriter.writeBlock(
-						out,
-						zarrDatasetAttributes,
-						dataBlock);
-			}
-		} catch (final Throwable e) {
-			throw new N5IOException(
-					"Failed to write block " + Arrays.toString(dataBlock.getGridPosition()) + " into dataset " + path,
-					e);
-		}
-	}
-
-	@Override
 	public boolean deleteBlock(
 			final String path,
 			final long... gridPosition) throws N5Exception {
@@ -570,54 +520,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 		/* an IOException should have occurred if anything had failed midway */
 		return true;
-	}
-
-	public static byte[] padCrop(
-			final byte[] src,
-			final int[] srcBlockSize,
-			final int[] dstBlockSize,
-			final int nBytes,
-			final int nBits,
-			final byte[] fill_value) {
-
-		assert srcBlockSize.length == dstBlockSize.length : "Dimensions do not match.";
-
-		final int n = srcBlockSize.length;
-
-		if (nBytes != 0) {
-			int[] zero = new int[n];
-			int[] srcSize = new int[n];
-			int[] dstSize = new int[n];
-			int[] size = new int[n];
-			Arrays.setAll(srcSize, d -> srcBlockSize[d] * (d == 0 ? nBytes : 1));
-			Arrays.setAll(dstSize, d -> dstBlockSize[d] * (d == 0 ? nBytes : 1));
-			Arrays.setAll(size, d -> Math.min(srcSize[d], dstSize[d]));
-			final byte[] dst = new byte[safeInt(Intervals.numElements(dstSize))];
-			if (!Arrays.equals(dstSize, size)) {
-				fill(dst, fill_value);
-			}
-			SubArrayCopy.copy(src, srcSize, zero, dst, dstSize, zero, size);
-			return dst;
-		} else {
-			/* TODO deal with bit streams */
-			return null;
-		}
-	}
-
-	private static void fill(final byte[] dst, final byte[] fill_value) {
-		byte allZero = 0;
-		for (byte b : fill_value) {
-			allZero |= b;
-		}
-		if (allZero != 0) {
-			if (fill_value.length == 1) {
-				Arrays.fill(dst, fill_value[0]);
-			} else {
-				for (int i = 0; i < dst.length; i++) {
-					dst[i] = fill_value[i % fill_value.length];
-				}
-			}
-		}
 	}
 
 	protected void redirectDatasetAttribute(
