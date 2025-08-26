@@ -28,7 +28,6 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.AbstractMap.SimpleImmutableEntry;
@@ -40,7 +39,7 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
-import org.janelia.saalfeldlab.n5.codec.Codec;
+import org.janelia.saalfeldlab.n5.codec.BytesCodec;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 
@@ -56,7 +55,7 @@ import com.google.gson.JsonParseException;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  *
  */
-public interface ZarrV3Compressor extends Codec.BytesCodec {
+public interface ZarrV3Compressor extends BytesCodec {
 
 	/*
 	 * idiotic stream based initialization because Java cannot have static
@@ -85,12 +84,12 @@ public interface ZarrV3Compressor extends Codec.BytesCodec {
 	}
 
 	@Override
-	public default ReadData encode(final ReadData in) throws IOException {
+	public default ReadData encode(final ReadData in) {
     	return getCompression().encode(in);
     }
 
 	@Override
-	public default ReadData decode(final ReadData in) throws IOException {
+	public default ReadData decode(final ReadData in) {
     	return getCompression().decode(in);
     }
 

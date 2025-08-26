@@ -29,6 +29,7 @@
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.lang.reflect.Type;
+import java.nio.ByteOrder;
 import java.util.Arrays;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -36,8 +37,9 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.n5.codec.ArrayCodec;
+import org.janelia.saalfeldlab.n5.codec.BytesCodec;
 import org.janelia.saalfeldlab.n5.codec.Codec;
-import org.janelia.saalfeldlab.n5.shard.ShardingCodec;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
@@ -48,6 +50,7 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
@@ -93,12 +96,12 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final ZarrV3DataType dataType,
 			final String fillValue,
 			final String[] dimensionNames,
-			final Codec... codecs) {
+			final ArrayCodec arrayCodec,
+			final BytesCodec... codecs) {
 
 		super(shape,
-				inferShardShape(chunkAttributes, codecs[0]),
-				inferChunkShape(chunkAttributes, codecs[0]),
-				dataType.getDataType(), removeRawCompression(codecs));
+				chunkAttributes.getGrid().getShape(),
+				dataType.getDataType(), arrayCodec, codecs);
 		this.shape = shape;
 		this.chunkAttributes = chunkAttributes;
 		this.dataType = dataType;
@@ -114,10 +117,10 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final String fillValue,
 			final String[] dimensionNames,
 			final DefaultChunkKeyEncoding chunkKeyEncoding,
-			final Codec[] codecs) {
+			final BytesCodec... codecs) {
 
 		this(shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dataType, fillValue, 
-				dimensionNames, codecs);
+				dimensionNames, null, codecs);
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -127,29 +130,13 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final String fillValue,
 			final String[] dimensionNames,
 			final String dimensionSeparator,
-			final Codec[] codecs) {
+			final BytesCodec... codecs) {
 
 		this(shape, chunkShape, dataType, fillValue, dimensionNames,
 				new DefaultChunkKeyEncoding(dimensionSeparator), codecs);
 	}
 
-	protected static int[] inferChunkShape(final ChunkAttributes chunkAttributes, final Codec arrayCodec) {
-
-		if (arrayCodec instanceof ShardingCodec)
-			return ((ShardingCodec)arrayCodec).getBlockSize();
-
-		return chunkAttributes.getGrid().getShape();
-	}
-
-	protected static int[] inferShardShape(final ChunkAttributes chunkAttributes, final Codec arrayCodec) {
-
-		if (arrayCodec instanceof ShardingCodec)
-			return chunkAttributes.getGrid().getShape();
-
-		return null;
-	}
-
-	protected static Codec[] prependArrayToBytes(Codec.ArrayCodec arrayToBytes, Codec[] codecs) {
+	protected static Codec[] prependArrayToBytes(ArrayCodec arrayToBytes, Codec[] codecs) {
 
 		final Codec[] out = new Codec[codecs.length + 1];
 		out[0] = arrayToBytes;
@@ -206,7 +193,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	}
 
 	public String getFillValue() {
-
 		return fillValue.getAsString();
 	}
 
@@ -239,7 +225,10 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				if (zarrFormat != FORMAT)
 					return null;
 
-				final Codec[] codecs = context.deserialize(obj.get(CODEC_KEY), Codec[].class);
+				final Codec[] allCodecs = context.deserialize(obj.get(CODECS_KEY), Codec[].class);
+				final ArrayCodec arrCodec = (ArrayCodec)allCodecs[0]; 
+				final BytesCodec[] codecs = new BytesCodec[allCodecs.length - 1];
+				System.arraycopy(allCodecs, 1, codecs, 0, codecs.length);
 
 				// TODO make this work with codecs
 				// final DType dType = new DType(typestr, codecs);
@@ -259,6 +248,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 						dataType,
 						obj.get(FILL_VALUE_KEY).getAsString(),
 						dimensionNames,
+						arrCodec,
 						codecs);
 
 			} catch (final Exception e) {
@@ -289,7 +279,12 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				jsonObject.add(DIMENSION_NAMES_KEY, reverseJsonArray(dimNamesArray));
 			}
 
-			jsonObject.add(CODECS_KEY, context.serialize(src.concatenateCodecs()));
+			final BytesCodec[] bytesCodecs = src.getCodecs();
+			final Codec[] codecs = new Codec[bytesCodecs.length + 1];
+			codecs[0] = src.getArrayCodec();
+			System.arraycopy(bytesCodecs, 0, codecs, 1, bytesCodecs.length);
+
+			jsonObject.add(CODECS_KEY, context.serialize(codecs));
 
 			return jsonObject;
 		}
@@ -302,6 +297,34 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			}
 			return reversedJson;
 		}
+	}
+
+	public static final ByteOrderAdapter byteOrderAdapter = new ByteOrderAdapter();
+
+	public static class ByteOrderAdapter implements JsonDeserializer<ByteOrder>, JsonSerializer<ByteOrder> {
+
+		@Override
+		public JsonElement serialize(ByteOrder src, java.lang.reflect.Type typeOfSrc,
+				JsonSerializationContext context) {
+
+			if (src.equals(ByteOrder.LITTLE_ENDIAN))
+				return new JsonPrimitive("little");
+			else
+				return new JsonPrimitive("big");
+		}
+
+		@Override
+		public ByteOrder deserialize(JsonElement json, java.lang.reflect.Type typeOfT,
+				JsonDeserializationContext context) throws JsonParseException {
+
+			if (json.getAsString().equals("little"))
+				return ByteOrder.LITTLE_ENDIAN;
+			if (json.getAsString().equals("big"))
+				return ByteOrder.BIG_ENDIAN;
+
+			return null;
+		}
+
 	}
 
 }

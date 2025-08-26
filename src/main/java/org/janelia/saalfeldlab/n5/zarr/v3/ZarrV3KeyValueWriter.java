@@ -25,7 +25,6 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
-import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -41,12 +40,7 @@ import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
-import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.codec.RawBytes;
-import org.janelia.saalfeldlab.n5.codec.Codec;
-import org.janelia.saalfeldlab.n5.codec.N5BlockCodec;
-import org.janelia.saalfeldlab.n5.shard.ShardParameters;
-import org.janelia.saalfeldlab.n5.shard.ShardingCodec;
+import org.janelia.saalfeldlab.n5.codec.RawBytesArrayCodec;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkPad;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
@@ -56,6 +50,7 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 
 /**
  * Zarr v3 {@link KeyValueWriter} implementation.
@@ -158,8 +153,9 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			final Compression compression) throws N5Exception {
 
 		createDataset(datasetPath,
-				new DatasetAttributes(dimensions, null, blockSize, dataType,
-				new RawBytes(), compression));
+				new DatasetAttributes(
+						dimensions, blockSize, dataType,
+						new RawBytesArrayCodec(), compression));
 	}
 
 	@Override
@@ -233,12 +229,10 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		if (datasetAttributes instanceof ZarrV3DatasetAttributes)
 			return (ZarrV3DatasetAttributes)datasetAttributes;
 
-		boolean sharded = datasetAttributes.getArrayCodec() instanceof ShardingCodec;
 		final long[] shape = datasetAttributes.getDimensions().clone();
 
-		final int[] chunkShape = sharded ?
-				datasetAttributes.getShardSize() :
-				datasetAttributes.getBlockSize().clone();
+		// TODO update for sharding
+		final int[] chunkShape = datasetAttributes.getBlockSize().clone();
 
 		final ChunkAttributes chunkAttrs = new ChunkAttributes(
 				new RegularChunkGrid(chunkShape),
@@ -246,57 +240,8 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 		return new ZarrV3DatasetAttributes(shape, chunkAttrs,
 				ZarrV3DataType.fromDataType(datasetAttributes.getDataType()), "0", null,
-				buildCodecs(datasetAttributes));
-	}
-
-	private static Codec[] buildCodecs(DatasetAttributes datasetAttributes) {
-
-		if ( datasetAttributes.getArrayCodec() instanceof ShardingCodec ) {
-			ShardingCodec sc = ( ShardingCodec ) datasetAttributes.getArrayCodec();
-
-			if( Arrays.stream(sc.getCodecs()).anyMatch(x -> { return x instanceof RawCompression; })) {
-
-				Codec[] oldCodecs = sc.getCodecs();
-				Codec[] codecs;
-				if (oldCodecs.length == 1)
-					codecs = new Codec[] { sc.getArrayCodec() };
-				else {
-					codecs = ZarrV3DatasetAttributes.prependArrayToBytes(
-							sc.getArrayCodec(),
-							ZarrV3DatasetAttributes.removeRawCompression(sc.getCodecs()));
-				}
-
-				sc = new ShardingCodec(
-						sc.getBlockSize(),
-						codecs,
-						sc.getIndexCodecs(),
-						sc.getIndexLocation());
-			}
-			return new Codec[] { sc };
-
-		} else
-			return prependArrayToBytes(
-					convert(datasetAttributes.getArrayCodec()),
-					datasetAttributes.getCodecs());
-	}
-
-	private static Codec.ArrayCodec convert(Codec.ArrayCodec arrayCodec) {
-
-		if (arrayCodec instanceof RawBytes)
-			return arrayCodec;
-		else if (arrayCodec instanceof N5BlockCodec)
-			return new RawBytes(ByteOrder.BIG_ENDIAN);
-		else
-			return new RawBytes();
-
-	}
-
-	private static Codec[] prependArrayToBytes(Codec.ArrayCodec arrayToBytes, Codec[] codecs) {
-
-		final Codec[] out = new Codec[codecs.length + 1];
-		out[0] = arrayToBytes;
-		System.arraycopy(codecs, 0, out, 1, codecs.length);
-		return out;
+				datasetAttributes.getArrayCodec(),
+				datasetAttributes.getCodecs());
 	}
 
 	public <T> void setRawAttribute(final String groupPath, final String attributePath, final T attribute)
@@ -309,7 +254,8 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 	public <T> void setAttribute(final String groupPath, final String attributePath, final T attribute)
 			throws N5Exception {
 
-		setRawAttribute(groupPath, mapAttributeKey(attributePath), attribute);
+		final String normalizedAttributePath = N5URI.normalizeAttributePath(attributePath);
+		setRawAttribute(groupPath, mapAttributeKey(normalizedAttributePath), attribute);
 	}
 
 	public void setRawAttributes(final String path, final Map<String, ?> attributes) throws N5Exception {

@@ -26,10 +26,10 @@
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.lang.reflect.Type;
+import java.nio.ByteOrder;
 import java.util.Arrays;
 
 import org.janelia.saalfeldlab.n5.DataBlock;
-import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
@@ -39,7 +39,6 @@ import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.codec.Codec;
-import org.janelia.saalfeldlab.n5.zarr.Filter;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
@@ -166,15 +165,9 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 			final boolean cacheMeta,
 			final boolean checkRootExists) {
 
-		super(checkVersion, keyValueAccess, basePath, addTypeAdapters(gsonBuilder), cacheMeta, checkRootExists);
+		super(checkVersion, keyValueAccess, basePath, gsonBuilder, cacheMeta, checkRootExists);
 		this.mergeAttributes = mergeAttributes;
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
-	}
-
-	@Override
-	public String getAttributesKey() {
-
-		return ZARR_KEY;
 	}
 
 	@Override
@@ -207,6 +200,12 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 			return new Version(json.getAsInt(), 0, 0);
 
 		return null;
+	}
+
+	@Override
+	public String getAttributesKey() {
+
+		return ZARR_KEY;
 	}
 
 	@Override
@@ -258,7 +257,7 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		// TODO decide how attributes work
 		return getAttribute(ZARR_KEY, ZarrV3Node.ATTRIBUTES_KEY, JsonElement.class);
 	}
-	
+
 	public JsonElement getRawAttributes(final String pathName) throws N5IOException {
 
 		return super.getAttributes(pathName);
@@ -271,26 +270,6 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		return elem == null ? null : elem.getAsJsonObject().get(ZarrV3Node.ATTRIBUTES_KEY);
 	}
 
-	public <T> T getAttribute(
-			final String pathName,
-			final String key,
-			final Type type) throws N5Exception {
-
-		final String normalPathName = N5URI.normalizeGroupPath(pathName);
-		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
-		JsonElement attributes;
-		if (cacheMeta()) {
-			attributes = getCache().getAttributes(normalPathName, getAttributesKey());
-		} else {
-			attributes = getAttributes(normalPathName);
-		}
-		try {
-			return GsonUtils.readAttribute(attributes, normalizedAttributePath, type, getGson());
-		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
-			throw new N5Exception.N5ClassCastException(e);
-		}
-	}
-
 	public <T> T getRawAttribute(
 			final String pathName,
 			final String key,
@@ -299,13 +278,33 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		return super.getAttribute(pathName, key, clazz);
 	}
 
+	public <T> T getAttribute(
+			final String pathName,
+			final String key,
+			final Type type) throws N5Exception {
+
+		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
+		final JsonElement attributes = getAttributes(pathName);
+		try {
+			return GsonUtils.readAttribute(attributes, normalizedAttributePath, type, getGson());
+		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
+			throw new N5Exception.N5ClassCastException(e);
+		}
+	}
+
 	@Override
 	public <T> T getAttribute(
 			final String pathName,
 			final String key,
 			final Class<T> clazz) throws N5Exception {
 
-		return super.getAttribute(pathName, ZarrV3Node.ATTRIBUTES_KEY + "/" + key, clazz);
+		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
+		final JsonElement attributes = getAttributes(pathName);
+		try {
+			return GsonUtils.readAttribute(attributes, normalizedAttributePath, clazz, getGson());
+		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
+			throw new N5Exception.N5ClassCastException(e);
+		}
 	}
 
 	@Override
@@ -314,21 +313,15 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, uri.getPath());
 	}
 
-	static Gson registerGson(final GsonBuilder gsonBuilder) {
+	@Override
+	protected GsonBuilder registerGson(final GsonBuilder gsonBuilder) {
 
-		return addTypeAdapters(gsonBuilder).create();
-	}
-
-	protected static GsonBuilder addTypeAdapters(final GsonBuilder gsonBuilder) {
-
-		gsonBuilder.registerTypeAdapter(DataType.class, new DataType.JsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZarrV3DatasetAttributes.class, ZarrV3DatasetAttributes.jsonAdapter);
+		gsonBuilder.registerTypeAdapter(ByteOrder.class, ZarrV3DatasetAttributes.byteOrderAdapter);
 
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkGrid.class, NameConfigAdapter.getJsonAdapter(ChunkGrid.class));
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkKeyEncoding.class, NameConfigAdapter.getJsonAdapter(ChunkKeyEncoding.class));
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkAttributes.class, ChunkAttributes.getJsonAdapter());
-
-		gsonBuilder.registerTypeHierarchyAdapter(Filter.class, Filter.jsonAdapter);
 
 		gsonBuilder.registerTypeAdapter(Codec.class, NameConfigAdapter.getJsonAdapter(Codec.class));
 		gsonBuilder.disableHtmlEscaping();
@@ -348,13 +341,17 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		return isAttributes(key) ? key : ZarrV3Node.ATTRIBUTES_KEY + "/" + key;
 	}
 
+	private static final String[] N5_DATASET_ATTRIBUTES = new String[]{
+			DatasetAttributes.DIMENSIONS_KEY, DatasetAttributes.BLOCK_SIZE_KEY, DatasetAttributes.DATA_TYPE_KEY, DatasetAttributes.COMPRESSION_KEY 
+	};
+
 	protected boolean isAttributes(final String attributePath) {
 
 		if (!Arrays.stream(ZarrV3DatasetAttributes.REQUIRED_KEYS).anyMatch(attributePath::equals))
 			return false;
 
 		if (mapN5DatasetAttributes &&
-				!Arrays.stream(DatasetAttributes.N5_DATASET_ATTRIBUTES).anyMatch(attributePath::equals)) {
+				!Arrays.stream(N5_DATASET_ATTRIBUTES).anyMatch(attributePath::equals)) {
 			return false;
 		}
 
@@ -370,7 +367,7 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 			return ZarrV3DatasetAttributes.CHUNK_GRID_KEY + "/configuration/chunk_shape"; // TODO gross
 		case DatasetAttributes.DATA_TYPE_KEY:
 			return ZarrV3DatasetAttributes.DATA_TYPE_KEY;
-		case DatasetAttributes.CODEC_KEY:
+		case ZarrV3DatasetAttributes.CODECS_KEY:
 			return ZarrV3DatasetAttributes.CODECS_KEY;
 		default:
 			return attributePath;

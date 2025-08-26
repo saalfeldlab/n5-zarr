@@ -311,7 +311,7 @@ public class ZarrV3Test extends AbstractN5Test {
 			final JsonElement elem = zarr.getRawAttributes("/");
 			elem.getAsJsonObject().add(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY,
 					new JsonPrimitive(ZarrV3KeyValueReader.VERSION.getMajor() + 1));
-			zarr.writeAttributes("/", elem);
+			zarr.writeAttributes("", elem);
 
 			final Version version = writer.getVersion();
 			assertFalse(ZarrV3KeyValueReader.VERSION.isCompatible(version));
@@ -436,12 +436,12 @@ public class ZarrV3Test extends AbstractN5Test {
 
 	}
 
-	@Test
-	@Ignore
-	@Override
-	public void testWriteReadByteBlockMultipleCodecs() {
-		// not yet supported
-	}
+//	@Test
+//	@Ignore
+//	@Override
+//	public void testWriteReadByteBlockMultipleCodecs() {
+//		// not yet supported
+//	}
 
 	@Test
 	@Override

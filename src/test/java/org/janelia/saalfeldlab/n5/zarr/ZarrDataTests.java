@@ -43,7 +43,7 @@ public class ZarrDataTests {
 		final DatasetAttributes attrs = n5.getDatasetAttributes(dset);
 		assertArrayEquals(dset + " array size incorrect", expectedSize, attrs.getDimensions());
 
-		final DataBlock<byte[]> blk = n5.readBlock(dset, attrs, 0, 0, 0);
+		final DataBlock<byte[]> blk = (DataBlock<byte[]>) n5.readBlock(dset, attrs, 0, 0, 0);
 		assertArrayEquals(dset + "data incorrect", expectedData, blk.getData());
 	}
 

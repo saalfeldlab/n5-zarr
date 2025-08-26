@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.n5.zarr.codec;
 
 import java.nio.ByteOrder;
+import java.util.Collections;
 
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -19,6 +20,10 @@ public class ZarrBytesArrayCodec extends RawBytesArrayCodec {
 
 	private final String fillValue; 
 	private final DType dtype;
+
+	public ZarrBytesArrayCodec() {
+		this(new DType(">u", Collections.EMPTY_LIST), "0");
+	}
 
 	public ZarrBytesArrayCodec(DType dtype, String fillValue) {
 		this.fillValue = fillValue;

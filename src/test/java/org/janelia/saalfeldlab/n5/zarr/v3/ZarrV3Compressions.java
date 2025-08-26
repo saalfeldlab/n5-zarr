@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.codec.Codec;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Compressor.Blosc;
@@ -25,7 +24,6 @@ public class ZarrV3Compressions {
 	public void before() {
 
 		final GsonBuilder gsonBuilder = new GsonBuilder();
-		GsonUtils.registerGson(gsonBuilder);
 		gson = gsonBuilder.create();
 	}
 

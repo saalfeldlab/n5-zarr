@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.n5.zarr.chunks;
 
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.N5Exception;
-import org.janelia.saalfeldlab.n5.util.GridIterator;
 
 public class ChunkPad {
 
@@ -46,8 +45,8 @@ public class ChunkPad {
 
 		final long[] p = new long[srcSize.length];
 		for (int i = 0; i < src.length; i++) {
-			GridIterator.indexToPosition(i, srcSize, p);
-			final int j = (int)GridIterator.positionToIndex(destSize, p);
+			indexToPosition(i, srcSize, p);
+			final int j = (int)positionToIndex(destSize, p);
 			dest[j] = src[i];
 		}
 	}
@@ -60,8 +59,8 @@ public class ChunkPad {
 
 		final long[] p = new long[srcSize.length];
 		for (int i = 0; i < src.length; i++) {
-			GridIterator.indexToPosition(i, srcSize, p);
-			final int j = (int)GridIterator.positionToIndex(destSize, p);
+			indexToPosition(i, srcSize, p);
+			final int j = (int)positionToIndex(destSize, p);
 			dest[j] = src[i];
 		}
 	}
@@ -74,8 +73,8 @@ public class ChunkPad {
 
 		final long[] p = new long[srcSize.length];
 		for (int i = 0; i < src.length; i++) {
-			GridIterator.indexToPosition(i, srcSize, p);
-			final int j = (int)GridIterator.positionToIndex(destSize, p);
+			indexToPosition(i, srcSize, p);
+			final int j = (int)positionToIndex(destSize, p);
 			dest[j] = src[i];
 		}
 	}
@@ -88,8 +87,8 @@ public class ChunkPad {
 
 		final long[] p = new long[srcSize.length];
 		for (int i = 0; i < src.length; i++) {
-			GridIterator.indexToPosition(i, srcSize, p);
-			final int j = (int)GridIterator.positionToIndex(destSize, p);
+			indexToPosition(i, srcSize, p);
+			final int j = (int)positionToIndex(destSize, p);
 			dest[j] = src[i];
 		}
 	}
@@ -102,8 +101,8 @@ public class ChunkPad {
 
 		final long[] p = new long[srcSize.length];
 		for (int i = 0; i < src.length; i++) {
-			GridIterator.indexToPosition(i, srcSize, p);
-			final int j = (int)GridIterator.positionToIndex(destSize, p);
+			indexToPosition(i, srcSize, p);
+			final int j = (int)positionToIndex(destSize, p);
 			dest[j] = src[i];
 		}
 	}
@@ -116,10 +115,26 @@ public class ChunkPad {
 
 		final long[] p = new long[srcSize.length];
 		for (int i = 0; i < src.length; i++) {
-			GridIterator.indexToPosition(i, srcSize, p);
-			final int j = (int)GridIterator.positionToIndex(destSize, p);
+			indexToPosition(i, srcSize, p);
+			final int j = (int)positionToIndex(destSize, p);
 			dest[j] = src[i];
 		}
 	}
 
+	private static void indexToPosition(int index, final int[] dimensions, final long[] position) {
+		for (int dim = 0; dim < dimensions.length; dim++) {
+			position[dim] = (index % dimensions[dim]);
+			index /= dimensions[dim];
+		}
+	}
+
+	private static final long positionToIndex(final int[] dimensions, final long[] position) {
+		long idx = 0;
+		int cumulativeSize = 1;
+		for (int i = 0; i < position.length; i++) {
+			idx += position[i] * cumulativeSize;
+			cumulativeSize *= dimensions[i];
+		}
+		return idx;
+	}
 }
