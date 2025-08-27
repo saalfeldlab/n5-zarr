@@ -44,7 +44,7 @@ import org.janelia.saalfeldlab.n5.IntArrayDataBlock;
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.ShortArrayDataBlock;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
-import org.janelia.saalfeldlab.n5.codec.FlatArraySerializer;
+import org.janelia.saalfeldlab.n5.codec.FlatArrayCodec;
 
 import static org.janelia.saalfeldlab.n5.zarr.Filter.VLEN_UTF8;
 
@@ -133,18 +133,18 @@ public class DType {
 
 	public static class CodecProps<T> {
 
-		private final FlatArraySerializer<T> dataBlockSerializer;
+		private final FlatArrayCodec<T> dataBlockSerializer;
 
 		private final DataBlockFactory<T> dataBlockFactory;
 
 		CodecProps(
-				final FlatArraySerializer<T> dataBlockSerializer,
+				final FlatArrayCodec<T> dataBlockSerializer,
 				final DataBlockFactory<T> dataBlockFactory) {
 			this.dataBlockSerializer = dataBlockSerializer;
 			this.dataBlockFactory = dataBlockFactory;
 		}
 
-		public FlatArraySerializer<T> getDataBlockSerializer() {
+		public FlatArrayCodec<T> getDataBlockSerializer() {
 			return dataBlockSerializer;
 		}
 
@@ -166,7 +166,7 @@ public class DType {
 			nBytes = 0;
 			nBits = nB;
 			codecProps = new CodecProps<>(
-					FlatArraySerializer.BYTE, ByteArrayDataBlock::new);
+					FlatArrayCodec.BYTE, ByteArrayDataBlock::new);
 			break;
 		case UNSIGNED_INT:
 		case INT:
@@ -175,27 +175,27 @@ public class DType {
 			switch (nBytes) {
 			case 1:
 				codecProps = new CodecProps<>(
-						FlatArraySerializer.BYTE,
+						FlatArrayCodec.BYTE,
 						ByteArrayDataBlock::new);
 				break;
 			case 2:
 				codecProps = new CodecProps<>(
-						FlatArraySerializer.SHORT(order),
+						FlatArrayCodec.SHORT(order),
 						ShortArrayDataBlock::new);
 				break;
 			case 4:
 				codecProps = new CodecProps<>(
-						FlatArraySerializer.INT(order),
+						FlatArrayCodec.INT(order),
 						IntArrayDataBlock::new);
 				break;
 			case 8:
 				codecProps = new CodecProps<>(
-						FlatArraySerializer.LONG(order),
+						FlatArrayCodec.LONG(order),
 						LongArrayDataBlock::new);
 				break;
 			default: // because we do not know what else to do here
 				codecProps = new CodecProps<>(
-						FlatArraySerializer.BYTE, ByteArrayDataBlock::new);
+						FlatArrayCodec.BYTE, ByteArrayDataBlock::new);
 			}
 			break;
 		case FLOAT:
@@ -204,17 +204,17 @@ public class DType {
 			switch (nBytes) {
 			case 4:
 				codecProps = new CodecProps<>(
-						FlatArraySerializer.FLOAT(order),
+						FlatArrayCodec.FLOAT(order),
 						FloatArrayDataBlock::new);
 				break;
 			case 8:
 				codecProps = new CodecProps<>(
-						FlatArraySerializer.DOUBLE(order),
+						FlatArrayCodec.DOUBLE(order),
 						DoubleArrayDataBlock::new);
 				break;
 			default: // because we do not know what else to do here
 				codecProps = new CodecProps<>(
-						FlatArraySerializer.BYTE, ByteArrayDataBlock::new);
+						FlatArrayCodec.BYTE, ByteArrayDataBlock::new);
 			}
 			break;
 		case COMPLEX_FLOAT:
@@ -223,17 +223,17 @@ public class DType {
 			switch (nBytes) {
 			case 8: // this would support mapping onto an ImgLib2 ComplexFloatType
 				codecProps = new CodecProps<>(
-						FlatArraySerializer.FLOAT(order),
+						FlatArrayCodec.FLOAT(order),
 						FloatArrayDataBlock::new);
 				break;
 			case 16: // this would support mapping onto an ImgLib2 ComplexDoubleType
 				codecProps = new CodecProps<>(
-						FlatArraySerializer.DOUBLE(order),
+						FlatArrayCodec.DOUBLE(order),
 						DoubleArrayDataBlock::new);
 				break;
 			default: // because we do not know what else to do here
 				codecProps = new CodecProps<>(
-						FlatArraySerializer.BYTE, ByteArrayDataBlock::new);
+						FlatArrayCodec.BYTE, ByteArrayDataBlock::new);
 			}
 			break;
 		case OBJECT:
@@ -241,7 +241,7 @@ public class DType {
 			nBits = 0;
 			if (filters.contains(VLEN_UTF8)) {
 				codecProps = new CodecProps<>(
-						FlatArraySerializer.ZARR_STRING,
+						FlatArrayCodec.ZARR_STRING,
 						StringDataBlock::new);
 			} else {
 				codecProps = null;
@@ -257,7 +257,7 @@ public class DType {
 			nBytes = nB;
 			nBits = 0;
 			codecProps = new CodecProps<>(
-					FlatArraySerializer.BYTE, ByteArrayDataBlock::new);
+					FlatArrayCodec.BYTE, ByteArrayDataBlock::new);
 		}
 
 		dataType = getDataType(primitive, nBytes, filters);
@@ -285,39 +285,39 @@ public class DType {
 		case UINT16:
 			nBytes = 2 * nPrimitives;
 			codecProps = new CodecProps<>(
-					FlatArraySerializer.SHORT(order),
+					FlatArrayCodec.SHORT(order),
 					ShortArrayDataBlock::new);
 			break;
 		case INT32:
 		case UINT32:
 			nBytes = 4 * nPrimitives;
 			codecProps = new CodecProps<>(
-					FlatArraySerializer.INT(order),
+					FlatArrayCodec.INT(order),
 					IntArrayDataBlock::new);
 			break;
 		case INT64:
 		case UINT64:
 			nBytes = 8 * nPrimitives;
 			codecProps = new CodecProps<>(
-					FlatArraySerializer.LONG(order),
+					FlatArrayCodec.LONG(order),
 					LongArrayDataBlock::new);
 			break;
 		case FLOAT32:
 			nBytes = 4 * nPrimitives;
 			codecProps = new CodecProps<>(
-					FlatArraySerializer.FLOAT(order),
+					FlatArrayCodec.FLOAT(order),
 					FloatArrayDataBlock::new);
 			break;
 		case FLOAT64:
 			nBytes = 8 * nPrimitives;
 			codecProps = new CodecProps<>(
-					FlatArraySerializer.DOUBLE(order),
+					FlatArrayCodec.DOUBLE(order),
 					DoubleArrayDataBlock::new);
 			break;
 		case STRING:
 			nBytes = 1;
 			codecProps = new CodecProps<>(
-					FlatArraySerializer.ZARR_STRING,
+					FlatArrayCodec.ZARR_STRING,
 					StringDataBlock::new);
 			break;
 		case INT8:
@@ -325,7 +325,7 @@ public class DType {
 		default:
 			nBytes = nPrimitives;
 			codecProps = new CodecProps<>(
-					FlatArraySerializer.BYTE, ByteArrayDataBlock::new);
+					FlatArrayCodec.BYTE, ByteArrayDataBlock::new);
 		}
 	}
 

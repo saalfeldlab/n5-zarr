@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import org.janelia.saalfeldlab.n5.GzipCompression;
-import org.janelia.saalfeldlab.n5.codec.Codec;
+import org.janelia.saalfeldlab.n5.codec.CodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Compressor.Blosc;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 import org.junit.Before;
@@ -30,7 +30,7 @@ public class ZarrV3Compressions {
 	@Test
 	public void testSerializeBloscCompression() {
 
-		final Codec codec = new Blosc("zstd", 5, "shuffle", 0, 1, 1);
+		final ZarrV3Compressor codec = new Blosc("zstd", 5, "shuffle", 0, 1, 1);
 		final JsonObject jsonCodec = gson.toJsonTree(codec).getAsJsonObject();
 		final JsonObject expected = gson.fromJson(
 				"{\"name\":\"blosc\",\"configuration\":{\"clevel\":5,\"blocksize\":0,\"typesize\":1,\"cname\":\"zstd\",\"shuffle\":\"shuffle\"}}",
@@ -38,7 +38,7 @@ public class ZarrV3Compressions {
 
 		assertEquals("blosc codec", expected, jsonCodec.getAsJsonObject());
 
-		final Codec codecsDeserialized = gson.fromJson(expected.toString(), Codec.class);
+		final CodecInfo codecsDeserialized = gson.fromJson(expected.toString(), CodecInfo.class);
 		assertTrue("codec not blosc", codecsDeserialized instanceof Blosc);
 	}
 
@@ -46,7 +46,7 @@ public class ZarrV3Compressions {
 	public void testSerializeGzipCompression() {
 
 
-		Codec[] codecs = new Codec[]{
+		CodecInfo[] codecs = new CodecInfo[]{
 				new GzipCompression()
 		};
 
@@ -58,7 +58,7 @@ public class ZarrV3Compressions {
 //				JsonElement.class);
 //		assertEquals("codec array", expected, jsonCodecArray.getAsJsonArray());
 
-		final Codec[] codecsDeserialized = gson.fromJson(jsonCodecArrayString, Codec[].class);
+		final CodecInfo[] codecsDeserialized = gson.fromJson(jsonCodecArrayString, CodecInfo[].class);
 		assertEquals("codecs length not 1", 1, codecsDeserialized.length);
 		assertTrue("codec not gzip", codecsDeserialized[0] instanceof GzipCompression);
 	}
@@ -66,9 +66,9 @@ public class ZarrV3Compressions {
 	@Test
 	public void testSerializeZstandardCompression() {
 
-		final Codec codec1 = new ZarrV3Compressor.Zstandard();
-		final Codec codec2 = new ZarrV3Compressor.Zstandard(10, false);
-		final Codec codec3 = new ZarrV3Compressor.Zstandard(new ZstandardCompression());
+		final CodecInfo codec1 = new ZarrV3Compressor.Zstandard();
+		final CodecInfo codec2 = new ZarrV3Compressor.Zstandard(10, false);
+		final CodecInfo codec3 = new ZarrV3Compressor.Zstandard(new ZstandardCompression());
 		final JsonElement serialized1 = gson.toJsonTree(codec1).getAsJsonObject();
 		final JsonElement serialized2 = gson.toJsonTree(codec2).getAsJsonObject();
 		final JsonElement serialized3 = gson.toJsonTree(codec3).getAsJsonObject();
@@ -111,7 +111,7 @@ public class ZarrV3Compressions {
 						+ "}",
 				JsonElement.class);
 
-		final Codec codecsDeserialized = gson.fromJson(expected, Codec.class);
+		final CodecInfo codecsDeserialized = gson.fromJson(expected, CodecInfo.class);
 		assertTrue("codec not zstd", codecsDeserialized instanceof ZarrV3Compressor.Zstandard);
 	}
 }

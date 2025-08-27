@@ -39,7 +39,8 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
-import org.janelia.saalfeldlab.n5.codec.BytesCodec;
+import org.janelia.saalfeldlab.n5.codec.DataCodec;
+import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 
@@ -55,7 +56,7 @@ import com.google.gson.JsonParseException;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  *
  */
-public interface ZarrV3Compressor extends BytesCodec {
+public interface ZarrV3Compressor extends DataCodecInfo, DataCodec {
 
 	/*
 	 * idiotic stream based initialization because Java cannot have static
@@ -94,6 +95,11 @@ public interface ZarrV3Compressor extends BytesCodec {
     }
 
     public Compression getCompression();
+
+	@Override
+	default DataCodec create() {
+		return this;
+	}
 
 	@NameConfig.Name("zstd")
 	public static class Zstandard implements ZarrV3Compressor {

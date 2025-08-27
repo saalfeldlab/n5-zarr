@@ -38,14 +38,13 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
-import org.janelia.saalfeldlab.n5.codec.Codec;
+import org.janelia.saalfeldlab.n5.codec.CodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonSyntaxException;
@@ -323,7 +322,7 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkKeyEncoding.class, NameConfigAdapter.getJsonAdapter(ChunkKeyEncoding.class));
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkAttributes.class, ChunkAttributes.getJsonAdapter());
 
-		gsonBuilder.registerTypeAdapter(Codec.class, NameConfigAdapter.getJsonAdapter(Codec.class));
+		gsonBuilder.registerTypeAdapter(CodecInfo.class, NameConfigAdapter.getJsonAdapter(CodecInfo.class));
 		gsonBuilder.disableHtmlEscaping();
 
 		return gsonBuilder;

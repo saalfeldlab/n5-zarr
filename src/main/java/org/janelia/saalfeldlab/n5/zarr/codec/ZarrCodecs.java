@@ -38,9 +38,9 @@ import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataBlock.DataBlockFactory;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
-import org.janelia.saalfeldlab.n5.codec.BytesCodec;
-import org.janelia.saalfeldlab.n5.codec.DataBlockSerializer;
-import org.janelia.saalfeldlab.n5.codec.FlatArraySerializer;
+import org.janelia.saalfeldlab.n5.codec.BlockCodec;
+import org.janelia.saalfeldlab.n5.codec.DataCodec;
+import org.janelia.saalfeldlab.n5.codec.FlatArrayCodec;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.saalfeldlab.n5.zarr.DType;
 import org.janelia.saalfeldlab.n5.zarr.DType.CodecProps;
@@ -52,12 +52,12 @@ public class ZarrCodecs {
 
 	private ZarrCodecs() {}
 
-	public static <T> DataBlockSerializer<T> createDataBlockCodec(
+	public static <T> BlockCodec<T> createDataBlockCodec(
 
 			final DType dtype,
 			final int[] blockSize,
 			final String fill_value,
-			final BytesCodec... bytesCodecs) {
+			final DataCodec... bytesCodecs) {
 
 		final int nBytes = dtype.getNBytes();
 		final int nBits = dtype.getNBits();
@@ -65,30 +65,30 @@ public class ZarrCodecs {
 
 		@SuppressWarnings("unchecked")
 		final CodecProps<T> codecProps = (CodecProps<T>) dtype.getCodecProps();
-		final FlatArraySerializer<T> dataCodec = codecProps.getDataBlockSerializer();
+		final FlatArrayCodec<T> dataCodec = codecProps.getDataBlockSerializer();
 		final DataBlockFactory<T> dataBlockFactory = codecProps.getDataBlockFactory();
-		final BytesCodec concatenatedBytesCodec = BytesCodec.concatenate(bytesCodecs);
+		final DataCodec concatenatedBytesCodec = DataCodec.concatenate(bytesCodecs);
 		return new DefaultDataBlockCodec<>(blockSize, nBytes, nBits, fillBytes, concatenatedBytesCodec, dataCodec, dataBlockFactory);
 	}
 
-	private static class DefaultDataBlockCodec<T> implements DataBlockSerializer<T> {
+	private static class DefaultDataBlockCodec<T> implements BlockCodec<T> {
 
 		private final int[] blockSize;
-		private final FlatArraySerializer<T> dataSerializer;
+		private final FlatArrayCodec<T> dataSerializer;
 		private final DataBlockFactory<T> dataBlockFactory;
 		private final int numElements;
 		private final int nBytes;
 		private final int nBits;
 		private final byte[] fillBytes;
-		private final BytesCodec codec;
+		private final DataCodec codec;
 
 		public DefaultDataBlockCodec(
 				final int[] blockSize,
 				final int nBytes,
 				final int nBits,
 				final byte[] fillBytes,
-				final BytesCodec codec,
-				final FlatArraySerializer<T> dataSerializer,
+				final DataCodec codec,
+				final FlatArrayCodec<T> dataSerializer,
 				final DataBlockFactory<T> dataBlockFactory) {
 
 			this.blockSize = blockSize;
@@ -108,7 +108,7 @@ public class ZarrCodecs {
 		}
 
 		private ReadData encodePadded(final DataBlock<T> dataBlock) {
-			final ReadData readData = dataSerializer.serialize(dataBlock.getData());
+			final ReadData readData = dataSerializer.encode(dataBlock.getData());
 			if (Arrays.equals(blockSize, dataBlock.getSize())) {
 				return readData;
 			} else {
@@ -134,7 +134,7 @@ public class ZarrCodecs {
 			try (final InputStream in = readData.inputStream()) {
 
 				final ReadData decompressed = codec.decode(ReadData.from(in));
-				final T data = dataSerializer.deserialize(decompressed, numElements);
+				final T data = dataSerializer.decode(decompressed, numElements);
 				return dataBlockFactory.createDataBlock(blockSize, gridPosition, data);
 			} catch (IllegalStateException e) {
 				throw new N5Exception(e);

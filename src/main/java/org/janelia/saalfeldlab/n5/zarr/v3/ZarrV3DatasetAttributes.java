@@ -30,16 +30,15 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.lang.reflect.Type;
 import java.nio.ByteOrder;
-import java.util.Arrays;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.codec.ArrayCodec;
-import org.janelia.saalfeldlab.n5.codec.BytesCodec;
-import org.janelia.saalfeldlab.n5.codec.Codec;
+import org.janelia.saalfeldlab.n5.codec.BlockCodecInfo;
+import org.janelia.saalfeldlab.n5.codec.CodecInfo;
+import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
@@ -84,24 +83,18 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 	protected transient final byte[] fillBytes;
 
-	protected static Codec[] removeRawCompression(final Codec[] codecs) {
-
-		final Codec[] newCodecs = Arrays.stream(codecs).filter(it -> !(it instanceof RawCompression)).toArray(Codec[]::new);
-		return newCodecs;
-	}
-
 	public ZarrV3DatasetAttributes(
 			final long[] shape,
 			final ChunkAttributes chunkAttributes,
 			final ZarrV3DataType dataType,
 			final String fillValue,
 			final String[] dimensionNames,
-			final ArrayCodec arrayCodec,
-			final BytesCodec... codecs) {
+			final BlockCodecInfo blockCodec,
+			final DataCodecInfo... codecs) {
 
 		super(shape,
 				chunkAttributes.getGrid().getShape(),
-				dataType.getDataType(), arrayCodec, codecs);
+				dataType.getDataType(), blockCodec, codecs);
 		this.shape = shape;
 		this.chunkAttributes = chunkAttributes;
 		this.dataType = dataType;
@@ -117,7 +110,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final String fillValue,
 			final String[] dimensionNames,
 			final DefaultChunkKeyEncoding chunkKeyEncoding,
-			final BytesCodec... codecs) {
+			final DataCodecInfo... codecs) {
 
 		this(shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dataType, fillValue, 
 				dimensionNames, null, codecs);
@@ -130,23 +123,23 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final String fillValue,
 			final String[] dimensionNames,
 			final String dimensionSeparator,
-			final BytesCodec... codecs) {
+			final DataCodecInfo... codecs) {
 
 		this(shape, chunkShape, dataType, fillValue, dimensionNames,
 				new DefaultChunkKeyEncoding(dimensionSeparator), codecs);
 	}
 
-	protected static Codec[] prependArrayToBytes(ArrayCodec arrayToBytes, Codec[] codecs) {
+	protected static CodecInfo[] prependArrayToBytes(BlockCodecInfo arrayToBytes, DataCodecInfo[] codecs) {
 
-		final Codec[] out = new Codec[codecs.length + 1];
+		final CodecInfo[] out = new CodecInfo[codecs.length + 1];
 		out[0] = arrayToBytes;
 		System.arraycopy(codecs, 0, out, 1, codecs.length);
 		return out;
 	}
 
-	protected static Compression inferCompression(Codec[] codecs) {
+	protected static Compression inferCompression(CodecInfo[] codecs) {
 
-		final Codec lastCodec = codecs[codecs.length - 1];
+		final CodecInfo lastCodec = codecs[codecs.length - 1];
 		if (lastCodec instanceof Compression)
 			return (Compression)lastCodec;
 		else
@@ -225,9 +218,9 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				if (zarrFormat != FORMAT)
 					return null;
 
-				final Codec[] allCodecs = context.deserialize(obj.get(CODECS_KEY), Codec[].class);
-				final ArrayCodec arrCodec = (ArrayCodec)allCodecs[0]; 
-				final BytesCodec[] codecs = new BytesCodec[allCodecs.length - 1];
+				final CodecInfo[] allCodecs = context.deserialize(obj.get(CODECS_KEY), CodecInfo[].class);
+				final BlockCodecInfo arrCodec = (BlockCodecInfo)allCodecs[0]; 
+				final DataCodecInfo[] codecs = new DataCodecInfo[allCodecs.length - 1];
 				System.arraycopy(allCodecs, 1, codecs, 0, codecs.length);
 
 				// TODO make this work with codecs
@@ -279,9 +272,9 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				jsonObject.add(DIMENSION_NAMES_KEY, reverseJsonArray(dimNamesArray));
 			}
 
-			final BytesCodec[] bytesCodecs = src.getCodecs();
-			final Codec[] codecs = new Codec[bytesCodecs.length + 1];
-			codecs[0] = src.getArrayCodec();
+			final DataCodecInfo[] bytesCodecs = src.getDataCodecInfos();
+			final CodecInfo[] codecs = new CodecInfo[bytesCodecs.length + 1];
+			codecs[0] = src.getBlockCodecInfo();
 			System.arraycopy(bytesCodecs, 0, codecs, 1, bytesCodecs.length);
 
 			jsonObject.add(CODECS_KEY, context.serialize(codecs));

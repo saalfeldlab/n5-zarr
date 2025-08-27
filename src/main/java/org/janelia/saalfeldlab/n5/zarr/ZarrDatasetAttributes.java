@@ -29,8 +29,8 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.codec.BytesCodec;
-import org.janelia.saalfeldlab.n5.zarr.codec.ZarrBytesArrayCodec;
+import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
+import org.janelia.saalfeldlab.n5.zarr.codec.ZarrBlockCodecInfo;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -49,11 +49,11 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final boolean isRowMajor,
 			final String fill_value,
 			final String dimensionSeparator, 
-			final BytesCodec... codecs) {
+			final DataCodecInfo... codecs) {
 
 		// TODO should we expose ByteOrder as a parameter?
 		super(dimensions, blockSize, dType.getDataType(), 
-				new ZarrBytesArrayCodec(dType, fill_value), codecs);
+				new ZarrBlockCodecInfo(dType, fill_value), codecs);
 		this.dType = dType;
 		this.isRowMajor = isRowMajor;
 		this.dimensionSeparator = dimensionSeparator;
@@ -65,7 +65,7 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final DType dType,
 			final boolean isRowMajor,
 			final String fill_value,
-			BytesCodec... codecs) {
+			DataCodecInfo... codecs) {
 
 		this( dimensions, blockSize, dType, isRowMajor, fill_value, ".", codecs);
 	}

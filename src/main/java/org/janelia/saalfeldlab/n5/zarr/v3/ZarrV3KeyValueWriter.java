@@ -40,7 +40,7 @@ import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
-import org.janelia.saalfeldlab.n5.codec.RawBytesArrayCodec;
+import org.janelia.saalfeldlab.n5.codec.RawBlockCodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkPad;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
@@ -155,7 +155,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		createDataset(datasetPath,
 				new DatasetAttributes(
 						dimensions, blockSize, dataType,
-						new RawBytesArrayCodec(), compression));
+						new RawBlockCodecInfo(), compression));
 	}
 
 	@Override
@@ -240,8 +240,8 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 		return new ZarrV3DatasetAttributes(shape, chunkAttrs,
 				ZarrV3DataType.fromDataType(datasetAttributes.getDataType()), "0", null,
-				datasetAttributes.getArrayCodec(),
-				datasetAttributes.getCodecs());
+				datasetAttributes.getBlockCodecInfo(),
+				datasetAttributes.getDataCodecInfos());
 	}
 
 	public <T> void setRawAttribute(final String groupPath, final String attributePath, final T attribute)

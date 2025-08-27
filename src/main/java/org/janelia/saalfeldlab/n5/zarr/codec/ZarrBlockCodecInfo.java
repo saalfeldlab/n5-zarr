@@ -5,33 +5,33 @@ import java.util.Collections;
 
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.codec.BytesCodec;
-import org.janelia.saalfeldlab.n5.codec.DataBlockSerializer;
-import org.janelia.saalfeldlab.n5.codec.RawBytesArrayCodec;
+import org.janelia.saalfeldlab.n5.codec.BlockCodec;
+import org.janelia.saalfeldlab.n5.codec.DataCodec;
+import org.janelia.saalfeldlab.n5.codec.RawBlockCodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.DType;
 
 /**
  * An ArrayCodec that serializes bytes directly, but pads the data into a "full
  * chunk" per the Zarr specification.
  */
-public class ZarrBytesArrayCodec extends RawBytesArrayCodec {
+public class ZarrBlockCodecInfo extends RawBlockCodecInfo {
 
 	private static final long serialVersionUID = 1173539891671563072L;
 
 	private final String fillValue; 
 	private final DType dtype;
 
-	public ZarrBytesArrayCodec() {
+	public ZarrBlockCodecInfo() {
 		this(new DType(">u", Collections.EMPTY_LIST), "0");
 	}
 
-	public ZarrBytesArrayCodec(DType dtype, String fillValue) {
+	public ZarrBlockCodecInfo(DType dtype, String fillValue) {
 		this.fillValue = fillValue;
 		this.dtype = dtype;
 	}
 
 	@Override
-	public <T> DataBlockSerializer<T> initialize(final DatasetAttributes attributes, final BytesCodec... bytesCodecs) {
+	public <T> BlockCodec<T> create(final DatasetAttributes attributes, final DataCodec... bytesCodecs) {
 
 		ensureValidByteOrder(attributes.getDataType(), getByteOrder());
 		return ZarrCodecs.createDataBlockCodec(dtype, attributes.getBlockSize(),
