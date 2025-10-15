@@ -613,13 +613,15 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 				dstIntervalDimensions[d] = dstBlockSize[d];
 			}
 
-			final byte[] dst = new byte[(int)Intervals.numElements(dstIntervalDimensions)];
+			final int numTargetBytes = (int)Intervals.numElements(dstIntervalDimensions);
+			final byte[] dst = new byte[numTargetBytes];
 			/* fill dst */
-			for (int i = 0, j = 0; i < n; ++i) {
+			for (int i = 0, j = 0; i < numTargetBytes; ++i) {
 				dst[i] = fill_value[j];
 				if (++j == fill_value.length)
 					j = 0;
 			}
+
 			final ArrayImg<ByteType, ByteArray> srcImg = ArrayImgs.bytes(src, srcIntervalDimensions);
 			final ArrayImg<ByteType, ByteArray> dstImg = ArrayImgs.bytes(dst, dstIntervalDimensions);
 

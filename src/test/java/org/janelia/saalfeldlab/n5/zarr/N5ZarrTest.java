@@ -252,10 +252,10 @@ public class N5ZarrTest extends AbstractN5Test {
 		final int[] dstBlockSize = new int[]{3, 3};
 		final int nBytes = 1;
 		final int nBits = 0;
-		final byte[] fillValue = new byte[]{0};
+		final byte[] fillValue = new byte[]{99};
 
 		final byte[] dst = N5ZarrWriter.padCrop(src, srcBlockSize, dstBlockSize, nBytes, nBits, fillValue);
-		assertArrayEquals(new byte[]{1, 1, 0, 1, 1, 0, 0, 0, 0}, dst);
+		assertArrayEquals(new byte[]{1, 1, 99, 1, 1, 99, 99, 99, 99}, dst);
 	}
 
 	@Override
