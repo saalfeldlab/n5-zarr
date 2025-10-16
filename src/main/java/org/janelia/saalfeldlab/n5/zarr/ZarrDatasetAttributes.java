@@ -30,7 +30,11 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-
+import org.janelia.saalfeldlab.n5.codec.BlockCodecInfo;
+import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
+import org.janelia.saalfeldlab.n5.codec.RawBlockCodecInfo;
+import org.janelia.saalfeldlab.n5.shardstuff.DatasetAccess;
+import org.janelia.saalfeldlab.n5.shardstuff.ShardedDatasetAccess;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -43,6 +47,8 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 	protected final transient byte[] fillBytes;
 	protected final transient String dimensionSeparator;
 
+	private transient final DatasetAccess<?> access;
+
 	public ZarrDatasetAttributes(
 			final long[] dimensions,
 			final int[] blockSize,
@@ -53,10 +59,16 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final String dimensionSeparator ) {
 
 		super(dimensions, blockSize, dType.getDataType(), compression);
+
 		this.dType = dType;
 		this.isRowMajor = isRowMajor;
 		this.fillBytes = dType.createFillBytes(fill_value);
 		this.dimensionSeparator = dimensionSeparator;
+
+		final ShardedDatasetAccess<?> shardAccess = ShardedDatasetAccess.create(
+				getDataType(), blockSize,
+				defaultBlockCodecInfo(), new DataCodecInfo[]{compression});
+		access = shardAccess;
 	}
 
 	public ZarrDatasetAttributes(
@@ -68,6 +80,11 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final String fill_value) {
 
 		this( dimensions, blockSize, dType, compression, isRowMajor, fill_value, ".");
+	}
+
+	protected BlockCodecInfo defaultBlockCodecInfo() {
+
+		return new RawBlockCodecInfo();
 	}
 
 	public boolean isRowMajor() {
@@ -87,5 +104,35 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 
 	public String getDimensionSeparator() {
 		return dimensionSeparator;
+	}
+
+	public String relativeBlockPath(long... gridPosition) {
+
+		final StringBuilder pathStringBuilder = new StringBuilder();
+		if (isRowMajor) {
+			pathStringBuilder.append(gridPosition[gridPosition.length - 1]);
+			for (int i = gridPosition.length - 2; i >= 0; --i) {
+				pathStringBuilder.append(dimensionSeparator);
+				pathStringBuilder.append(gridPosition[i]);
+			}
+		} else {
+			pathStringBuilder.append(gridPosition[0]);
+			for (int i = 1; i < gridPosition.length; ++i) {
+				pathStringBuilder.append(dimensionSeparator);
+				pathStringBuilder.append(gridPosition[i]);
+			}
+		}
+
+		return pathStringBuilder.toString();
+	}
+
+	/**
+	 * Get the {@link BlockCodecInfo} for this dataset.
+	 *
+	 * @return the {@code BlockCodecInfo} for this dataset
+	 */
+	public <T> DatasetAccess<T> getDatasetAccess() {
+
+		return (DatasetAccess<T>)access;
 	}
 }

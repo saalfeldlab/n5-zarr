@@ -28,9 +28,6 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.AbstractMap.SimpleImmutableEntry;
@@ -42,7 +39,9 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
-import org.janelia.saalfeldlab.n5.codec.Codec;
+import org.janelia.saalfeldlab.n5.codec.DataCodec;
+import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
+import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 
 import org.janelia.saalfeldlab.n5.serialization.NameConfig;
@@ -57,7 +56,8 @@ import com.google.gson.JsonParseException;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  *
  */
-public interface ZarrV3Compressor extends Codec.BytesCodec {
+@NameConfig.Prefix("zarr-compressor")
+public interface ZarrV3Compressor extends DataCodecInfo, DataCodec {
 
 	/*
 	 * idiotic stream based initialization because Java cannot have static
@@ -68,9 +68,10 @@ public interface ZarrV3Compressor extends Codec.BytesCodec {
 					new SimpleImmutableEntry<>("zlib", Zlib.class))
 			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-	public static ZarrV3Compressor fromCompression(final Compression compression) {
+	public static ZarrV3Compressor fromCompression(final DataCodecInfo compression) {
 
-		// Currently (Jan 2025), zarr 3 only supports Blosc and Zstandard compression
+		// Currently (Oct 2025), zarr 3 only officially supports Blosc and Zstandard compression
+		// but let's make as much work as we can
 		try {
 			if (compression instanceof BloscCompression) {
 				return new Blosc((BloscCompression) compression);
@@ -86,16 +87,23 @@ public interface ZarrV3Compressor extends Codec.BytesCodec {
 	}
 
 	@Override
-	public default OutputStream encode(final OutputStream in) throws IOException {
+	default ReadData encode(final ReadData in) {
     	return getCompression().encode(in);
     }
 
 	@Override
-	public default InputStream decode(final InputStream in) throws IOException {
+	 default ReadData decode(final ReadData in) {
     	return getCompression().decode(in);
     }
 
-    public Compression getCompression();
+	@Override
+	default DataCodec create() {
+		return this;
+	}
+
+    Compression getCompression();
+
+    String getType();
 
 	@NameConfig.Name("zstd")
 	public static class Zstandard implements ZarrV3Compressor {
@@ -166,7 +174,8 @@ public interface ZarrV3Compressor extends Codec.BytesCodec {
 		@NameConfig.Parameter
 		private final int typesize;
 
-		private final transient int nthreads;
+		@NameConfig.Parameter
+		private final int nthreads;
 
 		public Blosc() {
 			this.cname = "zstd";

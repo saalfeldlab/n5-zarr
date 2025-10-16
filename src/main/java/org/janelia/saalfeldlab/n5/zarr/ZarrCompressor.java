@@ -91,36 +91,6 @@ public interface ZarrCompressor {
 		}
 	}
 
-	// @Override
-	// public default String getType() {
-	//
-	// return getCompression().getType();
-	// }
-	//
-	// @Override
-	// default BlockReader getReader() {
-	//
-	// return getCompression().getReader();
-	// }
-	//
-	// @Override
-	// default BlockWriter getWriter() {
-	//
-	// return getCompression().getWriter();
-	// }
-
-	// @Override
-	// default InputStream decode(final InputStream in) throws IOException {
-	//
-	// return getCompression().decode(in);
-	// }
-	//
-	// @Override
-	// default OutputStream encode(OutputStream out) throws IOException {
-	//
-	// return getCompression().encode(out);
-	// }
-
 	public Compression getCompression();
 
 	public static class Zstandard implements ZarrCompressor {

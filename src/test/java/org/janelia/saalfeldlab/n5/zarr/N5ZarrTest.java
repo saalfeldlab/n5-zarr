@@ -100,7 +100,7 @@ import net.imglib2.view.Views;
  */
 public class N5ZarrTest extends AbstractN5Test {
 
-	static private final String testZarrDatasetName = "/test/data";
+	static private final String testZarrDatasetName = "test/data";
 
 	public static KeyValueAccess createKeyValueAccess() {
 		return new FileSystemKeyValueAccess(FileSystems.getDefault());
@@ -398,12 +398,12 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	}
 
-	@Test
-	@Ignore
-	@Override
-	public void testWriteReadByteBlockMultipleCodecs() {
-		// not yet supported
-	}
+//	@Test
+//	@Ignore
+//	@Override
+//	public void testWriteReadByteBlockMultipleCodecs() {
+//		// not yet supported
+//	}
 
 	@Test
 	@Override
@@ -701,7 +701,8 @@ public class N5ZarrTest extends AbstractN5Test {
 				new int[]{1, 2, 3},
 				DataType.UINT16,
 				new RawCompression());
-		final String zarrayLocation = n5.keyValueAccess.compose(n5.uri, testZarrDatasetName, ".zarray");
+
+		final String zarrayLocation = n5.getKeyValueAccess().compose(n5.getURI(), testZarrDatasetName, ".zarray");
 		final LockedChannel zarrayChannel = n5.keyValueAccess.lockForReading(zarrayLocation);
 		final JSONParser jsonParser = new JSONParser();
 		try (Reader reader = zarrayChannel.newReader()) {

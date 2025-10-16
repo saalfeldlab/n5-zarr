@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
-import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -39,23 +38,16 @@ import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
+import org.janelia.saalfeldlab.n5.codec.BlockCodecInfo;
+import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
+import org.janelia.saalfeldlab.n5.codec.RawBlockCodecInfo;
 import org.janelia.saalfeldlab.n5.N5URI;
-import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.ShardedDatasetAttributes;
-import org.janelia.saalfeldlab.n5.codec.RawBytes;
-import org.janelia.saalfeldlab.n5.codec.Codec;
-import org.janelia.saalfeldlab.n5.codec.N5BlockCodec;
-import org.janelia.saalfeldlab.n5.shard.ShardParameters;
-import org.janelia.saalfeldlab.n5.shard.ShardingCodec;
-import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
-import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkPad;
-import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
-import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 
 /**
  * Zarr v3 {@link KeyValueWriter} implementation.
@@ -155,17 +147,28 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			final long[] dimensions,
 			final int[] blockSize,
 			final DataType dataType,
-			final Compression compression) throws N5Exception {
+			final BlockCodecInfo blockCodecInfo,
+			final DataCodecInfo[] dataCodecInfos) {
 
 		createDataset(datasetPath,
-				new DatasetAttributes(dimensions, null, blockSize, dataType,
-				new RawBytes(), compression));
+				new ZarrV3DatasetAttributes(dimensions, blockSize, dataType, blockCodecInfo, dataCodecInfos));
+	}
+
+	@Override
+	public void createDataset(
+			final String datasetPath,
+			final long[] dimensions,
+			final int[] blockSize,
+			final DataType dataType,
+			final DataCodecInfo... dataCodecInfos) {
+
+		createDataset(datasetPath, dimensions, blockSize, dataType, new RawBlockCodecInfo(), dataCodecInfos);
 	}
 
 	@Override
 	public void createDataset(
 			final String path,
-			final DatasetAttributes datasetAttributes) throws N5Exception {
+			final DatasetAttributes datasetAttributes) {
 
 		final String normalPath = N5URI.normalizeGroupPath(path);
 		boolean wasGroup = false;
@@ -196,7 +199,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 		// These three lines are preferable to setDatasetAttributes because they
 		// are more efficient wrt caching
-		final ZarrV3DatasetAttributes zarray = createZArrayAttributes(datasetAttributes);
+		final ZarrV3DatasetAttributes zarray = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator);
 		final JsonElement attributes = gson.toJsonTree(zarray);
 		writeAttributes(normalPath, attributes);
 	}
@@ -205,99 +208,60 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 	public <T> void writeBlock(final String path, final DatasetAttributes datasetAttributes,
 			final DataBlock<T> dataBlock) throws N5Exception {
 
-		ZarrV3DatasetAttributes zarrAttributes = createZArrayAttributes(datasetAttributes);
-		CachedGsonKeyValueN5Writer.super.writeBlock(path, zarrAttributes,
-				padBlockIfNeeded(zarrAttributes, dataBlock));
+		ZarrV3DatasetAttributes zarrAttributes = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator);
+
+		// TODO the codec should handle padding?
+		CachedGsonKeyValueN5Writer.super.writeBlock(path, zarrAttributes, dataBlock);
 	}
 
-	public <T> DataBlock<T> padBlockIfNeeded(
-			final ZarrV3DatasetAttributes datasetAttributes,
-			final DataBlock<T> dataBlock) throws N5Exception {
+//	public <T> DataBlock<T> padBlockIfNeeded(
+//			final ZarrV3DatasetAttributes datasetAttributes,
+//			final DataBlock<T> dataBlock) throws N5Exception {
+//
+//		final int[] blockSize = datasetAttributes.getBlockSize();
+//		if (!Arrays.equals(blockSize, dataBlock.getSize())) {
+//
+//			@SuppressWarnings("unchecked")
+//			final DataBlock<T> paddedDataBlock = (DataBlock<T>)datasetAttributes.getDataType()
+//				.createDataBlock(blockSize, dataBlock.getGridPosition());
+//
+//			ChunkPad.padDataBlock(dataBlock, paddedDataBlock);
+//			return paddedDataBlock;
+//		}
+//
+//		return dataBlock;
+//	}
 
-		final int[] blockSize = datasetAttributes.getBlockSize();
-		if (!Arrays.equals(blockSize, dataBlock.getSize())) {
-
-			@SuppressWarnings("unchecked")
-			final DataBlock<T> paddedDataBlock = (DataBlock<T>)datasetAttributes.getDataType()
-				.createDataBlock(blockSize, dataBlock.getGridPosition());
-
-			ChunkPad.padDataBlock(dataBlock, paddedDataBlock);
-			return paddedDataBlock;
-		}
-
-		return dataBlock;
-	}
-
-	protected ZarrV3DatasetAttributes createZArrayAttributes(final DatasetAttributes datasetAttributes) {
-
-		if (datasetAttributes instanceof ZarrV3DatasetAttributes)
-			return (ZarrV3DatasetAttributes)datasetAttributes;
-
-		boolean sharded = datasetAttributes.getArrayCodec() instanceof ShardingCodec;
-		final long[] shape = datasetAttributes.getDimensions().clone();
-
-		final int[] chunkShape = sharded ?
-				datasetAttributes.getShardSize() :
-				datasetAttributes.getBlockSize().clone();
-
-		final ChunkAttributes chunkAttrs = new ChunkAttributes(
-				new RegularChunkGrid(chunkShape),
-				new DefaultChunkKeyEncoding(dimensionSeparator));
-
-		return new ZarrV3DatasetAttributes(shape, chunkAttrs,
-				ZarrV3DataType.fromDataType(datasetAttributes.getDataType()), "0", null,
-				buildCodecs(datasetAttributes));
-	}
-
-	private static Codec[] buildCodecs(DatasetAttributes datasetAttributes) {
-
-		if ( datasetAttributes.getArrayCodec() instanceof ShardingCodec ) {
-			ShardingCodec sc = ( ShardingCodec ) datasetAttributes.getArrayCodec();
-
-			if( Arrays.stream(sc.getCodecs()).anyMatch(x -> { return x instanceof RawCompression; })) {
-
-				Codec[] oldCodecs = sc.getCodecs();
-				Codec[] codecs;
-				if (oldCodecs.length == 1)
-					codecs = new Codec[] { sc.getArrayCodec() };
-				else {
-					codecs = ZarrV3DatasetAttributes.prependArrayToBytes(
-							sc.getArrayCodec(),
-							ZarrV3DatasetAttributes.removeRawCompression(sc.getCodecs()));
-				}
-
-				sc = new ShardingCodec(
-						sc.getBlockSize(),
-						codecs,
-						sc.getIndexCodecs(),
-						sc.getIndexLocation());
-			}
-			return new Codec[] { sc };
-
-		} else
-			return prependArrayToBytes(
-					convert(datasetAttributes.getArrayCodec()),
-					datasetAttributes.getCodecs());
-	}
-
-	private static Codec.ArrayCodec convert(Codec.ArrayCodec arrayCodec) {
-
-		if (arrayCodec instanceof RawBytes)
-			return (RawBytes) arrayCodec;
-		else if (arrayCodec instanceof N5BlockCodec)
-			return new RawBytes(((N5BlockCodec) arrayCodec).getByteOrder());
-		else
-			return new RawBytes();
-
-	}
-
-	private static Codec[] prependArrayToBytes(Codec.ArrayCodec arrayToBytes, Codec[] codecs) {
-
-		final Codec[] out = new Codec[codecs.length + 1];
-		out[0] = arrayToBytes;
-		System.arraycopy(codecs, 0, out, 1, codecs.length);
-		return out;
-	}
+//	private static Codec[] buildCodecs(DatasetAttributes datasetAttributes) {
+//
+//		if ( datasetAttributes.getArrayCodec() instanceof ShardingCodec ) {
+//			ShardingCodec sc = ( ShardingCodec ) datasetAttributes.getArrayCodec();
+//
+//			if( Arrays.stream(sc.getCodecs()).anyMatch(x -> { return x instanceof RawCompression; })) {
+//
+//				Codec[] oldCodecs = sc.getCodecs();
+//				Codec[] codecs;
+//				if (oldCodecs.length == 1)
+//					codecs = new Codec[] { sc.getArrayCodec() };
+//				else {
+//					codecs = ZarrV3DatasetAttributes.prependArrayToBytes(
+//							sc.getArrayCodec(),
+//							ZarrV3DatasetAttributes.removeRawCompression(sc.getCodecs()));
+//				}
+//
+//				sc = new ShardingCodec(
+//						sc.getBlockSize(),
+//						codecs,
+//						sc.getIndexCodecs(),
+//						sc.getIndexLocation());
+//			}
+//			return new Codec[] { sc };
+//
+//		} else
+//			return prependArrayToBytes(
+//					convert(datasetAttributes.getArrayCodec()),
+//					datasetAttributes.getCodecs());
+//	}
 
 	public <T> void setRawAttribute(final String groupPath, final String attributePath, final T attribute)
 			throws N5Exception {
@@ -308,8 +272,8 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 	@Override
 	public <T> void setAttribute(final String groupPath, final String attributePath, final T attribute)
 			throws N5Exception {
-
-		setRawAttribute(groupPath, mapAttributeKey(attributePath), attribute);
+		final String normalizedAttributePath = N5URI.normalizeAttributePath(attributePath);
+		setRawAttribute(groupPath, mapAttributeKey(normalizedAttributePath), attribute);
 	}
 
 	public void setRawAttributes(final String path, final Map<String, ?> attributes) throws N5Exception {
@@ -358,6 +322,24 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		final JsonObject rootObj = root.getAsJsonObject();
 		rootObj.add(ZarrV3Node.ATTRIBUTES_KEY, attributes);
 		setRawAttributes(path, rootObj);
+	}
+
+	@Override
+	public <T> T removeAttribute(final String pathName, final String key, final Class<T> cls) throws N5Exception {
+
+		final String normalPath = N5URI.normalizeGroupPath(pathName);
+		final String normalKey = N5URI.normalizeAttributePath(ZarrV3Node.ATTRIBUTES_KEY + "/" + key);
+		final JsonElement attributes = getRawAttributes(normalPath);
+		final T obj;
+		try {
+			obj = GsonUtils.removeAttribute(attributes, normalKey, cls, getGson());
+		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
+			throw new N5Exception.N5ClassCastException(e);
+		}
+		if (obj != null) {
+			writeAttributes(normalPath, attributes);
+		}
+		return obj;
 	}
 
 	@Override
