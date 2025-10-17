@@ -604,40 +604,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		}
 	}
 
-	// TODO hopefully parent readBlock should work once codec situation is good?
-
-//	@Override
-//	public DataBlock<?> readBlock(
-//			final String pathName,
-//			final DatasetAttributes datasetAttributes,
-//			final long... gridPosition) throws N5Exception {
-//
-//		final ZarrDatasetAttributes zarrDatasetAttributes;
-//		if (datasetAttributes instanceof ZarrDatasetAttributes)
-//			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
-//		else
-//			zarrDatasetAttributes = (ZarrDatasetAttributes)getDatasetAttributes(pathName);
-//
-//		final String absolutePath = keyValueAccess
-//				.compose(
-//						uri,
-//						pathName,
-//						getZarrDataBlockPath(
-//								gridPosition,
-//								zarrDatasetAttributes.getDimensionSeparator(),
-//								zarrDatasetAttributes.isRowMajor()));
-//
-//		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
-//			return readBlock(lockedChannel.newInputStream(), zarrDatasetAttributes, gridPosition);
-//		} catch (final N5Exception.N5NoSuchKeyException e) {
-//			return null;
-//		} catch (final Throwable e) {
-//			throw new N5IOException(
-//					"Failed to read block " + Arrays.toString(gridPosition) + " from dataset " + pathName,
-//					e);
-//		}
-//	}
-
 //	/**
 //	 * Reads a {@link DataBlock} from an {@link InputStream}.
 //	 *
@@ -702,46 +668,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 //					"Only Blosc compression or algorithms that use DefaultBlockReader are supported.");
 //		}
 //		return dataBlock;
-//	}
-
-//	/**
-//	 * Constructs the path for a data block in a dataset at a given grid position.
-//	 *
-//	 * The returned path is
-//	 *
-//	 * <pre>
-//	 * $gridPosition[n]$dimensionSeparator$gridPosition[n-1]$dimensionSeparator[...]$dimensionSeparator$gridPosition[0]
-//	 * </pre>
-//	 *
-//	 * This is the file into which the data block will be stored.
-//	 *
-//	 * @param gridPosition
-//	 * @param dimensionSeparator
-//	 * @param isRowMajor
-//	 *
-//	 * @return
-//	 */
-//	protected static String getZarrDataBlockPath(
-//			final long[] gridPosition,
-//			final String dimensionSeparator,
-//			final boolean isRowMajor) {
-//
-//		final StringBuilder pathStringBuilder = new StringBuilder();
-//		if (isRowMajor) {
-//			pathStringBuilder.append(gridPosition[gridPosition.length - 1]);
-//			for (int i = gridPosition.length - 2; i >= 0; --i) {
-//				pathStringBuilder.append(dimensionSeparator);
-//				pathStringBuilder.append(gridPosition[i]);
-//			}
-//		} else {
-//			pathStringBuilder.append(gridPosition[0]);
-//			for (int i = 1; i < gridPosition.length; ++i) {
-//				pathStringBuilder.append(dimensionSeparator);
-//				pathStringBuilder.append(gridPosition[i]);
-//			}
-//		}
-//
-//		return pathStringBuilder.toString();
 //	}
 
 	@Override

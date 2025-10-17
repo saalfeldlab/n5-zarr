@@ -50,6 +50,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.AbstractN5Test;
+import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
@@ -68,6 +69,7 @@ import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -256,6 +258,41 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		final byte[] dst = N5ZarrWriter.padCrop(src, srcBlockSize, dstBlockSize, nBytes, nBits, fillValue);
 		assertArrayEquals(new byte[]{1, 1, 99, 1, 1, 99, 99, 99, 99}, dst);
+	}
+
+	@Test
+	public void testBlocksPaddedWithFillValue() {
+
+		final String dsetPath = "";
+		final long[] dimensions = new long[]{4, 3};
+		final int[] blockSize = new int[]{3, 3};
+		final String fillValue = "111";
+		final DType dtype = new DType(DataType.INT8);
+
+		final long[] pos = new long[]{1, 0};
+		final byte[] data = new byte[]{1, 2, 3};
+		final byte[] expectedPaddedData = new byte[]{
+				1, 111, 111,
+				2, 111, 111,
+				3, 111, 111};
+
+		int[] croppedBlockSize = {1, 3};
+		DataBlock<byte[]> blk10 = new ByteArrayDataBlock(croppedBlockSize, pos, data);
+
+		ZarrDatasetAttributes attributes = new ZarrDatasetAttributes(dimensions, blockSize, dtype, new RawCompression(), false, fillValue);
+		try (final N5Writer n5 = createTempN5Writer()) {
+
+			n5.createDataset(dsetPath, attributes);
+			n5.writeBlock(dsetPath, attributes, blk10);
+
+			final KeyValueAccess kva = ((ZarrKeyValueWriter)n5).getKeyValueAccess();
+
+			ReadData rd = kva.createReadData(kva.compose(n5.getURI(), "1.0"));
+			assertArrayEquals(expectedPaddedData, rd.allBytes());
+
+			DataBlock<byte[]> readBlock = n5.readBlock(dsetPath, attributes, pos);
+			assertArrayEquals(expectedPaddedData, readBlock.getData());
+		}
 	}
 
 	@Override

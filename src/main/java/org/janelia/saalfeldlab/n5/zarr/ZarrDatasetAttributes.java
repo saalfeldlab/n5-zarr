@@ -31,10 +31,7 @@ package org.janelia.saalfeldlab.n5.zarr;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.codec.BlockCodecInfo;
-import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
-import org.janelia.saalfeldlab.n5.codec.RawBlockCodecInfo;
-import org.janelia.saalfeldlab.n5.shardstuff.DatasetAccess;
-import org.janelia.saalfeldlab.n5.shardstuff.ShardedDatasetAccess;
+import org.janelia.saalfeldlab.n5.zarr.codec.PaddedRawBlockCodecInfo;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -47,8 +44,6 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 	protected final transient byte[] fillBytes;
 	protected final transient String dimensionSeparator;
 
-	private transient final DatasetAccess<?> access;
-
 	public ZarrDatasetAttributes(
 			final long[] dimensions,
 			final int[] blockSize,
@@ -58,17 +53,13 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final String fill_value,
 			final String dimensionSeparator ) {
 
-		super(dimensions, blockSize, dType.getDataType(), compression);
-
+		super(dimensions, blockSize, dType.getDataType(),
+				new PaddedRawBlockCodecInfo(dType.getOrder(), dType.createFillBytes(fill_value)),
+				compression);
 		this.dType = dType;
 		this.isRowMajor = isRowMajor;
 		this.fillBytes = dType.createFillBytes(fill_value);
 		this.dimensionSeparator = dimensionSeparator;
-
-		final ShardedDatasetAccess<?> shardAccess = ShardedDatasetAccess.create(
-				getDataType(), blockSize,
-				defaultBlockCodecInfo(), new DataCodecInfo[]{compression});
-		access = shardAccess;
 	}
 
 	public ZarrDatasetAttributes(
@@ -84,7 +75,7 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 
 	protected BlockCodecInfo defaultBlockCodecInfo() {
 
-		return new RawBlockCodecInfo();
+		return new PaddedRawBlockCodecInfo(getDType().getOrder(), getFillBytes());
 	}
 
 	public boolean isRowMajor() {
@@ -126,13 +117,4 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		return pathStringBuilder.toString();
 	}
 
-	/**
-	 * Get the {@link BlockCodecInfo} for this dataset.
-	 *
-	 * @return the {@code BlockCodecInfo} for this dataset
-	 */
-	public <T> DatasetAccess<T> getDatasetAccess() {
-
-		return (DatasetAccess<T>)access;
-	}
 }

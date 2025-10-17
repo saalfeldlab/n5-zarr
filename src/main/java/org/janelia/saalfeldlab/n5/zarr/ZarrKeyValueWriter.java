@@ -26,7 +26,6 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.Writer;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -35,10 +34,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.Compression;
-import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
@@ -475,71 +472,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		if (cacheMeta())
 			cache.updateCacheInfo(normalGroupPath, ZATTRS_FILE, attributes);
 	}
-	
-	// TODO need to handle padding
-	// should do this with codecs
-
-//	/**
-//	 * Writes a {@link DataBlock} into an {@link OutputStream}.
-//	 *
-//	 * @param out the output stream
-//	 * @param datasetAttributes dataset attributes
-//	 * @param dataBlock the data block
-//	 * @throws IOException the exception
-//	 */
-//	public static <T> DataBlock<T> padBlock(
-//			final ZarrDatasetAttributes datasetAttributes,
-//			final DataBlock<T> dataBlock) throws IOException {
-//
-//		final int[] blockSize = datasetAttributes.getBlockSize();
-//		final DType dType = datasetAttributes.getDType();
-//
-//		if (!Arrays.equals(blockSize, dataBlock.getSize())) {
-//	
-//			final byte[] padCropped = padCrop(
-//					dataBlock.toByteBuffer().array(),
-//					dataBlock.getSize(),
-//					blockSize,
-//					dType.getNBytes(),
-//					dType.getNBits(),
-//					datasetAttributes.getFillBytes());
-//
-//			final DataBlock<byte[]> padCroppedDataBlock = new ByteArrayDataBlock(
-//					blockSize,
-//					dataBlock.getGridPosition(),
-//					padCropped);
-//
-//		} else {
-//
-//			return dataBlock;
-//		}
-//	}
-//
-//	@Override
-//	public <T> void writeBlock(
-//			final String pathName,
-//			final DatasetAttributes datasetAttributes,
-//			final DataBlock<T> dataBlock) throws N5Exception {
-//
-//		final ZarrDatasetAttributes zarrDatasetAttributes;
-//		if (datasetAttributes instanceof ZarrDatasetAttributes)
-//			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
-//		else
-//			zarrDatasetAttributes = (ZarrDatasetAttributes)getDatasetAttributes(pathName);
-//
-//		final String normalPath = N5URI.normalizeGroupPath(pathName);
-//
-//
-//
-//		try {
-//			final DataBlock<T> blockToWrite = padBlock(zarrDatasetAttributes, dataBlock);
-//
-//		} catch (final Throwable e) {
-//			throw new N5IOException(
-//					"Failed to write block " + Arrays.toString(dataBlock.getGridPosition()) + " into dataset " + path,
-//					e);
-//		}
-//	}
 
 	@Override
 	public boolean deleteBlock(
