@@ -264,7 +264,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final ZArrayAttributes zarray = createZArrayAttributes(datasetAttributes);
 		final HashMap<String, Object> zarrayMap = zarray.asMap();
 		final JsonElement attributes = gson.toJsonTree(zarrayMap);
-		writeJsonResource(normalPath, ZARRAY_FILE, zarrayMap);
+		writeJson(normalPath, ZARRAY_FILE, attributes);
 
 		if( wasGroup )
 			deleteJsonResource(normalPath, ZGROUP_FILE );
@@ -319,7 +319,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			return false;
 
 		if (key.equals("/")) {
-			writeJsonResource(normalPath, ZATTRS_FILE, JsonNull.INSTANCE);
+			writeJson(normalPath, ZATTRS_FILE, JsonNull.INSTANCE);
 			if (cacheMeta())
 				cache.updateCacheInfo(normalPath, ZATTRS_FILE, JsonNull.INSTANCE);
 
@@ -333,7 +333,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			if (cacheMeta())
 				cache.updateCacheInfo(normalPath, ZATTRS_FILE, attributes);
 
-			writeJsonResource(normalPath, ZATTRS_FILE, attributes);
+			writeJson(normalPath, ZATTRS_FILE, attributes);
 			return true;
 		}
 		return false;
@@ -356,7 +356,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			if (cacheMeta())
 				cache.updateCacheInfo(normalPath, ZATTRS_FILE, attributes);
 
-			writeJsonResource(normalPath, ZATTRS_FILE, attributes);
+			writeJson(normalPath, ZATTRS_FILE, attributes);
 		}
 		return obj;
 	}
@@ -419,6 +419,24 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		}
 	}
 
+	protected void writeJson(
+			final String normalPath,
+			final String jsonName,
+			final JsonElement attributes) throws N5Exception {
+
+		if (attributes == null)
+			return;
+
+		final String absolutePath = keyValueAccess.compose(uri, normalPath, jsonName);
+		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
+			final Writer writer = lock.newWriter();
+			writer.append(attributes.toString());
+			writer.flush();
+		} catch (final Throwable e) {
+			throw new N5IOException("Failed to write " + absolutePath, e);
+		}
+	}
+
 	protected void writeJsonResource(
 			final String normalPath,
 			final String jsonName,
@@ -456,7 +474,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		if (attributes == null)
 			return;
 
-		writeJsonResource(normalGroupPath, ZGROUP_FILE, attributes);
+		writeJson(normalGroupPath, ZGROUP_FILE, attributes);
 		if (cacheMeta())
 			cache.updateCacheInfo(normalGroupPath, ZGROUP_FILE, attributes);
 	}
@@ -468,9 +486,29 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		if (attributes == null)
 			return;
 
-		writeJsonResource(normalGroupPath, ZATTRS_FILE, attributes);
+		writeJson(normalGroupPath, ZATTRS_FILE, attributes);
 		if (cacheMeta())
 			cache.updateCacheInfo(normalGroupPath, ZATTRS_FILE, attributes);
+	}
+
+	@Override
+	public <T> void writeBlocks(
+					final String datasetPath,
+					final DatasetAttributes datasetAttributes,
+					final DataBlock<T>... dataBlocks) {
+
+		final DatasetAttributes zarrDsetAttrs = createZArrayAttributes(datasetAttributes).getDatasetAttributes();
+		CachedGsonKeyValueN5Writer.super.writeBlocks( datasetPath, zarrDsetAttrs, dataBlocks);
+	}
+
+	@Override
+	public <T> void writeBlock(
+			final String path,
+			final DatasetAttributes datasetAttributes,
+			final DataBlock<T> dataBlock) {
+
+		final DatasetAttributes zarrDsetAttrs = createZArrayAttributes(datasetAttributes).getDatasetAttributes();
+		CachedGsonKeyValueN5Writer.super.writeBlock( path, zarrDsetAttrs, dataBlock);
 	}
 
 	@Override
