@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.Compression;
+import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
@@ -121,7 +122,10 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 				mergeAttributes,
 				cacheAttributes,
 				false);
+
+		validateDimensionSeparator(dimensionSeparator);
 		this.dimensionSeparator = dimensionSeparator;
+
 		Version version = null;
 		if (exists("/")) {
 			version = getVersion();
@@ -133,6 +137,15 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		if (version == null || version == VERSION_ZERO) {
 			createGroup("/");
 			setVersion("/");
+		}
+	}
+
+	private void validateDimensionSeparator(final String dimSep) {
+
+		if (!(dimSep.equals(".") || dimSep.equals("/"))) {
+			throw new N5Exception("Invalid dimension_separator.\n" +
+					"Must be \".\" or \"/\", but found: \""
+					+ dimSep + "\"");
 		}
 	}
 
