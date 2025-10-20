@@ -28,7 +28,6 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
-import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,6 +38,7 @@ import java.util.List;
 import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.n5.zarr.ZarrCompressor.Raw;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -49,10 +49,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
-import com.google.gson.TypeAdapter;
 import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
 
 
 /**
@@ -277,16 +274,21 @@ public class ZArrayAttributes {
 			jsonObject.addProperty("zarr_format", src.getZarrFormat());
 			jsonObject.add("shape", context.serialize(src.getShape()));
 			jsonObject.add("chunks", context.serialize(src.getChunks()));
-
 			jsonObject.add("dtype", context.serialize(src.getDType().toString()));
-			jsonObject.add("compressor", context.serialize(src.getCompressor()));
-			jsonObject.addProperty("fill_value", src.getFillValue());
+			jsonObject.add("fill_value", src.fill_value);
 			jsonObject.addProperty("order", src.getOrder());
 			jsonObject.addProperty("dimension_separator", src.getDimensionSeparator());
 
+			if( src.getCompressor() instanceof RawCompression ||
+				src.getCompressor() instanceof Raw  ) {
+				jsonObject.add("compressor", JsonNull.INSTANCE);
+			} else {
+				jsonObject.add("compressor", context.serialize(src.getCompressor()));
+			}
+
 			Collection<Filter> filters = src.getFilters();
 			if (filters.isEmpty())
-				jsonObject.add("filters", context.serialize(EMPTY_FILTERS));
+				jsonObject.add("filters", JsonNull.INSTANCE);
 			else
 				jsonObject.add("filters", context.serialize(filters));
 
@@ -299,17 +301,4 @@ public class ZArrayAttributes {
 
 	public static class EmptyZarrFilters { }
 
-	public static TypeAdapter<EmptyZarrFilters> emptyFiltersAdapter = new TypeAdapter<EmptyZarrFilters>() {
-
-		@Override public void write(JsonWriter out, EmptyZarrFilters value) throws IOException {
-			final boolean serializeNull = out.getSerializeNulls();
-			out.setSerializeNulls(true);
-			out.nullValue();
-			out.setSerializeNulls(serializeNull);
-		}
-
-		@Override public EmptyZarrFilters read(JsonReader in) {
-			return EMPTY_FILTERS;
-		}
-	};
 }

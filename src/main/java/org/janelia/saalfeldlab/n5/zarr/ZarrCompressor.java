@@ -299,18 +299,4 @@ public interface ZarrCompressor {
 		}
 	}
 
-	TypeAdapter<Raw> rawNullAdapter = new TypeAdapter<Raw>() {
-
-		@Override public void write(JsonWriter out, Raw value) throws IOException {
-			final boolean serializeNull = out.getSerializeNulls();
-			out.setSerializeNulls(true);
-			out.nullValue();
-			out.setSerializeNulls(serializeNull);
-		}
-
-		@Override public Raw read(JsonReader in) {
-
-			return new Raw();
-		}
-	};
 }
