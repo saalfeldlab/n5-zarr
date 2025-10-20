@@ -31,6 +31,7 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.Collections;
 
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Reader;
 import org.janelia.saalfeldlab.n5.Compression;
@@ -405,7 +406,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		try {
 			return GsonUtils.readAttribute(attributes, normalizedAttributePath, type, gson);
 		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
-			throw new N5Exception.N5ClassCastException(e);
+
+			if ( key.equals("filters") && attributes.getAsJsonObject().get("filters").isJsonNull())
+				return (T)Collections.EMPTY_LIST;
+			else
+				throw new N5Exception.N5ClassCastException(e);
 		}
 	}
 
@@ -755,6 +760,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		gsonBuilder.registerTypeHierarchyAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZArrayAttributes.class, ZArrayAttributes.jsonAdapter);
+		gsonBuilder.registerTypeAdapter(ZArrayAttributes.EmptyZarrFilters.class, ZArrayAttributes.emptyFiltersAdapter);
 		gsonBuilder.registerTypeHierarchyAdapter(Filter.class, Filter.jsonAdapter);
 		gsonBuilder.disableHtmlEscaping();
 

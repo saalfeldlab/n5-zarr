@@ -28,9 +28,11 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -47,7 +49,10 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import com.google.gson.TypeAdapter;
 import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 
 /**
@@ -209,8 +214,12 @@ public class ZArrayAttributes {
 		map.put(dTypeKey, dtype.toString());
 		map.put(fillValueKey, fill_value);
 		map.put(orderKey, order);
-		map.put(filtersKey, filters);
 		map.put(dimensionSeparatorKey, dimensionSeparator);
+
+		if (filters.isEmpty())
+			map.put(filtersKey, EMPTY_FILTERS);
+		else
+			map.put(filtersKey, filters);
 
 		// compression key is required, need to write json null
 		map.put(compressorKey, compressor instanceof RawCompression ? JsonNull.INSTANCE : compressor);
@@ -233,8 +242,16 @@ public class ZArrayAttributes {
 			final JsonObject obj = json.getAsJsonObject();
 			final JsonElement sepElem = obj.get("dimension_separator");
 			try {
-				final Collection<Filter> filters = context.deserialize(obj.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType());
+
 				final String typestr = context.deserialize(obj.get("dtype"), String.class);
+
+				JsonElement filterArr = obj.get("filters");
+				final Collection<Filter> filters;
+				if (filterArr.isJsonNull())
+					filters = Collections.EMPTY_LIST;
+				else
+					filters = context.deserialize(filterArr, TypeToken.getParameterized(Collection.class, Filter.class).getType());
+
 				final DType dType = new DType(typestr, filters);
 
 				return new ZArrayAttributes(
@@ -266,9 +283,33 @@ public class ZArrayAttributes {
 			jsonObject.addProperty("fill_value", src.getFillValue());
 			jsonObject.addProperty("order", src.getOrder());
 			jsonObject.addProperty("dimension_separator", src.getDimensionSeparator());
-			jsonObject.add("filters", context.serialize(src.getFilters()));
+
+			Collection<Filter> filters = src.getFilters();
+			if (filters.isEmpty())
+				jsonObject.add("filters", context.serialize(EMPTY_FILTERS));
+			else
+				jsonObject.add("filters", context.serialize(filters));
 
 			return jsonObject;
 		}
 	}
+
+	// dummy instance for serialization
+	private static EmptyZarrFilters EMPTY_FILTERS = new EmptyZarrFilters();
+
+	public static class EmptyZarrFilters { }
+
+	public static TypeAdapter<EmptyZarrFilters> emptyFiltersAdapter = new TypeAdapter<EmptyZarrFilters>() {
+
+		@Override public void write(JsonWriter out, EmptyZarrFilters value) throws IOException {
+			final boolean serializeNull = out.getSerializeNulls();
+			out.setSerializeNulls(true);
+			out.nullValue();
+			out.setSerializeNulls(serializeNull);
+		}
+
+		@Override public EmptyZarrFilters read(JsonReader in) {
+			return EMPTY_FILTERS;
+		}
+	};
 }
