@@ -34,7 +34,7 @@ import tensorstore as ts
 
 def read(path, driver='zarr3'):
     p={
-        'driver': 'zarr3',
+        'driver': driver,
         'kvstore': {'driver':'file', 'path':path},
         'context': {'cache_pool': {'total_bytes_limit': 100_000_000}},
         'recheck_cached_data':'open'
