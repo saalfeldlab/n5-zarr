@@ -10,7 +10,6 @@ import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.RawBlockCodecInfo;
 import org.janelia.saalfeldlab.n5.serialization.NameConfig;
 import org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes;
-import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DataType;
 
 @NameConfig.Name(value = PaddedRawBlockCodecInfo.TYPE)
 public class PaddedRawBlockCodecInfo implements BlockCodecInfo {
@@ -28,7 +27,7 @@ public class PaddedRawBlockCodecInfo implements BlockCodecInfo {
 
 		// consider better default for fill value?
 		// is 8 bytes enough?
-		this(ByteOrder.BIG_ENDIAN, new byte[8]);
+		this(ByteOrder.nativeOrder(), new byte[8]);
 	}
 
 	public PaddedRawBlockCodecInfo(final ByteOrder byteOrder, final byte[] fillBytes) {
@@ -52,7 +51,7 @@ public class PaddedRawBlockCodecInfo implements BlockCodecInfo {
 		return PaddedRawBlockCodecs.create(dataType, getByteOrder(),
 				attributes.getBlockSize(), DataCodec.concatenate(codecs), fillBytes);
 	}
-	
+
 	public ByteOrder getByteOrder() {
 		return byteOrder;
 	}
