@@ -509,7 +509,10 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 					final DatasetAttributes datasetAttributes,
 					final DataBlock<T>... dataBlocks) {
 
-		final DatasetAttributes zarrDsetAttrs = createZArrayAttributes(datasetAttributes).getDatasetAttributes();
+		// If already ZarrDatasetAttributes, use it directly to preserve fill value and other Zarr-specific properties
+		final DatasetAttributes zarrDsetAttrs = (datasetAttributes instanceof ZarrDatasetAttributes)
+				? datasetAttributes
+				: createZArrayAttributes(datasetAttributes).getDatasetAttributes();
 		CachedGsonKeyValueN5Writer.super.writeBlocks( datasetPath, zarrDsetAttrs, dataBlocks);
 	}
 
@@ -519,7 +522,10 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			final DatasetAttributes datasetAttributes,
 			final DataBlock<T> dataBlock) {
 
-		final DatasetAttributes zarrDsetAttrs = createZArrayAttributes(datasetAttributes).getDatasetAttributes();
+		// If already ZarrDatasetAttributes, use it directly to preserve fill value and other Zarr-specific properties
+		final DatasetAttributes zarrDsetAttrs = (datasetAttributes instanceof ZarrDatasetAttributes)
+				? datasetAttributes
+				: createZArrayAttributes(datasetAttributes).getDatasetAttributes();
 		CachedGsonKeyValueN5Writer.super.writeBlock( path, zarrDsetAttrs, dataBlock);
 	}
 

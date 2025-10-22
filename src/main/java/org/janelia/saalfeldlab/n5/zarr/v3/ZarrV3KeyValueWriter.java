@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
+import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -38,9 +39,6 @@ import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
-import org.janelia.saalfeldlab.n5.codec.BlockCodecInfo;
-import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
-import org.janelia.saalfeldlab.n5.codec.RawBlockCodecInfo;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 
@@ -147,22 +145,10 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			final long[] dimensions,
 			final int[] blockSize,
 			final DataType dataType,
-			final BlockCodecInfo blockCodecInfo,
-			final DataCodecInfo[] dataCodecInfos) {
+			final Compression compression) {
 
 		createDataset(datasetPath,
-				new ZarrV3DatasetAttributes(dimensions, blockSize, dataType, blockCodecInfo, dataCodecInfos));
-	}
-
-	@Override
-	public void createDataset(
-			final String datasetPath,
-			final long[] dimensions,
-			final int[] blockSize,
-			final DataType dataType,
-			final DataCodecInfo... dataCodecInfos) {
-
-		createDataset(datasetPath, dimensions, blockSize, dataType, new RawBlockCodecInfo(), dataCodecInfos);
+				new ZarrV3DatasetAttributes(dimensions, blockSize, dataType, compression));
 	}
 
 	@Override
@@ -199,7 +185,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 		// These three lines are preferable to setDatasetAttributes because they
 		// are more efficient wrt caching
-		final ZarrV3DatasetAttributes zarray = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator);
+		final ZarrV3DatasetAttributes zarray = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator, "0");
 		final JsonElement attributes = gson.toJsonTree(zarray);
 		writeAttributes(normalPath, attributes);
 	}
@@ -208,60 +194,9 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 	public <T> void writeBlock(final String path, final DatasetAttributes datasetAttributes,
 			final DataBlock<T> dataBlock) throws N5Exception {
 
-		ZarrV3DatasetAttributes zarrAttributes = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator);
-
-		// TODO the codec should handle padding?
+		ZarrV3DatasetAttributes zarrAttributes = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator, "0");
 		CachedGsonKeyValueN5Writer.super.writeBlock(path, zarrAttributes, dataBlock);
 	}
-
-//	public <T> DataBlock<T> padBlockIfNeeded(
-//			final ZarrV3DatasetAttributes datasetAttributes,
-//			final DataBlock<T> dataBlock) throws N5Exception {
-//
-//		final int[] blockSize = datasetAttributes.getBlockSize();
-//		if (!Arrays.equals(blockSize, dataBlock.getSize())) {
-//
-//			@SuppressWarnings("unchecked")
-//			final DataBlock<T> paddedDataBlock = (DataBlock<T>)datasetAttributes.getDataType()
-//				.createDataBlock(blockSize, dataBlock.getGridPosition());
-//
-//			ChunkPad.padDataBlock(dataBlock, paddedDataBlock);
-//			return paddedDataBlock;
-//		}
-//
-//		return dataBlock;
-//	}
-
-//	private static Codec[] buildCodecs(DatasetAttributes datasetAttributes) {
-//
-//		if ( datasetAttributes.getArrayCodec() instanceof ShardingCodec ) {
-//			ShardingCodec sc = ( ShardingCodec ) datasetAttributes.getArrayCodec();
-//
-//			if( Arrays.stream(sc.getCodecs()).anyMatch(x -> { return x instanceof RawCompression; })) {
-//
-//				Codec[] oldCodecs = sc.getCodecs();
-//				Codec[] codecs;
-//				if (oldCodecs.length == 1)
-//					codecs = new Codec[] { sc.getArrayCodec() };
-//				else {
-//					codecs = ZarrV3DatasetAttributes.prependArrayToBytes(
-//							sc.getArrayCodec(),
-//							ZarrV3DatasetAttributes.removeRawCompression(sc.getCodecs()));
-//				}
-//
-//				sc = new ShardingCodec(
-//						sc.getBlockSize(),
-//						codecs,
-//						sc.getIndexCodecs(),
-//						sc.getIndexLocation());
-//			}
-//			return new Codec[] { sc };
-//
-//		} else
-//			return prependArrayToBytes(
-//					convert(datasetAttributes.getArrayCodec()),
-//					datasetAttributes.getCodecs());
-//	}
 
 	public <T> void setRawAttribute(final String groupPath, final String attributePath, final T attribute)
 			throws N5Exception {

@@ -26,10 +26,10 @@
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.lang.reflect.Type;
+import java.nio.ByteOrder;
 import java.util.Arrays;
 
 import org.janelia.saalfeldlab.n5.DataBlock;
-import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
@@ -314,15 +314,14 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
 	protected static GsonBuilder addTypeAdapters(final GsonBuilder gsonBuilder) {
 
-		gsonBuilder.registerTypeAdapter(DataType.class, new DataType.JsonAdapter());
-		gsonBuilder.registerTypeAdapter(ZarrV3DatasetAttributes.class, ZarrV3DatasetAttributes.jsonAdapter);
-
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkGrid.class, NameConfigAdapter.getJsonAdapter(ChunkGrid.class));
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkKeyEncoding.class, NameConfigAdapter.getJsonAdapter(ChunkKeyEncoding.class));
 		gsonBuilder.registerTypeHierarchyAdapter(ChunkAttributes.class, ChunkAttributes.getJsonAdapter());
+		gsonBuilder.registerTypeHierarchyAdapter(CodecInfo.class, NameConfigAdapter.getJsonAdapter(CodecInfo.class));
 
 		gsonBuilder.registerTypeAdapter(ZarrV3Compressor.class, NameConfigAdapter.getJsonAdapter(ZarrV3Compressor.class));
-		gsonBuilder.registerTypeAdapter(CodecInfo.class, NameConfigAdapter.getJsonAdapter(CodecInfo.class));
+		gsonBuilder.registerTypeAdapter(ZarrV3DatasetAttributes.class, ZarrV3DatasetAttributes.jsonAdapter);
+		gsonBuilder.registerTypeAdapter(ByteOrder.class, ZarrV3DatasetAttributes.byteOrderAdapter);
 		gsonBuilder.disableHtmlEscaping();
 
 		return gsonBuilder;

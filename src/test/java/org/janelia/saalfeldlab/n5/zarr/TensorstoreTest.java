@@ -14,15 +14,23 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
+import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
+import org.janelia.saalfeldlab.n5.codec.RawBlockCodecInfo;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.shard.DefaultShardCodecInfo;
+import org.janelia.saalfeldlab.n5.shard.ShardIndex.IndexLocation;
+import org.janelia.saalfeldlab.n5.zarr.codec.PaddedRawBlockCodecInfo;
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter;
 import org.junit.After;
@@ -37,6 +45,7 @@ import net.imglib2.img.array.ArrayCursor;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
@@ -53,7 +62,7 @@ public class TensorstoreTest {
 	private String testZarrBaseName = "tensorstore_tests";
 
 	private static enum Version {
-		zarr2, zarr3
+		zarr, zarr3
 	};
 
 	private HashSet<Path> paths;
@@ -150,7 +159,13 @@ public class TensorstoreTest {
 	@Test
 	public void testReadTensorstoreZarr2() throws IOException, InterruptedException {
 
-		testReadTensorstore(Version.zarr2);
+		testReadTensorstore(Version.zarr);
+	}
+
+	@Test
+	public void testWriteTensorstoreZarr2() throws IOException, InterruptedException, ExecutionException {
+
+		testWriteTensorstore(Version.zarr);
 	}
 
 	@Test
@@ -158,9 +173,9 @@ public class TensorstoreTest {
 
 		testReadTensorstore(Version.zarr3);
 	}
-	
+
 	@Test
-	public void testWriteTensorstoreZarr3() throws IOException, InterruptedException {
+	public void testWriteTensorstoreZarr3() throws IOException, InterruptedException, ExecutionException {
 
 		testWriteTensorstore(Version.zarr3);
 	}
@@ -254,7 +269,6 @@ public class TensorstoreTest {
 		
 		/* sharded data */
 		if (version == Version.zarr3) {
-			System.out.println("sharded");
 			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_u1_sharded", new UnsignedByteType());
 			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/30x20_c_u1_sharded", new UnsignedByteType());
 
@@ -311,7 +325,7 @@ public class TensorstoreTest {
 
 	}
 	
-	public <T extends NativeType<T> & NumericType<T>> void testWriteTensorstore(Version version) throws IOException, InterruptedException {
+	public <T extends NativeType<T> & NumericType<T>> void testWriteTensorstore(Version version) throws IOException, InterruptedException, ExecutionException {
 		
 		/* 
 		 * run the python script in a test mode and return early if we can't run it.
@@ -342,7 +356,7 @@ public class TensorstoreTest {
 					testZarrDirPath, new GsonBuilder(), true, true, "/", false);
 			break;
 		}
-		
+
 		final DataType[] dtypes =  new DataType[]{ 
 				DataType.INT8, DataType.UINT8,
 				DataType.INT16, DataType.UINT16,
@@ -368,25 +382,35 @@ public class TensorstoreTest {
 			N5Utils.save(imgBig, n5Zarr, dsetBig, new int[] { 2, 3 }, new RawCompression());
 			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBig, "-d", version.toString()));
 
-			// TODO sharded when ready
-//			if( version == Version.zarr3 ) {
-//
-//				// sharded
-//				String dsetSharded = String.format("3x2_%s_shard", dtype.toString());
-//				N5Utils.save(img, n5Zarr, dsetSharded, new int[] { 1, 2 }, new int[] { 3, 2 }, new RawCompression());
-//				assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetSharded, "-d",version.toString()));
-//
-//				// sharded big
-//				String dsetBigSharded = String.format("12x9%s_shard", dtype.toString());
-//				N5Utils.save(imgBig, n5Zarr, dsetBigSharded, new int[] { 2, 3 }, new int[] { 6, 9 }, new RawCompression());
-//				assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBigSharded, "-d",version.toString()));
-//			}
+			if( version == Version.zarr3 ) {
+
+				// sharded
+				String dsetSharded = String.format("3x2_%s_shard", dtype.toString());
+				ZarrV3DatasetAttributes smallAttrs = buildAttributes(
+						img.dimensionsAsLongArray(), img.getType(), new int[] {3, 2}, new int[] {1, 2}, new RawCompression());
+				N5Utils.save(img, n5Zarr, dsetSharded, smallAttrs);
+				assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetSharded, "-d",version.toString()));
+
+				// sharded big
+				String dsetBigSharded = String.format("12x9%s_shard", dtype.toString());
+				ZarrV3DatasetAttributes bigAttrs = buildAttributes(
+						imgBig.dimensionsAsLongArray(), img.getType(), new int[] {6, 9}, new int[] {2, 3}, new RawCompression());
+				N5Utils.save(imgBig, n5Zarr, dsetBigSharded, bigAttrs);
+				assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBigSharded, "-d",version.toString()));
+			}
 		}
+		System.out.println("done");
 
 	}
-	
+
+	private <T extends NativeType<T>> ZarrV3DatasetAttributes buildAttributes(long[] dimensions, T type, int[] shardSize, int[] blockSize,
+			Compression compression) {
+
+		return new ZarrV3DatasetAttributes(dimensions, shardSize, blockSize, N5Utils.dataType(type), compression);
+	}
+
 	protected <T extends NativeType<T> & NumericType<T>> Img<T> generateData( final long[] size, T type ) {
-		
+
 		final ArrayImg<T, ?> img = new ArrayImgFactory<T>(type).create(size);
 		T val = type.copy();
 		val.setZero();
