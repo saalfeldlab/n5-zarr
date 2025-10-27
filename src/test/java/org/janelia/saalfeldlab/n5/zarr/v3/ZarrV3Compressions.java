@@ -3,9 +3,13 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import org.janelia.saalfeldlab.n5.Compression;
+import org.janelia.saalfeldlab.n5.CompressionAdapter;
+import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
+import org.janelia.saalfeldlab.n5.codec.CodecInfo;
 import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Compressor.Blosc;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
@@ -26,8 +30,11 @@ public class ZarrV3Compressions {
 	public void before() {
 
 		final GsonBuilder gsonBuilder = new GsonBuilder();
+		gsonBuilder.registerTypeAdapter(DataType.class, new DataType.JsonAdapter());
 		gsonBuilder.registerTypeHierarchyAdapter(DataCodecInfo.class, NameConfigAdapter.getJsonAdapter(DataCodecInfo.class));
-		GsonUtils.registerGson(gsonBuilder);
+		gsonBuilder.registerTypeHierarchyAdapter(CodecInfo.class, NameConfigAdapter.getJsonAdapter(CodecInfo.class));
+		gsonBuilder.registerTypeHierarchyAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
+		gsonBuilder.disableHtmlEscaping();
 		gson = gsonBuilder.create();
 	}
 
