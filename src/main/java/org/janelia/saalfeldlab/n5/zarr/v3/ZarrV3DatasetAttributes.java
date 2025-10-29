@@ -70,7 +70,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	private static final long serialVersionUID = 6926530453545002018L;
 
 	public static final String SHAPE_KEY = "shape";
-	public static final String DIMENSION_SEPARATOR_KEYS = "dimension_separator";
 	public static final String FILL_VALUE_KEY = "fill_value";
 	public static final String DATA_TYPE_KEY = "data_type";
 	public static final String CHUNK_GRID_KEY = "chunk_grid";
@@ -87,10 +86,13 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	};
 
 	// number of samples per block per dimension
-	private final int[] blockSize;
+	// at this time, needs to be separated from the final field in DatasetAttributes
+	// because it is inferred from codecs and used in the constructor
+	// this class can not set the final field, therefore has its own
+	private final int[] zarrBlockSize;
 
 	protected final ChunkAttributes chunkAttributes; // only support regular chunk grids for now
-	protected final ZarrV3DataType dataType;
+	protected final ZarrV3DataType zarrDataType;
 	protected final JsonElement fillValue;
 	protected final String[] dimensionNames;
 
@@ -133,7 +135,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	public ZarrV3DatasetAttributes(
 			final long[] shape,
 			final ChunkAttributes chunkAttributes,
-			final ZarrV3DataType dataType,
+			final ZarrV3DataType zarrDataType,
 			final String fillValue,
 			final String[] dimensionNames,
 			final BlockCodecInfo blockCodecInfo,
@@ -141,17 +143,17 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 		super(shape,
 				chunkAttributes.getGrid().getShape(),
-				dataType.getDataType(),
+				zarrDataType.getDataType(),
 				blockCodecInfo,
 				toZarrV3(dataCodecInfos));
 		this.chunkAttributes = chunkAttributes;
-		this.dataType = dataType;
-		this.fillValue = parseFillValue(fillValue, dataType.getDataType());
+		this.zarrDataType = zarrDataType;
+		this.fillValue = parseFillValue(fillValue, zarrDataType.getDataType());
 		this.dimensionNames = dimensionNames;
-		this.fillBytes = dataType.createFillBytes(fillValue);
+		this.fillBytes = zarrDataType.createFillBytes(fillValue);
 
 		access = createDatasetAccess();
-		blockSize = access.getGrid().getBlockSize(0);
+		zarrBlockSize = access.getGrid().getBlockSize(0);
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -287,7 +289,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	@Override
 	public int[] getBlockSize() {
 
-		return blockSize;
+		return zarrBlockSize;
 	}
 
 	public String relativeBlockPath(long... gridPosition) {
@@ -325,7 +327,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 	public ZarrV3DataType getDType() {
 
-		return dataType;
+		return zarrDataType;
 	}
 
 	public int getZarrFormat() {
