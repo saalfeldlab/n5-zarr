@@ -471,6 +471,11 @@ public class ZarrV3Test extends AbstractN5Test {
 			}
 		}
 	}
+	
+	@Test
+	@Ignore("Zarr3 does not truncate blocks")
+	public void testUnalignedBlocksTruncatedAtEnd() {
+	}
 
 	@Test
 	@Override

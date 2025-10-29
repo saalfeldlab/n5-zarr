@@ -136,7 +136,6 @@ public class N5ZarrTest extends AbstractN5Test {
 		return createTempN5Writer(location, new GsonBuilder(), dimensionSeparator, true);
 	}
 
-
 	protected N5Writer createTempN5Writer(final String location, final String dimensionSeparator, final boolean cacheAttributes) throws IOException {
 
 		return createTempN5Writer(location, new GsonBuilder(), dimensionSeparator,true, cacheAttributes);
@@ -258,6 +257,11 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		final byte[] dst = N5ZarrWriter.padCrop(src, srcBlockSize, dstBlockSize, nBytes, nBits, fillValue);
 		assertArrayEquals(new byte[]{1, 1, 99, 1, 1, 99, 99, 99, 99}, dst);
+	}
+	
+	@Test
+	@Ignore("Zarr does not truncate blocks")
+	public void testUnalignedBlocksTruncatedAtEnd() {
 	}
 
 	@Test
