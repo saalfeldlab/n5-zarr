@@ -34,6 +34,7 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter;
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -61,9 +62,11 @@ public class TensorstoreTest {
 
 	private String testZarrBaseName = "tensorstore_tests";
 
-	private static enum Version {
+	private enum Version {
 		zarr, zarr3
-	};
+	}
+
+	private volatile boolean skipPython = false;
 
 	private HashSet<Path> paths;
 
@@ -82,6 +85,9 @@ public class TensorstoreTest {
 	public void before() {
 
 		paths = new HashSet<Path>();
+		if (skipPython) {
+			Assume.assumeTrue("Skipping Python compatibility test", false);
+		}
 	}
 
 	@After
@@ -118,7 +124,7 @@ public class TensorstoreTest {
 			final int exitCode = process.exitValue();
 
 			if (exitCode == 0)
-				System.out.println("Python process exited succcessfully!");
+				System.out.println("Python process exited successfully!");
 			else
 				System.err.println("Python process exited with code " + exitCode);
 
@@ -197,9 +203,9 @@ public class TensorstoreTest {
 			testZarrDirPathForPython = testZarrDirPath;
 
 		/* create test data with python */
-		if (!runPythonTest("tensorstore_test.py", testZarrDirPathForPython, versionFlag(version))) {
-			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
-			return;
+		skipPython = !runPythonTest("tensorstore_test.py", testZarrDirPathForPython, versionFlag(version));
+		if (skipPython) {
+			Assume.assumeFalse("Couldn't run Python test, skipping compatibility test with Python.", skipPython);
 		}
 
 		N5Writer n5Zarr;
@@ -330,9 +336,9 @@ public class TensorstoreTest {
 		/* 
 		 * run the python script in a test mode and return early if we can't run it.
 		 */
-		if (!runPythonTest("tensorstore_read_test.py", "--test" )) {
-			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
-			return;
+		skipPython = !runPythonTest("tensorstore_read_test.py", "--test" );
+		if (skipPython) {
+			Assume.assumeFalse("Couldn't run Python test, skipping compatibility test with Python.", skipPython);
 		}
 
 		final String testZarrDirPath = tempN5Location();
