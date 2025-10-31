@@ -67,8 +67,8 @@ import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.n5.universe.N5Factory;
 import org.janelia.saalfeldlab.n5.zarr.Filter;
+import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter;
 import org.janelia.saalfeldlab.n5.zarr.ZarrStringDataBlock;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
@@ -207,18 +207,19 @@ public class ZarrV3Test extends AbstractN5Test {
 	@Test
 	public void serializationTest() {
 
-		final N5Factory n5Factory = new N5Factory();
-		n5Factory.gsonBuilder(addZarrAdapters(new GsonBuilder()));
-		final N5Reader n5 = n5Factory.openReader("src/test/resources/shardExamples/test.zarr/mid_sharded");
+		final String path = "src/test/resources/shardExamples/test.zarr/mid_sharded";
+		try (ZarrV3KeyValueReader n5 = new ZarrV3KeyValueReader(
+				new FileSystemKeyValueAccess(FileSystems.getDefault()), path, addZarrAdapters(new GsonBuilder()), false, false, true)) {
 
-		final ChunkGrid chunkGrid = n5.getAttribute("/", "chunk_grid", ChunkGrid.class);
-		System.out.println(chunkGrid);
+			final ChunkGrid chunkGrid = n5.getAttribute("/", "chunk_grid", ChunkGrid.class);
+			System.out.println(chunkGrid);
 
-		final ChunkKeyEncoding chunkKeyEncoding = n5.getAttribute("/", "chunk_key_encoding", ChunkKeyEncoding.class);
-		System.out.println(chunkKeyEncoding);
+			final ChunkKeyEncoding chunkKeyEncoding = n5.getAttribute("/", "chunk_key_encoding", ChunkKeyEncoding.class);
+			System.out.println(chunkKeyEncoding);
 
-		final ChunkAttributes chunkAttributes = n5.getAttribute("/", "/", ChunkAttributes.class);
-		System.out.println(chunkAttributes);
+			final ChunkAttributes chunkAttributes = n5.getAttribute("/", "/", ChunkAttributes.class);
+			System.out.println(chunkAttributes);
+		}
 	}
 
 	@Override
