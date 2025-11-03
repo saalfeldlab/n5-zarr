@@ -529,25 +529,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		CachedGsonKeyValueN5Writer.super.writeBlock( path, zarrDsetAttrs, dataBlock);
 	}
 
-	@Override
-	public boolean deleteBlock(
-			final String path,
-			final long... gridPosition) throws N5Exception {
-
-		final String shardPath = absoluteDataBlockPath(N5URI.normalizeGroupPath(path), gridPosition);
-		if (getKeyValueAccess().isFile(shardPath)) {
-			try {
-				getKeyValueAccess().delete(shardPath);
-				return true;
-			} catch (final Exception e) {
-				throw new N5Exception("The block at " +
-						Arrays.toString(gridPosition) +
-						" could not be deleted.", e);
-			}
-		}
-		return false;
-	}
-
 	public static byte[] padCrop(
 			final byte[] src,
 			final int[] srcBlockSize,
