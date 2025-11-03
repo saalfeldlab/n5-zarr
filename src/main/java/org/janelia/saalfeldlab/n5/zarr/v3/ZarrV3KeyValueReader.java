@@ -176,15 +176,6 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	}
 
 	@Override
-	public String absoluteDataBlockPath(
-			final String normalPath,
-			final long... gridPosition) {
-
-		final ZarrV3DatasetAttributes attrs = (ZarrV3DatasetAttributes)getDatasetAttributes(normalPath);
-		return getKeyValueAccess().compose(getURI(), normalPath, attrs.getChunkAttributes().getChunkPath(gridPosition));
-	}
-
-	@Override
 	public Version getVersion() throws N5Exception {
 
 		return getVersion("/");
