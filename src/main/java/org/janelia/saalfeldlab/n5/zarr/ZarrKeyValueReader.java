@@ -502,8 +502,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		if (e == JsonNull.INSTANCE || e == null) {
 			attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(new RawCompression()));
 		} else {
-			attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(
-					gson.fromJson(attrs.get(ZArrayAttributes.compressorKey), ZarrCompressor.class).getCompression()));
+			attrs.add(DatasetAttributes.COMPRESSION_KEY,
+					gson.toJsonTree(gson.fromJson(e, ZarrCompressor.class).getCompression()));
 		}
 		return attrs;
 	}

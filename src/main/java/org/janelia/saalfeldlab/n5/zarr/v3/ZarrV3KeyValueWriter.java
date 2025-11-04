@@ -25,10 +25,8 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.Compression;
@@ -40,6 +38,7 @@ import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 
 import com.google.gson.GsonBuilder;
@@ -48,12 +47,51 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 
 /**
- * Zarr v3 {@link KeyValueWriter} implementation.
+ * Zarr v3 {@link N5Writer} implementation.
  */
 public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements CachedGsonKeyValueN5Writer {
 
 	protected String dimensionSeparator;
 
+	/**
+	 * Opens an {@link ZarrV3KeyValueWriter} at a given base path with a custom
+	 * {@link GsonBuilder} to support custom attributes.
+	 *
+	 * @param keyValueAccess
+	 * @param basePath
+	 *            N5 base path
+	 * @param gsonBuilder
+	 * @param mapN5DatasetAttributes
+	 *            If true, getAttributes and variants of getAttribute methods
+	 *            will
+	 *            contain keys used by n5 datasets, and whose values are those
+	 *            for
+	 *            their corresponding zarr fields. For example, if true, the key
+	 *            "dimensions"
+	 *            (from n5) may be used to obtain the value of the key "shape"
+	 *            (from zarr).
+	 * @param mergeAttributes
+	 *            If true, fields from .zgroup, .zarray, and .zattrs will be
+	 *            merged
+	 *            when calling getAttributes, and variants of getAttribute
+	 * @param dimensionSeparator delimiter used during key creation for the dimension separator. default to "/"
+	 * @param cacheAttributes
+	 *            cache attributes and meta data
+	 *            Setting this to true avoids frequent reading and parsing of
+	 *            JSON
+	 *            encoded attributes and other meta data that requires accessing
+	 *            the
+	 *            store. This is most interesting for high latency backends.
+	 *            Changes
+	 *            of cached attributes and meta data by an independent writer
+	 *            will
+	 *            not be tracked.
+	 * @throws N5Exception
+	 *             if the base path cannot be read or does not exist,
+	 *             if the N5 version of the container is not compatible with
+	 *             this
+	 *             implementation.
+	 */
 	public ZarrV3KeyValueWriter(
 			final KeyValueAccess keyValueAccess,
 			final String basePath,
@@ -83,6 +121,76 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		}
 	}
 
+	/**
+	 * Opens an {@link ZarrV3KeyValueWriter} at a given base path with a custom
+	 * {@link GsonBuilder} to support custom attributes.
+	 *
+	 * @param keyValueAccess
+	 * @param basePath
+	 *            N5 base path
+	 * @param gsonBuilder
+	 * @param dimensionSeparator delimiter used during key creation for the dimension separator. default to "/"
+	 * @param cacheAttributes
+	 *            cache attributes and meta data
+	 *            Setting this to true avoids frequent reading and parsing of
+	 *            JSON
+	 *            encoded attributes and other meta data that requires accessing
+	 *            the
+	 *            store. This is most interesting for high latency backends.
+	 *            Changes
+	 *            of cached attributes and meta data by an independent writer
+	 *            will
+	 *            not be tracked.
+	 * @throws N5Exception
+	 *             if the base path cannot be read or does not exist,
+	 *             if the N5 version of the container is not compatible with
+	 *             this
+	 *             implementation.
+	 */
+	public ZarrV3KeyValueWriter(
+			final KeyValueAccess keyValueAccess,
+			final String basePath,
+			final GsonBuilder gsonBuilder,
+			final String dimensionSeparator,
+			final boolean cacheAttributes)
+			throws N5Exception {
+		this(keyValueAccess, basePath, gsonBuilder, false, false, dimensionSeparator, cacheAttributes);
+	}
+
+	/**
+	 * Opens an {@link ZarrV3KeyValueWriter} at a given base path with a custom
+	 * {@link GsonBuilder} to support custom attributes.
+	 *
+	 * @param keyValueAccess
+	 * @param basePath
+	 *            N5 base path
+	 * @param gsonBuilder
+	 * @param cacheAttributes
+	 *            cache attributes and meta data
+	 *            Setting this to true avoids frequent reading and parsing of
+	 *            JSON
+	 *            encoded attributes and other meta data that requires accessing
+	 *            the
+	 *            store. This is most interesting for high latency backends.
+	 *            Changes
+	 *            of cached attributes and meta data by an independent writer
+	 *            will
+	 *            not be tracked.
+	 * @throws N5Exception
+	 *             if the base path cannot be read or does not exist,
+	 *             if the N5 version of the container is not compatible with
+	 *             this
+	 *             implementation.
+	 */
+	public ZarrV3KeyValueWriter(
+			final KeyValueAccess keyValueAccess,
+			final String basePath,
+			final GsonBuilder gsonBuilder,
+			final boolean cacheAttributes)
+			throws N5Exception {
+		this(keyValueAccess, basePath, gsonBuilder, false, false, "/", cacheAttributes);
+	}
+
 	@Override
 	public void setVersion(final String path) throws N5Exception {
 
@@ -100,33 +208,42 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 	}
 
 	/**
-	 * Creates a group at the specified path without also making every parent path a group.
+	 * Creates a group at the given path only without the associated checks or recursion.
+	 * Expected to be called from a method that ensures the parent of `normalPath` exists
+	 * and can contain a group at `normalPath`.
 	 *
-	 * @param path path to group relative to root
+	 * @param normalPath path to group relative to root
 	 */
-	public void createGroupNonrecursive(final String normalPath) {
+	private void createGroupNonrecursive(final String normalPath) {
 
 		if (groupExists(normalPath))
 			return;
 		else if (datasetExists(normalPath))
 			throw new N5Exception("Can't make a group on existing dataset.");
 
+		getKeyValueAccess().createDirectories(absoluteGroupPath(normalPath));
+
 		final JsonObject obj = new JsonObject();
 		obj.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
 		obj.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.GROUP.toString());
 
 		writeAttributes(normalPath, obj);
-		if (cacheMeta()) {
-			getCache().initializeNonemptyCache(normalPath, getAttributesKey());
-			getCache().updateCacheInfo(normalPath, getAttributesKey(), obj);
-		}
 	}
 
 	@Override
 	public void createGroup(final String path) {
 
+
 		final String normalPath = N5URI.normalizeGroupPath(path);
+		if (groupExists(normalPath))
+			return;
+		else if (datasetExists(normalPath))
+			throw new N5Exception("Can't make a group on existing dataset.");
+
 		String[] pathParts = getKeyValueAccess().components(normalPath);
+
+		// check all nodes that are parents of the added node, if they have
+		// a children set, add the new child to it
 		String parent = N5URI.normalizeGroupPath("/");
 		if (pathParts.length == 0) {
 			pathParts = new String[]{""};
@@ -135,8 +252,37 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 			final String childPath = parent.isEmpty() ? child : parent + "/" + child;
 			createGroupNonrecursive(childPath);
+
+			if (cacheMeta()) {
+				// only add if the parent exists and has children cached already
+				if (parent != null && !child.isEmpty())
+					getCache().addChildIfPresent(parent, child);
+			}
+
 			parent = childPath;
 		}
+	}
+
+
+
+	/**
+	 * Creates a dataset at the given path only without the associated checks or recursion.
+	 * Expected to be called from a method that ensures the parent of `normalPath` exists
+	 * and can contain a dataset at `normalPath`.
+	 *
+	 * @param normalPath path to group relative to root
+	 */
+	private void createDatasetNonrecursive(final String normalPath, final ZarrV3DatasetAttributes datasetAttributes) {
+
+		getKeyValueAccess().createDirectories(absoluteGroupPath(normalPath));
+
+		// These three lines are preferable to setDatasetAttributes because they
+		// are more efficient wrt caching
+		final JsonElement attributes = gson.toJsonTree(datasetAttributes);
+		final JsonObject zarrJson = attributes.getAsJsonObject();
+		zarrJson.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
+		zarrJson.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.ARRAY.toString());
+		writeAttributes(normalPath, zarrJson);
 	}
 
 	@Override
@@ -147,51 +293,37 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			final DataType dataType,
 			final Compression compression) {
 
-		createDataset(datasetPath,
-				new ZarrV3DatasetAttributes(dimensions, blockSize, dataType, compression));
+		final ZarrV3DatasetAttributes datasetAttributes = new ZarrV3DatasetAttributes(dimensions, blockSize, dataType, compression);
+		createDataset(datasetPath, datasetAttributes);
 	}
 
 	@Override
-	public void createDataset(
+	public void createDataset(String datasetPath, DatasetAttributes datasetAttributes) throws N5Exception {
+
+		final String normalPath = N5URI.normalizeGroupPath(datasetPath);
+		if (datasetExists(normalPath)) {
+			throw new N5Exception("Can't make a dataset on existing dataset.");
+		}
+
+		final String parent = getKeyValueAccess().parent(normalPath);
+		if (parent != null) {
+			createGroup(parent);
+		}
+		final ZarrV3DatasetAttributes zarrAttrs = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator, "0");
+		createDatasetNonrecursive(normalPath, zarrAttrs);
+
+		if (cacheMeta() && parent != null) {
+			// only add if the parent exists and has children cached already
+			final String child = getKeyValueAccess().relativize(normalPath, parent);
+			if (parent != null && !child.isEmpty())
+				getCache().addChildIfPresent(parent, child);
+		}
+	}
+
+	@Override
+	public <T> void writeBlock(
 			final String path,
-			final DatasetAttributes datasetAttributes) {
-
-		final String normalPath = N5URI.normalizeGroupPath(path);
-		boolean wasGroup = false;
-		if (cacheMeta()) {
-			if (getCache().isDataset(normalPath, getAttributesKey()))
-				return;
-			else if (getCache().isGroup(normalPath, getAttributesKey())) {
-				wasGroup = true;
-				// TODO tests currently require that we can make a dataset on a group
-				// throw new N5Exception("Can't make a group on existing path.");
-			}
-		}
-
-		// Overriding because CachedGsonKeyValueWriter calls createGroup.
-		// Not correct for zarr, since groups and datasets are mutually
-		// exclusive
-		final String absPath = absoluteGroupPath(normalPath);
-		try {
-			keyValueAccess.createDirectories(absPath);
-		} catch (final Throwable e) {
-			throw new N5IOException("Failed to create directories " + absPath, e);
-		}
-
-		// create parent group
-		final String[] pathParts = keyValueAccess.components(normalPath);
-		final String parent = Arrays.stream(pathParts).limit(pathParts.length - 1).collect(Collectors.joining("/"));
-		createGroup(parent);
-
-		// These three lines are preferable to setDatasetAttributes because they
-		// are more efficient wrt caching
-		final ZarrV3DatasetAttributes zarray = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator, "0");
-		final JsonElement attributes = gson.toJsonTree(zarray);
-		writeAttributes(normalPath, attributes);
-	}
-
-	@Override
-	public <T> void writeBlock(final String path, final DatasetAttributes datasetAttributes,
+			final DatasetAttributes datasetAttributes,
 			final DataBlock<T> dataBlock) throws N5Exception {
 
 		ZarrV3DatasetAttributes zarrAttributes = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator, "0");
@@ -205,8 +337,10 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 	}
 
 	@Override
-	public <T> void setAttribute(final String groupPath, final String attributePath, final T attribute)
-			throws N5Exception {
+	public <T> void setAttribute(
+			final String groupPath,
+			final String attributePath,
+			final T attribute) throws N5Exception {
 		final String normalizedAttributePath = N5URI.normalizeAttributePath(attributePath);
 		setRawAttribute(groupPath, mapAttributeKey(normalizedAttributePath), attribute);
 	}

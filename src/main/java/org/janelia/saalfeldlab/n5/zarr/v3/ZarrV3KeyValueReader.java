@@ -61,6 +61,8 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
 	protected final boolean mergeAttributes;
 
+
+
 	/**
 	 * Opens an {@link ZarrV3KeyValueReader} at a given base path with a custom
 	 * {@link GsonBuilder} to support custom attributes.
@@ -120,6 +122,46 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	 * Opens an {@link ZarrV3KeyValueReader} at a given base path with a custom
 	 * {@link GsonBuilder} to support custom attributes.
 	 *
+	 * @param checkVersion
+	 *            perform version check
+	 * @param keyValueAccess
+	 * @param basePath
+	 *            N5 base path
+	 * @param gsonBuilder
+	 *            the gson builder
+	 * @param cacheMeta
+	 *            cache attributes and meta data
+	 *            Setting this to true avoids frequent reading and parsing of
+	 *            JSON
+	 *            encoded attributes and other meta data that requires accessing
+	 *            the
+	 *            store. This is most interesting for high latency backends.
+	 *            Changes
+	 *            of cached attributes and meta data by an independent writer
+	 *            will
+	 *            not be tracked.
+	 *
+	 * @throws N5Exception
+	 *             if the base path cannot be read or does not exist,
+	 *             if the N5 version of the container is not compatible with
+	 *             this
+	 *             implementation.
+	 */
+	public ZarrV3KeyValueReader(
+			final boolean checkVersion,
+			final KeyValueAccess keyValueAccess,
+			final String basePath,
+			final GsonBuilder gsonBuilder,
+			final boolean cacheMeta)
+			throws N5Exception {
+
+		this(checkVersion, keyValueAccess, basePath, gsonBuilder, false, false, cacheMeta, true);
+	}
+
+	/**
+	 * Opens an {@link ZarrV3KeyValueReader} at a given base path with a custom
+	 * {@link GsonBuilder} to support custom attributes.
+	 *
 	 * @param keyValueAccess
 	 * @param basePath
 	 *            N5 base path
@@ -135,7 +177,19 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	 *            of cached attributes and meta data by an independent writer
 	 *            will
 	 *            not be tracked.
-	 *
+	 * @param mapN5DatasetAttributes
+	 *            If true, getAttributes and variants of getAttribute methods
+	 *            will
+	 *            contain keys used by n5 datasets, and whose values are those
+	 *            for
+	 *            their corresponding zarr fields. For example, if true, the key
+	 *            "dimensions"
+	 *            (from n5) may be used to obtain the value of the key "shape"
+	 *            (from zarr).
+	 * @param mergeAttributes
+	 *            If true, fields from .zgroup, .zarray, and .zattrs will be
+	 *            merged
+	 *            when calling getAttributes, and variants of getAttribute
 	 * @throws N5Exception
 	 *             if the base path cannot be read or does not exist,
 	 *             if the N5 version of the container is not compatible with
@@ -268,7 +322,8 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
 		JsonElement attributes;
 		if (cacheMeta()) {
-			attributes = getCache().getAttributes(normalPathName, getAttributesKey());
+			final JsonElement zarrJson = getCache().getAttributes(normalPathName, getAttributesKey());
+			attributes = zarrJson.getAsJsonObject().get(ZarrV3Node.ATTRIBUTES_KEY);
 		} else {
 			attributes = getAttributes(normalPathName);
 		}
