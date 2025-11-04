@@ -63,7 +63,7 @@ public class TensorstoreTest {
 	private String testZarrBaseName = "tensorstore_tests";
 
 	private enum Version {
-		zarr, zarr3
+		zarr2, zarr3
 	}
 
 	private volatile boolean skipPython = false;
@@ -165,13 +165,13 @@ public class TensorstoreTest {
 	@Test
 	public void testReadTensorstoreZarr2() throws IOException, InterruptedException {
 
-		testReadTensorstore(Version.zarr);
+		testReadTensorstore(Version.zarr2);
 	}
 
 	@Test
 	public void testWriteTensorstoreZarr2() throws IOException, InterruptedException, ExecutionException {
 
-		testWriteTensorstore(Version.zarr);
+		testWriteTensorstore(Version.zarr2);
 	}
 
 	@Test
@@ -191,7 +191,7 @@ public class TensorstoreTest {
 		return "--" + version;
 	}
 
-	public void testReadTensorstore(Version version) throws IOException, InterruptedException {
+	public void testReadTensorstore(Version version) throws InterruptedException {
 
 		final String testZarrDirPath = tempN5Location();
 		//TODO: decided what to do with it for windows
