@@ -388,22 +388,23 @@ public class TensorstoreTest {
 			N5Utils.save(imgBig, n5Zarr, dsetBig, new int[] { 2, 3 }, new RawCompression());
 			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBig, "-d", version.toString()));
 
-			if( version == Version.zarr3 ) {
-
-				// sharded
-				String dsetSharded = String.format("3x2_%s_shard", dtype.toString());
-				ZarrV3DatasetAttributes smallAttrs = buildAttributes(
-						img.dimensionsAsLongArray(), img.getType(), new int[] {3, 2}, new int[] {1, 2}, new RawCompression());
-				N5Utils.save(img, n5Zarr, dsetSharded, smallAttrs);
-				assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetSharded, "-d",version.toString()));
-
-				// sharded big
-				String dsetBigSharded = String.format("12x9%s_shard", dtype.toString());
-				ZarrV3DatasetAttributes bigAttrs = buildAttributes(
-						imgBig.dimensionsAsLongArray(), img.getType(), new int[] {6, 9}, new int[] {2, 3}, new RawCompression());
-				N5Utils.save(imgBig, n5Zarr, dsetBigSharded, bigAttrs);
-				assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBigSharded, "-d",version.toString()));
-			}
+			// TODO when new n5-imglib2 version is released
+//			if( version == Version.zarr3 ) {
+//
+//				// sharded
+//				String dsetSharded = String.format("3x2_%s_shard", dtype.toString());
+//				ZarrV3DatasetAttributes smallAttrs = buildAttributes(
+//						img.dimensionsAsLongArray(), img.getType(), new int[] {3, 2}, new int[] {1, 2}, new RawCompression());
+//				N5Utils.save(img, n5Zarr, dsetSharded, smallAttrs);
+//				assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetSharded, "-d",version.toString()));
+//
+//				// sharded big
+//				String dsetBigSharded = String.format("12x9%s_shard", dtype.toString());
+//				ZarrV3DatasetAttributes bigAttrs = buildAttributes(
+//						imgBig.dimensionsAsLongArray(), img.getType(), new int[] {6, 9}, new int[] {2, 3}, new RawCompression());
+//				N5Utils.save(imgBig, n5Zarr, dsetBigSharded, bigAttrs);
+//				assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBigSharded, "-d",version.toString()));
+//			}
 		}
 		System.out.println("done");
 
