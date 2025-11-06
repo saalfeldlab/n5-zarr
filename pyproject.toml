@@ -12,6 +12,7 @@ numpy = "^1.25.0"
 zarr = "^2.15.0"
 numcodecs = "^0.11.0"
 pathlib = "^1.0.1"
+tensorstore = "^0.1.64"
 
 
 [build-system]
