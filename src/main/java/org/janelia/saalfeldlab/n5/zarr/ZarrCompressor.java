@@ -6,13 +6,13 @@
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -36,9 +36,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.google.gson.TypeAdapter;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
 import org.janelia.saalfeldlab.n5.Bzip2Compression;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
@@ -51,6 +48,9 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -117,7 +117,7 @@ public interface ZarrCompressor {
 
 		@Override
 		public Compression getCompression() {
-			ZstandardCompression compression = new ZstandardCompression(level);
+			final ZstandardCompression compression = new ZstandardCompression(level);
 			if(this.nbWorkers != 0)
 				compression.setNbWorkers(this.nbWorkers);
 			return compression;
@@ -300,18 +300,4 @@ public interface ZarrCompressor {
 		}
 	}
 
-	TypeAdapter<Raw> rawNullAdapter = new TypeAdapter<Raw>() {
-
-		@Override public void write(JsonWriter out, Raw value) throws IOException {
-			final boolean serializeNull = out.getSerializeNulls();
-			out.setSerializeNulls(true);
-			out.nullValue();
-			out.setSerializeNulls(serializeNull);
-		}
-
-		@Override public Raw read(JsonReader in) {
-
-			return new Raw();
-		}
-	};
 }
