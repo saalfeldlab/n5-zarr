@@ -305,7 +305,12 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			throw new N5Exception("Can't make a dataset on existing dataset.");
 		}
 
-		final String parent = getKeyValueAccess().parent(normalPath);
+		final String parent;
+		if (!normalPath.contains("/"))
+			parent = null;
+		else
+			parent = N5URI.normalizeGroupPath(normalPath + "/..");
+
 		if (parent != null) {
 			createGroup(parent);
 		}
