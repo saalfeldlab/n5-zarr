@@ -18,7 +18,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libblosc1
       - name: Set up Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v5
         with:
           java-version: '8'
           distribution: 'zulu'
