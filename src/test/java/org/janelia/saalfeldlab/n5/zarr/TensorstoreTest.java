@@ -36,6 +36,7 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.gson.GsonBuilder;
@@ -163,24 +164,28 @@ public class TensorstoreTest {
 	}
 
 	@Test
+	@Ignore("until re-compilation of n5-imglib2")
 	public void testReadTensorstoreZarr2() throws IOException, InterruptedException {
 
 		testReadTensorstore(Version.zarr2);
 	}
 
 	@Test
+	@Ignore("until re-compilation of n5-imglib2")
 	public void testWriteTensorstoreZarr2() throws IOException, InterruptedException, ExecutionException {
 
 		testWriteTensorstore(Version.zarr2);
 	}
 
 	@Test
+	@Ignore("until re-compilation of n5-imglib2")
 	public void testReadTensorstoreZarr3() throws IOException, InterruptedException {
 
 		testReadTensorstore(Version.zarr3);
 	}
 
 	@Test
+	@Ignore("until re-compilation of n5-imglib2")
 	public void testWriteTensorstoreZarr3() throws IOException, InterruptedException, ExecutionException {
 
 		testWriteTensorstore(Version.zarr3);
