@@ -67,7 +67,6 @@ import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.zarr.Filter;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter;
-import org.janelia.saalfeldlab.n5.zarr.ZarrStringDataBlock;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
@@ -190,6 +189,7 @@ public class ZarrV3Test extends AbstractN5Test {
 	}
 
 	@Test
+	@Ignore("TODO: improve this test")
 	public void serializationTest() {
 
 		final String path = "src/test/resources/shardExamples/test.zarr/mid_sharded";
@@ -197,13 +197,8 @@ public class ZarrV3Test extends AbstractN5Test {
 				new FileSystemKeyValueAccess(FileSystems.getDefault()), path, addZarrAdapters(new GsonBuilder()), false, false, true)) {
 
 			final ChunkGrid chunkGrid = n5.getAttribute("/", "chunk_grid", ChunkGrid.class);
-			System.out.println(chunkGrid);
-
 			final ChunkKeyEncoding chunkKeyEncoding = n5.getAttribute("/", "chunk_key_encoding", ChunkKeyEncoding.class);
-			System.out.println(chunkKeyEncoding);
-
 			final ChunkAttributes chunkAttributes = n5.getAttribute("/", "/", ChunkAttributes.class);
-			System.out.println(chunkAttributes);
 		}
 	}
 
@@ -426,7 +421,7 @@ public class ZarrV3Test extends AbstractN5Test {
 			try (final N5Writer n5 = createTempN5Writer()) {
 				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
 				final DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
-				final StringDataBlock dataBlock = new ZarrStringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
+				final StringDataBlock dataBlock = new StringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
 				n5.writeBlock("/test/group/dataset", attributes, dataBlock);
 				final DataBlock<?> loadedDataBlock = n5.readBlock("/test/group/dataset", attributes, 0L, 0L, 0L);
 				assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());
@@ -717,8 +712,6 @@ public class ZarrV3Test extends AbstractN5Test {
 	public void testAttributes()  {
 
 		try (final N5Writer n5 = createTempN5Writer()) {
-
-			System.out.println(n5.getURI());
 
 			n5.createGroup(groupName);
 

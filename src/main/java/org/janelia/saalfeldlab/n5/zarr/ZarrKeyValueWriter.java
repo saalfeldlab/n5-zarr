@@ -28,7 +28,6 @@ package org.janelia.saalfeldlab.n5.zarr;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;

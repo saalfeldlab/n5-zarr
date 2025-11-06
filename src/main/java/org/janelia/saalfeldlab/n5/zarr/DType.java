@@ -43,6 +43,7 @@ import org.janelia.saalfeldlab.n5.FloatArrayDataBlock;
 import org.janelia.saalfeldlab.n5.IntArrayDataBlock;
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.ShortArrayDataBlock;
+import org.janelia.saalfeldlab.n5.StringDataBlock;
 
 import static org.janelia.saalfeldlab.n5.zarr.Filter.VLEN_UTF8;
 
@@ -214,7 +215,7 @@ public class DType {
 			nBits = 0;
 			if (filters.contains(VLEN_UTF8)) {
 				dataBlockFactory = (blockSize, gridPosition, numElements) ->
-						new ZarrStringDataBlock(blockSize, gridPosition, new String[0]);
+						new StringDataBlock(blockSize, gridPosition, new String[0]);
 				byteBlockFactory = (blockSize, gridPosition, numElements) ->
 						new ByteArrayDataBlock(blockSize, gridPosition, new byte[numElements * nBytes]);
 			} else {
@@ -291,7 +292,7 @@ public class DType {
 		case STRING:
 			nBytes = 1;
 			dataBlockFactory = (blockSize, gridPosition, numElements) ->
-					new ZarrStringDataBlock(blockSize, gridPosition, new String[0]);
+					new StringDataBlock(blockSize, gridPosition, new String[0]);
 			break;
 		default:
 			nBytes = nPrimitives;
@@ -482,6 +483,9 @@ public class DType {
 		final byte[] fillBytes = new byte[nBytes];
 		final ByteBuffer fillBuffer = ByteBuffer.wrap(fillBytes);
 		fillBuffer.order(order);
+		
+		if (fill_value == null)
+			return fillBytes;
 
 		if (fill_value.equals("NaN")) {
 			if (nBytes == 8) {

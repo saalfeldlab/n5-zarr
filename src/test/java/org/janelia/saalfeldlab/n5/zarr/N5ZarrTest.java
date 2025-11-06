@@ -2,17 +2,17 @@
  * #%L
  * Not HDF5
  * %%
- * Copyright (C) 2019 - 2022 Stephan Saalfeld
+ * Copyright (C) 2019 - 2025 Stephan Saalfeld
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- *
+ * 
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -249,7 +249,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testPadCrop() {
 
-		final byte[] src = new byte[]{1, 1, 1, 1}; // 2x2
+		final byte[] src = new byte[]{1, 2, 3, 4}; // 2x2
 		final int[] srcBlockSize = new int[]{2, 2};
 		final int[] dstBlockSize = new int[]{3, 3};
 		final int nBytes = 1;
@@ -257,7 +257,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		final byte[] fillValue = new byte[]{99};
 
 		final byte[] dst = N5ZarrWriter.padCrop(src, srcBlockSize, dstBlockSize, nBytes, nBits, fillValue);
-		assertArrayEquals(new byte[]{1, 1, 99, 1, 1, 99, 99, 99, 99}, dst);
+		assertArrayEquals(new byte[]{1, 2, 99, 3, 4, 99, 99, 99, 99}, dst);
 	}
 	
 	@Test
@@ -461,7 +461,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			try (final N5Writer n5 = createTempN5Writer()) {
 				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
 				final DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
-				final StringDataBlock dataBlock = new ZarrStringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
+				final StringDataBlock dataBlock = new StringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
 				n5.writeBlock("/test/group/dataset", attributes, dataBlock);
 				final DataBlock<?> loadedDataBlock = n5.readBlock("/test/group/dataset", attributes, 0L, 0L, 0L);
 				assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());
@@ -889,6 +889,26 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5Compression = n5.getAttribute(datasetName, DatasetAttributes.COMPRESSION_KEY, Compression.class);
 			assertEquals(gzipCompression, zarrCompression.getCompression());
 			assertEquals(gzipCompression, n5Compression);
+		}
+	}
+
+	@Test
+	public void testNullFillValue() {
+
+		final String key = ZArrayAttributes.fillValueKey;
+		final JsonNull jsonNull = JsonNull.INSTANCE;
+		final byte[] zero = new byte[8];
+
+		try (final N5Writer n5 = createTempN5Writer(tempN5Location(), new GsonBuilder().serializeNulls())) {
+
+			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			n5.setAttribute(datasetName, key, jsonNull);
+
+			assertEquals(jsonNull, n5.getAttribute(datasetName, key, JsonElement.class));
+			assertTrue(n5.datasetExists(datasetName));
+
+			final ZarrDatasetAttributes dsetAttrs = (ZarrDatasetAttributes) n5.getDatasetAttributes(datasetName);
+			assertArrayEquals(zero, dsetAttrs.getDType().createFillBytes("0"));
 		}
 	}
 
