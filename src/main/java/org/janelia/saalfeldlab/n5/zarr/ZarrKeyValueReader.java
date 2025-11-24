@@ -383,7 +383,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	public DatasetAttributes createDatasetAttributes(final JsonElement attributes) {
 
 		final ZArrayAttributes zarray = getZArrayAttributes(attributes);
-		return zarray != null ? zarray.getDatasetAttributes() : null;
+		return zarray != null ? new ZarrDatasetAttributes(zarray) : null;
 	}
 
 	@Override
