@@ -26,6 +26,7 @@
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
@@ -112,7 +113,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		try {
 			version = getVersion();
 			if (!ZarrV3KeyValueReader.VERSION.isCompatible(version))
-				throw new N5Exception.N5IOException(
+				throw new N5IOException(
 						"Incompatible version " + version + " (this is " + ZarrV3KeyValueReader.VERSION + ").");
 		} catch (final NullPointerException e) {}
 
@@ -285,8 +286,10 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		writeAttributes(normalPath, zarrJson);
 	}
 
+	private HashMap<DatasetAttributes, ZarrV3DatasetAttributes> datasetAttributesMap = new HashMap<>();
+
 	@Override
-	public void createDataset(
+	public ZarrV3DatasetAttributes createDataset(
 			final String datasetPath,
 			final long[] dimensions,
 			final int[] blockSize,
@@ -294,11 +297,11 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			final Compression compression) {
 
 		final ZarrV3DatasetAttributes datasetAttributes = new ZarrV3DatasetAttributes(dimensions, blockSize, dataType, compression);
-		createDataset(datasetPath, datasetAttributes);
+		return createDataset(datasetPath, datasetAttributes);
 	}
 
 	@Override
-	public void createDataset(String datasetPath, DatasetAttributes datasetAttributes) throws N5Exception {
+	public ZarrV3DatasetAttributes createDataset(String datasetPath, DatasetAttributes datasetAttributes) throws N5Exception {
 
 		final String normalPath = N5URI.normalizeGroupPath(datasetPath);
 		if (datasetExists(normalPath)) {
@@ -314,7 +317,8 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		if (parent != null) {
 			createGroup(parent);
 		}
-		final ZarrV3DatasetAttributes zarrAttrs = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator, "0");
+
+		final ZarrV3DatasetAttributes zarrAttrs = getConvertedDatasetAttributes(datasetAttributes);
 		createDatasetNonrecursive(normalPath, zarrAttrs);
 
 		if (cacheMeta() && parent != null) {
@@ -323,6 +327,22 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			if (parent != null && !child.isEmpty())
 				getCache().addChildIfPresent(parent, child);
 		}
+		return zarrAttrs;
+	}
+
+	protected ZarrV3DatasetAttributes getConvertedDatasetAttributes(DatasetAttributes datasetAttributes) {
+		final ZarrV3DatasetAttributes zarrAttrs;
+		if (datasetAttributes instanceof ZarrV3DatasetAttributes)
+			zarrAttrs = ((ZarrV3DatasetAttributes)datasetAttributes);
+		else if (datasetAttributesMap.containsKey(datasetAttributes)) {
+			zarrAttrs = datasetAttributesMap.get(datasetAttributes);
+			datasetAttributesMap.put(datasetAttributes, zarrAttrs);
+		}
+		else {
+			zarrAttrs = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator, "0");
+			datasetAttributesMap.put(datasetAttributes, zarrAttrs);
+		}
+		return zarrAttrs;
 	}
 
 	@Override
@@ -331,7 +351,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			final DatasetAttributes datasetAttributes,
 			final DataBlock<T> dataBlock) throws N5Exception {
 
-		ZarrV3DatasetAttributes zarrAttributes = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator, "0");
+		ZarrV3DatasetAttributes zarrAttributes = getConvertedDatasetAttributes(datasetAttributes);
 		CachedGsonKeyValueN5Writer.super.writeBlock(path, zarrAttributes, dataBlock);
 	}
 

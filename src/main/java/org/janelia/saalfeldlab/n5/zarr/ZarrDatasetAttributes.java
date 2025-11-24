@@ -28,10 +28,14 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import com.google.gson.JsonElement;
+import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.codec.BlockCodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.codec.PaddedRawBlockCodecInfo;
+
+import java.nio.ByteOrder;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -39,10 +43,20 @@ import org.janelia.saalfeldlab.n5.zarr.codec.PaddedRawBlockCodecInfo;
  */
 public class ZarrDatasetAttributes extends DatasetAttributes {
 
-	protected final transient boolean isRowMajor;
-	protected final transient DType dType;
+	protected final ZArrayAttributes zarray;
 	protected final transient byte[] fillBytes;
-	protected final transient String dimensionSeparator;
+
+	public ZarrDatasetAttributes(final ZArrayAttributes zarray) {
+		super(
+				dimensionsFromZArray(zarray),
+				blockSizeFromZArray(zarray),
+				zarray.getDType().getDataType(),
+				paddedRawBlockCodecInfoFromZArray(zarray),
+				zarray.getCompressor().getCompression()
+		);
+		this.zarray = zarray;
+		this.fillBytes = zarray.getDType().createFillBytes(fillValueFromJson(zarray.fillValue));
+	}
 
 	public ZarrDatasetAttributes(
 			final long[] dimensions,
@@ -56,10 +70,9 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		super(dimensions, blockSize, dType.getDataType(),
 				new PaddedRawBlockCodecInfo(dType.getOrder(), dType.createFillBytes(fill_value)),
 				compression);
-		this.dType = dType;
-		this.isRowMajor = isRowMajor;
+
+		this.zarray = createZArrayAttributes(dimensionSeparator, isRowMajor ? 'C' : 'F', this);
 		this.fillBytes = dType.createFillBytes(fill_value);
-		this.dimensionSeparator = dimensionSeparator;
 	}
 
 	public ZarrDatasetAttributes(
@@ -78,14 +91,18 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		return new PaddedRawBlockCodecInfo(getDType().getOrder(), getFillBytes());
 	}
 
+	public ZArrayAttributes getZArrayAttributes() {
+		return zarray;
+	}
+
 	public boolean isRowMajor() {
 
-		return isRowMajor;
+		return zarray.order == 'C';
 	}
 
 	public DType getDType() {
 
-		return dType;
+		return zarray.getDType();
 	}
 
 	public byte[] getFillBytes() {
@@ -94,13 +111,14 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 	}
 
 	public String getDimensionSeparator() {
-		return dimensionSeparator;
+		return zarray.getDimensionSeparator();
 	}
 
 	public String relativeBlockPath(long... gridPosition) {
 
 		final StringBuilder pathStringBuilder = new StringBuilder();
-		if (isRowMajor) {
+		final String dimensionSeparator = getDimensionSeparator();
+		if (isRowMajor()) {
 			pathStringBuilder.append(gridPosition[gridPosition.length - 1]);
 			for (int i = gridPosition.length - 2; i >= 0; --i) {
 				pathStringBuilder.append(dimensionSeparator);
@@ -117,4 +135,68 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		return pathStringBuilder.toString();
 	}
 
+	private static boolean isRowMajor(final ZArrayAttributes zarray) {
+		return zarray.order == 'C';
+	}
+
+	private static long[] dimensionsFromZArray(final ZArrayAttributes zarray) {
+
+		final long[] shape = zarray.getShape().clone();
+		if (isRowMajor(zarray)) {
+			ArrayUtils.reverse(shape);
+		}
+		return shape;
+	}
+
+	private static int[] blockSizeFromZArray(final ZArrayAttributes zarray) {
+
+		final int[] chunks = zarray.getChunks().clone();
+		if (isRowMajor(zarray)) {
+			ArrayUtils.reverse(chunks);
+		}
+		return chunks;
+	}
+
+	private static String fillValueFromJson(final JsonElement fillValue) {
+		return fillValue == null || fillValue.isJsonNull() ? null : fillValue.getAsString();
+	}
+
+	private static PaddedRawBlockCodecInfo paddedRawBlockCodecInfoFromZArray(final ZArrayAttributes zarray) {
+
+		final DType dType = zarray.getDType();
+		final ByteOrder order = dType.getOrder();
+		final String fillValue = fillValueFromJson(zarray.fillValue);
+		final byte[] fillBytes = dType.createFillBytes(fillValue);
+		return new PaddedRawBlockCodecInfo(order, fillBytes);
+	}
+
+	public static ZArrayAttributes createZArrayAttributes(final String dimensionSeparator, final DatasetAttributes datasetAttributes) {
+		return createZArrayAttributes(dimensionSeparator, 'C', datasetAttributes);
+
+	}
+
+	public static ZArrayAttributes createZArrayAttributes(final String dimensionSeparator, char order, final DatasetAttributes datasetAttributes) {
+		if (datasetAttributes instanceof ZarrDatasetAttributes)
+			return ((ZarrDatasetAttributes)datasetAttributes).getZArrayAttributes();
+
+
+		final long[] shape = datasetAttributes.getDimensions().clone();
+		ArrayUtils.reverse(shape);
+		final int[] chunks = datasetAttributes.getBlockSize().clone();
+		ArrayUtils.reverse(chunks);
+		final DType dType = new DType(datasetAttributes.getDataType());
+
+		final ZArrayAttributes zArrayAttributes = new ZArrayAttributes(
+				N5ZarrReader.VERSION.getMajor(),
+				shape,
+				chunks,
+				dType,
+				ZarrCompressor.fromCompression(datasetAttributes.getCompression()),
+				"0",
+				order,
+				dimensionSeparator,
+				dType.getFilters());
+
+		return zArrayAttributes;
+	}
 }
