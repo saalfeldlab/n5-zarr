@@ -30,6 +30,7 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.lang.reflect.Type;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -44,7 +45,9 @@ import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.codec.BlockCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.CodecInfo;
 import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
+import org.janelia.saalfeldlab.n5.codec.DatasetCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.N5BlockCodecInfo;
+import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodecInfo;
 import org.janelia.saalfeldlab.n5.shard.DatasetAccess;
 import org.janelia.saalfeldlab.n5.shard.DefaultShardCodecInfo;
 import org.janelia.saalfeldlab.n5.shard.ShardCodecInfo;
@@ -113,6 +116,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			"0", // default fill value 
 			defaultDimensionNames(shape.length),
 			new PaddedRawBlockCodecInfo(),
+			null,
 			ZarrV3Compressor.fromCompression(compression));
 	}
 
@@ -129,7 +133,8 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			ZarrV3DataType.fromDataType(dataType),
 			"0", // default fill value
 			defaultDimensionNames(shape.length),
-			defaultShardCodecInfo(blockSize, dataCodecs));
+			defaultShardCodecInfo(blockSize, dataCodecs),
+			null);
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -139,12 +144,14 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final String fillValue,
 			final String[] dimensionNames,
 			final BlockCodecInfo blockCodecInfo,
+			final DatasetCodecInfo[] datasetCodecInfos,
 			final DataCodecInfo... dataCodecInfos) {
 
 		super(shape,
 				chunkAttributes.getGrid().getShape(),
 				zarrDataType.getDataType(),
 				blockCodecInfo,
+				datasetCodecInfos,
 				toZarrV3(dataCodecInfos));
 		this.chunkAttributes = chunkAttributes;
 		this.zarrDataType = zarrDataType;
@@ -164,10 +171,11 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final String[] dimensionNames,
 			final DefaultChunkKeyEncoding chunkKeyEncoding,
 			final BlockCodecInfo blockCodecInfo,
+			final DatasetCodecInfo[] datasetCodecInfos,
 			final DataCodecInfo... dataCodecInfos) {
 
 		this(shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dataType, fillValue, 
-				dimensionNames, blockCodecInfo, dataCodecInfos );
+				dimensionNames, blockCodecInfo, datasetCodecInfos, dataCodecInfos );
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -178,10 +186,11 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final String[] dimensionNames,
 			final String dimensionSeparator,
 			final BlockCodecInfo blockCodecInfo,
+			final DatasetCodecInfo[] datasetCodecInfos,
 			final DataCodecInfo... dataCodecInfos) {
 
 		this(shape, chunkShape, dataType, fillValue, dimensionNames,
-				new DefaultChunkKeyEncoding(dimensionSeparator), blockCodecInfo, dataCodecInfos);
+				new DefaultChunkKeyEncoding(dimensionSeparator), blockCodecInfo, datasetCodecInfos, dataCodecInfos);
 	}
 
 	protected BlockCodecInfo defaultBlockCodecInfo() {
@@ -272,6 +281,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return new ZarrV3DatasetAttributes(shape, chunkAttrs,
 				dType, fillValue, null,
 				replaceBlockCodec(datasetAttributes.getBlockCodecInfo(), dType, fillValue),
+				null,
 				datasetAttributes.getDataCodecInfos());
 	}
 
@@ -369,17 +379,18 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				if (zarrFormat != FORMAT)
 					return null;
 
-				final CodecInfo[] codecs = context.deserialize(obj.get(CODEC_KEY), CodecInfo[].class);
-				final BlockCodecInfo blockCodec = getBlockCodecInfo(codecs);
-				final DataCodecInfo[] dataCodecs = getDataCodecInfos(codecs);
+				final CodecParser parsedCodecs = new CodecParser(context.deserialize(obj.get(CODEC_KEY), CodecInfo[].class));
+				final DatasetCodecInfo[] datasetCodecs = simplifyDatasetCodecs(parsedCodecs.datasetCodecInfos);
+				final BlockCodecInfo blockCodec = parsedCodecs.blockCodecInfo;
+				final DataCodecInfo[] dataCodecs = parsedCodecs.dataCodecInfos;
 
 				final String typestr = obj.get(DATA_TYPE_KEY).getAsString();
 				final ZarrV3DataType dataType = ZarrV3DataType.valueOf(typestr.toLowerCase());
 
 				final long[] shape = context.deserialize(obj.get(SHAPE_KEY), long[].class);
-				ArrayUtils.reverse(shape); // c- to f-order
-
 				final String[] dimensionNames = context.deserialize(obj.get(DIMENSION_NAMES_KEY), String[].class);
+
+				ArrayUtils.reverse(shape); // c- to f-order
 				ArrayUtils.reverse(dimensionNames); // c- to f-order
 
 				final ChunkAttributes chunkAttributes = context.deserialize(obj, ChunkAttributes.class);
@@ -390,6 +401,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 						obj.get(FILL_VALUE_KEY).getAsString(),
 						dimensionNames,
 						blockCodec,
+						datasetCodecs,
 						dataCodecs);
 
 			} catch (final Exception e) {
@@ -425,8 +437,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			return jsonObject;
 		}
 
-
-
 		private static JsonArray reverseJsonArray(JsonElement paramJson) {
 
 			final JsonArray reversedJson = new JsonArray(paramJson.getAsJsonArray().size());
@@ -435,6 +445,34 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			}
 			return reversedJson;
 		}
+
+		/**
+		 * Returns a simplified set of {@link DatasetCodecInfo}s.
+		 * <p>
+		 * <ol>
+		 * 	<li>Combines any adjacent {@link TransposeCodecInfo}s.</li>
+		 * 	<li>Removes the resulting TransposeCodec if it is the identity.</li>
+		 * </ol>
+		 * 
+		 * @param datasetCodecs
+		 *            the input codecs
+		 * @return the simplified codecs
+		 */
+		private static DatasetCodecInfo[] simplifyDatasetCodecs(DatasetCodecInfo[] datasetCodecs) {
+
+			// currently ignoring the possibility DatasetCodecInfos that are not TransposeCodecInfos
+			// address this when other such codecs are implemented and supported
+			TransposeCodecInfo[] transposeCodecs = new TransposeCodecInfo[datasetCodecs.length];
+			for( int i = 0; i < datasetCodecs.length; i++ )
+				transposeCodecs[i] = (TransposeCodecInfo)datasetCodecs[i];
+
+			TransposeCodecInfo info = TransposeCodecInfo.concatenate(transposeCodecs);
+			if( info == null || TransposeCodecInfo.isIdentity(info))
+				return new DatasetCodecInfo[0];
+			else
+				return new DatasetCodecInfo[]{info};
+		}
+
 	}
 
 	public static final ByteOrderAdapter byteOrderAdapter = new ByteOrderAdapter();
@@ -480,6 +518,54 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			dataCodecs[i - 1] = (DataCodecInfo)codecs[i];
 		}
 		return dataCodecs;
+	}
+
+	private static class CodecParser {
+
+		private DatasetCodecInfo[] datasetCodecInfos;
+		private BlockCodecInfo blockCodecInfo;
+		private DataCodecInfo[] dataCodecInfos;
+
+		public CodecParser(CodecInfo[] codecs) {
+
+			parse(codecs);
+		}
+
+		public void parse(CodecInfo[] codecs) {
+
+			final ArrayList<DataCodecInfo> dataCodecList = new ArrayList<>();
+			final ArrayList<DatasetCodecInfo> datasetCodecList = new ArrayList<>();
+
+			boolean foundBlockCodec = false;
+
+			int i = 0;
+			int blockCodecIndex = -1;
+			for (CodecInfo codec : codecs) {
+				if (!foundBlockCodec) {
+
+					if (codec instanceof BlockCodecInfo) {
+						blockCodecInfo = (BlockCodecInfo)codec;
+						foundBlockCodec = true;
+						blockCodecIndex = i;
+					} else if (codec instanceof DatasetCodecInfo)
+						datasetCodecList.add((DatasetCodecInfo)codec);
+					else
+						throw new N5Exception("Codec at index " + i + " is a DataCodec, but came before a BlockCodec.");
+
+				} else if (codec instanceof BlockCodecInfo)
+					throw new N5Exception("Codec at index " + i + " is a BlockCodec, but came after a BlockCodec at position " + blockCodecIndex);
+				else if (codec instanceof DatasetCodecInfo)
+					throw new N5Exception("Codec at index " + i + " is a DatasetCodec, but came after a BlockCodec at position " + blockCodecIndex);
+				else
+					dataCodecList.add((DataCodecInfo)codec);
+
+				i++;
+			}
+
+			datasetCodecInfos = datasetCodecList.stream().toArray(n -> new DatasetCodecInfo[n]);
+			dataCodecInfos = dataCodecList.stream().toArray(n -> new DataCodecInfo[n]);
+		}
+
 	}
 
 	private static CodecInfo[] concatenateCodecs( ZarrV3DatasetAttributes attributes) {
