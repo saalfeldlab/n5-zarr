@@ -16,12 +16,13 @@ public class DefaultChunkKeyEncoding implements ChunkKeyEncoding {
 			Stream.of(".", "/").collect(Collectors.toSet())
 	);
 
+	public static String DEFAULT_SEPARATOR = "/";
+
 	@NameConfig.Parameter(optional = true)
 	final String separator;
 
 	protected DefaultChunkKeyEncoding() {
-
-		this.separator = "/";
+		this(DEFAULT_SEPARATOR);
 	}
 
 	public DefaultChunkKeyEncoding(final String separator) {
