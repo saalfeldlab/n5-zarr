@@ -174,7 +174,7 @@ public interface ZarrV3Compressor extends DataCodecInfo, DataCodec {
 		@NameConfig.Parameter
 		private final int typesize;
 
-		@NameConfig.Parameter
+		@NameConfig.Parameter(optional = true)
 		private final int nthreads;
 
 		public Blosc() {
