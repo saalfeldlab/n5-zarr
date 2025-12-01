@@ -269,10 +269,23 @@ public class N5ZarrTest extends AbstractN5Test {
 	public void testBlocksPaddedWithFillValue() {
 
 		final String dsetPath = "";
-		final long[] dimensions = new long[]{4, 3};
-		final int[] blockSize = new int[]{3, 3};
+		final long[] shape = new long[]{3, 4};
+		final int[] chunkSize = new int[]{3, 3};
 		final String fillValue = "111";
 		final DType dtype = new DType(DataType.INT8);
+
+		final ZArrayAttributes zarray = new ZArrayAttributes(
+				2,
+				shape,
+				chunkSize,
+				dtype,
+				ZarrCompressor.fromCompression(new RawCompression()),
+				fillValue,
+				'F',
+				".",
+				dtype.getFilters());
+
+		ZarrDatasetAttributes attributes = new ZarrDatasetAttributes(zarray);
 
 		final long[] pos = new long[]{1, 0};
 		final byte[] data = new byte[]{1, 2, 3};
@@ -284,7 +297,6 @@ public class N5ZarrTest extends AbstractN5Test {
 		int[] croppedBlockSize = {1, 3};
 		DataBlock<byte[]> blk10 = new ByteArrayDataBlock(croppedBlockSize, pos, data);
 
-		ZarrDatasetAttributes attributes = new ZarrDatasetAttributes(dimensions, blockSize, dtype, new RawCompression(), false, fillValue);
 		try (final N5Writer n5 = createTempN5Writer()) {
 
 			n5.createDataset(dsetPath, attributes);

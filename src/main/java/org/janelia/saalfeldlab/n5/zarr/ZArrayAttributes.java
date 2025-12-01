@@ -35,7 +35,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.zarr.ZarrCompressor.Raw;
@@ -137,27 +136,6 @@ public class ZArrayAttributes {
 
 		// empty dimensionSeparator so that the reader's separator is used
 		this(zarr_format, shape, chunks, dtype, compressor, fill_value, order, "", filters);
-	}
-
-	public ZarrDatasetAttributes getDatasetAttributes() {
-
-		final boolean isRowMajor = order == 'C';
-		final long[] dimensions = shape.clone();
-		final int[] blockSize = chunks.clone();
-
-		if (isRowMajor) {
-			ArrayUtils.reverse(dimensions);
-			ArrayUtils.reverse(blockSize);
-		}
-
-		return new ZarrDatasetAttributes(
-				dimensions,
-				blockSize,
-				dtype,
-				compressor.getCompression(),
-				isRowMajor,
-				(fillValue == null || fillValue.isJsonNull()) ? null : fillValue.getAsString(),
-				dimensionSeparator);
 	}
 
 	private static JsonElement parseFillValue(String fillValue, DataType dtype) {
