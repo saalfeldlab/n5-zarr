@@ -24,12 +24,7 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
-import org.janelia.saalfeldlab.n5.codec.RawBlockCodecInfo;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.n5.shard.DefaultShardCodecInfo;
-import org.janelia.saalfeldlab.n5.shard.ShardIndex.IndexLocation;
-import org.janelia.saalfeldlab.n5.zarr.codec.PaddedRawBlockCodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter;
@@ -46,6 +41,7 @@ import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayCursor;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.transform.integer.MixedTransform;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
@@ -57,6 +53,8 @@ import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.view.IntervalView;
+import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
 
 public class TensorstoreTest {
@@ -64,7 +62,7 @@ public class TensorstoreTest {
 	private String testZarrBaseName = "tensorstore_tests";
 
 	private enum Version {
-		zarr2, zarr3
+		zarr, zarr3
 	}
 
 	private volatile boolean skipPython = false;
@@ -110,8 +108,6 @@ public class TensorstoreTest {
 			final List<String> pythonArgs = new ArrayList<>();
 			pythonArgs.addAll(Arrays.asList(new String[]{"poetry", "run", "python", "src/test/python/" + script}));
 			pythonArgs.addAll(Arrays.asList(args));
-
-			System.out.println(String.join(" ", pythonArgs));
 			final ProcessBuilder pb = new ProcessBuilder(pythonArgs.toArray(new String[0]));
 
 			pb.redirectOutput(Redirect.INHERIT);
@@ -123,10 +119,7 @@ public class TensorstoreTest {
 				System.err.println("The process timed out!");
 
 			final int exitCode = process.exitValue();
-
-			if (exitCode == 0)
-				System.out.println("Python process exited successfully!");
-			else
+			if (exitCode != 0)
 				System.err.println("Python process exited with code " + exitCode);
 
 			process.destroy();
@@ -164,28 +157,24 @@ public class TensorstoreTest {
 	}
 
 	@Test
-	@Ignore("until re-compilation of n5-imglib2")
 	public void testReadTensorstoreZarr2() throws IOException, InterruptedException {
 
-		testReadTensorstore(Version.zarr2);
+		testReadTensorstore(Version.zarr);
 	}
 
 	@Test
-	@Ignore("until re-compilation of n5-imglib2")
 	public void testWriteTensorstoreZarr2() throws IOException, InterruptedException, ExecutionException {
 
-		testWriteTensorstore(Version.zarr2);
+		testWriteTensorstore(Version.zarr);
 	}
 
 	@Test
-	@Ignore("until re-compilation of n5-imglib2")
 	public void testReadTensorstoreZarr3() throws IOException, InterruptedException {
 
 		testReadTensorstore(Version.zarr3);
 	}
 
 	@Test
-	@Ignore("until re-compilation of n5-imglib2")
 	public void testWriteTensorstoreZarr3() throws IOException, InterruptedException, ExecutionException {
 
 		testWriteTensorstore(Version.zarr3);
@@ -230,7 +219,6 @@ public class TensorstoreTest {
 		final String testZarrDatasetName = String.join("/", testZarrBaseName, version.toString());
 
 		// assertTrue(n5Zarr.exists(testZarrDatasetName)); // For this to be true, the tensorstore script needs to explicitly create a group
-
 		assertFalse(n5Zarr.datasetExists(testZarrDatasetName));
 
 		/* array parameters */
@@ -277,20 +265,35 @@ public class TensorstoreTest {
 		final FloatType refFloat = new FloatType();
 		assertIsRealSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_f4"), refFloat);
 		assertIsRealSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_f4"), refFloat);
-		
-		/* sharded data */
+
 		if (version == Version.zarr3) {
-			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_u1_sharded", new UnsignedByteType());
-			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/30x20_c_u1_sharded", new UnsignedByteType());
+			// sharded data
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_u1_sharded", new UnsignedByteType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/30x20_c_u1_sharded", new UnsignedByteType());
 
-			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_u4_sharded", new UnsignedIntType());
-			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/30x20_c_u4_sharded", new UnsignedIntType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_u4_sharded", new UnsignedIntType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/30x20_c_u4_sharded", new UnsignedIntType());
 
-			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_i4_sharded", new IntType());
-			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/30x20_c_i4_sharded", new IntType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_i4_sharded", new IntType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/30x20_c_i4_sharded", new IntType());
 
-			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/30x20_c_i8_sharded", new LongType());
-			testReadSharded((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_i8_sharded", new LongType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/30x20_c_i8_sharded", new LongType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_i8_sharded", new LongType());
+
+			// transposed data
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_u1_transpose", new UnsignedByteType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_u4_transpose", new UnsignedIntType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_i8_transpose", new LongType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_f4_transpose", new FloatType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/3x2_c_f8_transpose", new DoubleType());
+
+			// transposed 3d
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/4x3x2_c_u1_transpose_0-1-2", new UnsignedByteType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/4x3x2_c_u1_transpose_0-2-1", new UnsignedByteType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/4x3x2_c_u1_transpose_1-0-2", new UnsignedByteType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/4x3x2_c_u1_transpose_1-2-0", new UnsignedByteType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/4x3x2_c_u1_transpose_2-0-1", new UnsignedByteType());
+			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/4x3x2_c_u1_transpose_2-1-0", new UnsignedByteType());
 		}
 
 		// /* compressors */
@@ -393,7 +396,7 @@ public class TensorstoreTest {
 			N5Utils.save(imgBig, n5Zarr, dsetBig, new int[] { 2, 3 }, new RawCompression());
 			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBig, "-d", version.toString()));
 
-			// TODO when new n5-imglib2 version is released
+			// TODO
 //			if( version == Version.zarr3 ) {
 //
 //				// sharded
@@ -411,8 +414,6 @@ public class TensorstoreTest {
 //				assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBigSharded, "-d",version.toString()));
 //			}
 		}
-		System.out.println("done");
-
 	}
 
 	private <T extends NativeType<T>> ZarrV3DatasetAttributes buildAttributes(long[] dimensions, T type, int[] shardSize, int[] blockSize,
@@ -439,22 +440,17 @@ public class TensorstoreTest {
 		return img;
 	}
 
-	public <T extends NumericType<T>> void testReadSharded(final ZarrV3KeyValueReader zarr, final String dataset, T ref) {
+	public <T extends NumericType<T>> void testRead(final ZarrV3KeyValueReader zarr, final String dataset, T ref) {
 
-		System.out.println("testSharded for : " + zarr.getURI() + "  " + dataset);
-		if( zarr.exists(dataset)) {
-			System.out.println("  exists");
-			if (ref instanceof IntegerType) {
-				assertIsIntegerSequence((RandomAccessibleInterval) N5Utils.open(zarr, dataset), (IntegerType) ref);
-			}
-			else if (ref instanceof RealType) {
-				assertIsRealSequence((RandomAccessibleInterval) N5Utils.open(zarr, dataset), (RealType) ref);
-			}
-			else
-				System.err.println("Skipping test for: " + dataset + ".  Invalide ref type.");
-
+		assertTrue(zarr.exists(dataset));
+		if (ref instanceof IntegerType) {
+			assertIsIntegerSequence((RandomAccessibleInterval) N5Utils.open(zarr, dataset), (IntegerType) ref);
 		}
-
+		else if (ref instanceof RealType) {
+			assertIsRealSequence((RandomAccessibleInterval) N5Utils.open(zarr, dataset), (RealType) ref);
+		}
+		else
+			System.err.println("Skipping test for: " + dataset + ".  Invalide ref type.");
 	}
 
 }

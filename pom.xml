@@ -140,6 +140,7 @@
 
 		<n5.version>4.0.0-alpha-7-SNAPSHOT</n5.version>
 		<n5-blosc.version>2.0.0-alpha-4</n5-blosc.version>
+		<n5-imglib2.version>7.1.0-alpha-7-SNAPSHOT</n5-imglib2.version>
 		<n5-zstandard.version>2.0.0-alpha-4</n5-zstandard.version>
 	</properties>
 
@@ -159,7 +160,6 @@
 		<dependency>
 			<groupId>org.janelia</groupId>
 			<artifactId>n5-zstandard</artifactId>
-			<version>${n5-zstandard.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>

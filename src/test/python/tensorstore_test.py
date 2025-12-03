@@ -34,6 +34,7 @@ import os
 import tempfile
 import tensorstore as ts
 import logging
+import itertools
 logger = logging.getLogger(__name__)
 
 def ts_create_n5_test(n5_path, data=None, chunk_shape=None, compression=None, level=1, resolution=None):
@@ -196,7 +197,7 @@ def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=No
 
 
 # Function to create Zarr3 dataset with TensorStore
-def ts_create_zarr3_test(zarr3_path, data=None, chunk_shape=None, shard_shape=None, compression=None, level=1, fill_value=None):
+def ts_create_zarr3_test(zarr3_path, data=None, chunk_shape=None, shard_shape=None, compression=None, transpose_order=None, level=1, fill_value=None):
     """
     Function to create a Zarr3 dataset using TensorStore.
 
@@ -221,6 +222,8 @@ def ts_create_zarr3_test(zarr3_path, data=None, chunk_shape=None, shard_shape=No
     if data is None:
         data = np.arange(np.prod(chunk_shape)).reshape(chunk_shape)
 
+
+
     zarr3_store_spec = {
         'driver': 'zarr3',
         'kvstore': {
@@ -238,24 +241,32 @@ def ts_create_zarr3_test(zarr3_path, data=None, chunk_shape=None, shard_shape=No
         },
     }
 
-    if fill_value is not None:
+    zarr3_store_spec['metadata']['codecs'] = []
+
+    if transpose_order:
+        zarr3_store_spec['metadata']['codecs'].append({
+            'name': 'transpose',
+            'configuration': {
+                'order': transpose_order
+            }
+        })
+
+    if fill_value:
       zarr3_store_spec['metadata']['fill_value'] = fill_value
 
-    zarr3_store_spec['metadata']['codecs'] = [
+    zarr3_store_spec['metadata']['codecs'].append(
         {
             'name': 'bytes',
             'configuration': {
                 'endian': 'little'
             }
         }
-    ]
+    )
 
     if compression == "zlib":
         compression = "gzip"
 
-    if compression is None:
-        pass
-    elif compression == 'gzip' or compression == 'zstd':
+    if compression == 'gzip' or compression == 'zstd':
         zarr3_store_spec['metadata']['codecs'].append({
             "name": compression,
             "configuration": {
@@ -272,8 +283,6 @@ def ts_create_zarr3_test(zarr3_path, data=None, chunk_shape=None, shard_shape=No
                     "shuffle": "bitshuffle"
                 }
         })
-    else:
-        raise Exception("Unknown compression name: " + compression)
 
     zarr3_store = ts.open(zarr3_store_spec, create=True, delete_existing=True).result()
     zarr3_store.write(data).result()
@@ -375,7 +384,7 @@ def ts_create_zarr3_sharded_test(zarr3_path, data=None, shard_shape=None, chunk_
     return zarr3_store
 
 # For Zarr3
-def runZarr3Test(group_path, array_3x2_c, array_30x20_c):
+def runZarr3Test(group_path, array_3x2_c, array_30x20_c, array_4x3x2):
 
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_u1'), data=array_3x2_c.astype("|u1"), chunk_shape=(2, 3))
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_i8'), data=array_3x2_c.astype("<i8"), chunk_shape=(2, 3))
@@ -407,6 +416,18 @@ def runZarr3Test(group_path, array_3x2_c, array_30x20_c):
 
     ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '3x2_c_i8_sharded'), data=array_3x2_c.astype("<i8"), shard_shape=(1, 2), chunk_shape=(1, 1))
     ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_c_i8_sharded'), data=array_30x20_c.astype("<i8"), shard_shape=(6, 10), chunk_shape=(3, 5))
+
+    # transpose
+    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_u1_transpose'), data=array_3x2_c.astype("|u1"), chunk_shape=(2, 3), transpose_order=(1,0))
+    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_u4_transpose'), data=array_3x2_c.astype("|u4"), chunk_shape=(2, 3), transpose_order=(1,0))
+    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_i8_transpose'), data=array_3x2_c.astype("<i8"), chunk_shape=(2, 3), transpose_order=(1,0))
+    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_f4_transpose'), data=array_3x2_c.astype("<f4"), chunk_shape=(2, 3), transpose_order=(1,0))
+    ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_f8_transpose'), data=array_3x2_c.astype("<f8"), chunk_shape=(2, 3), transpose_order=(1,0))
+
+    # transpose3d
+    for order in itertools.permutations((0,1,2)):
+        a, b, c = order
+        ts_create_zarr3_test(zarr3_path=os.path.join(group_path, f"4x3x2_c_u1_transpose_{a}-{b}-{c}"), data=array_4x3x2.astype("|u1"), chunk_shape=(2, 3, 4), transpose_order=order)
 
 
 # For Zarr2
@@ -498,12 +519,12 @@ def main(test_path: str | None = None, *args) -> int:
 
     # Determine whether to use N5 or Zarr2 or Zarr3
     args = [arg.lower() for arg in args]
-    valid_options = ['--zarr3', '--zarr2', '--n5', '--info']
+    valid_options = ['--zarr3', '--zarr', '--n5', '--info']
     use_zarr3 = '--zarr3' in args
     use_n5 = '--n5' in args
 
     if any(arg.startswith('--') and arg not in valid_options for arg in args):
-        raise Exception("Invalid option provided. Valid options are '--zarr3' or '--zarr2' or '--n5' or '--info'.")
+        raise Exception("Invalid option provided. Valid options are '--zarr3' or '--zarr' or '--n5' or '--info'.")
 
     format = 3 if use_zarr3 else 2 if not use_n5 else 'n5'
 
@@ -511,7 +532,7 @@ def main(test_path: str | None = None, *args) -> int:
     if format == 3:  
         group_path = os.path.join(tensorstore_tests_path, 'zarr3')
     elif format == 2:
-        group_path = os.path.join(tensorstore_tests_path, 'zarr2')
+        group_path = os.path.join(tensorstore_tests_path, 'zarr')
         os.makedirs(group_path, exist_ok=True)
         zarr2 = open(os.path.join(group_path, '.zgroup'), 'w')
         zarr2.write('''{
@@ -528,11 +549,13 @@ def main(test_path: str | None = None, *args) -> int:
     array_3x2_c = np.arange(0, 3 * 2).reshape(2, 3)
     array_30x20_c = np.arange(0, 30 * 20).reshape(20, 30)
 
+    array_4x3x2 = np.arange(0, 4 * 3 * 2).reshape(2, 3, 4)
+
     array_3x2_f = np.arange(0, 3 * 2).reshape(2, 3)
     array_30x20_f = np.arange(0, 30 * 20).reshape(20, 30)
 
     if format == 3:
-        runZarr3Test(group_path, array_3x2_c, array_30x20_c )
+        runZarr3Test(group_path, array_3x2_c, array_30x20_c, array_4x3x2)
     elif format == 2:
         runZarr2Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
     elif format == 'n5':
