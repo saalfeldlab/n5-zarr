@@ -25,27 +25,19 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
 
-import org.apache.commons.compress.utils.IOUtils;
-import org.janelia.saalfeldlab.n5.BlockReader;
-import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Reader;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.CompressionAdapter;
-import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.DefaultBlockReader;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
@@ -54,7 +46,6 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
 import org.janelia.saalfeldlab.n5.serialization.JsonArrayUtils;
 import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
@@ -320,11 +311,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	@Override
 	public boolean datasetExists(final String pathName) throws N5Exception.N5IOException {
 
+		final String normalPathName = N5URI.normalizeGroupPath(pathName);
 		if (cacheMeta()) {
-			final String normalPathName = N5URI.normalizeGroupPath(pathName);
 			return cache.isDataset(normalPathName, ZARRAY_FILE);
 		}
-		return isDatasetFromContainer(pathName);
+		return isDatasetFromContainer(normalPathName);
 	}
 
 	@Override
@@ -392,7 +383,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	public DatasetAttributes createDatasetAttributes(final JsonElement attributes) {
 
 		final ZArrayAttributes zarray = getZArrayAttributes(attributes);
-		return zarray != null ? zarray.getDatasetAttributes() : null;
+		return zarray != null ? new ZarrDatasetAttributes(zarray) : null;
 	}
 
 	@Override
@@ -415,7 +406,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		try {
 			return GsonUtils.readAttribute(attributes, normalizedAttributePath, type, gson);
 		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
-			throw new N5Exception.N5ClassCastException(e);
+
+			if ( key.equals("filters") && attributes.getAsJsonObject().get("filters").isJsonNull())
+				return (T)Collections.EMPTY_LIST;
+			else
+				throw new N5Exception.N5ClassCastException(e);
 		}
 	}
 
@@ -507,8 +502,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		if (e == JsonNull.INSTANCE || e == null) {
 			attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(new RawCompression()));
 		} else {
-			attrs.add(DatasetAttributes.COMPRESSION_KEY, gson.toJsonTree(
-					gson.fromJson(attrs.get(ZArrayAttributes.compressorKey), ZarrCompressor.class).getCompression()));
+			attrs.add(DatasetAttributes.COMPRESSION_KEY,
+					gson.toJsonTree(gson.fromJson(e, ZarrCompressor.class).getCompression()));
 		}
 		return attrs;
 	}
@@ -615,144 +610,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	@Override
-	public DataBlock<?> readBlock(
-			final String pathName,
-			final DatasetAttributes datasetAttributes,
-			final long... gridPosition) throws N5Exception {
-
-		final ZarrDatasetAttributes zarrDatasetAttributes;
-		if (datasetAttributes instanceof ZarrDatasetAttributes)
-			zarrDatasetAttributes = (ZarrDatasetAttributes)datasetAttributes;
-		else
-			zarrDatasetAttributes = (ZarrDatasetAttributes)getDatasetAttributes(pathName);
-
-		final String absolutePath = keyValueAccess
-				.compose(
-						uri,
-						pathName,
-						getZarrDataBlockPath(
-								gridPosition,
-								zarrDatasetAttributes.getDimensionSeparator(),
-								zarrDatasetAttributes.isRowMajor()));
-
-		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
-			return readBlock(lockedChannel.newInputStream(), zarrDatasetAttributes, gridPosition);
-		} catch (final N5Exception.N5NoSuchKeyException e) {
-			return null;
-		} catch (final Throwable e) {
-			throw new N5IOException(
-					"Failed to read block " + Arrays.toString(gridPosition) + " from dataset " + pathName,
-					e);
-		}
-	}
-
-	/**
-	 * Reads a {@link DataBlock} from an {@link InputStream}.
-	 *
-	 * @param in
-	 * @param datasetAttributes
-	 * @param gridPosition
-	 * @return
-	 * @throws IOException
-	 */
-	@SuppressWarnings("incomplete-switch")
-	protected static DataBlock<?> readBlock(
-			final InputStream in,
-			final ZarrDatasetAttributes datasetAttributes,
-			final long... gridPosition) throws IOException {
-
-		final int[] blockSize = datasetAttributes.getBlockSize();
-		final DType dType = datasetAttributes.getDType();
-
-		final ByteArrayDataBlock byteBlock = dType.createByteBlock(blockSize, gridPosition);
-		final BlockReader reader = datasetAttributes.getCompression().getReader();
-
-		if (dType.getDataType() == DataType.STRING) {
-			return readVLenStringBlock(in, reader, byteBlock);
-		}
-
-		reader.read(byteBlock, in);
-
-		switch (dType.getDataType()) {
-		case UINT8:
-		case INT8:
-			return byteBlock;
-		}
-
-		/* else translate into target type */
-		final DataBlock<?> dataBlock = dType.createDataBlock(blockSize, gridPosition);
-		final ByteBuffer byteBuffer = byteBlock.toByteBuffer();
-		byteBuffer.order(dType.getOrder());
-		dataBlock.readData(byteBuffer);
-
-		return dataBlock;
-	}
-
-	private static ZarrStringDataBlock readVLenStringBlock(final InputStream in, final BlockReader reader,
-			final ByteArrayDataBlock byteBlock) throws IOException {
-
-		// read whole chunk and deserialize; this should be improved
-		final ZarrStringDataBlock dataBlock = new ZarrStringDataBlock(byteBlock.getSize(), byteBlock.getGridPosition(),
-				new String[0]);
-		if (reader instanceof BloscCompression) {
-			// Blosc reader reads actual data and doesn't care about buffer size (but needs special treatment in data
-			// block)
-			reader.read(dataBlock, in);
-		} else if (reader instanceof DefaultBlockReader) {
-			try (final InputStream inflater = ((DefaultBlockReader)reader).getInputStream(in)) {
-				final DataInputStream dis = new DataInputStream(inflater);
-				final ByteArrayOutputStream out = new ByteArrayOutputStream();
-				IOUtils.copy(dis, out);
-				dataBlock.readData(ByteBuffer.wrap(out.toByteArray()));
-			}
-		} else {
-			throw new UnsupportedOperationException(
-					"Only Blosc compression or algorithms that use DefaultBlockReader are supported.");
-		}
-		return dataBlock;
-	}
-
-	/**
-	 * Constructs the path for a data block in a dataset at a given grid position.
-	 *
-	 * The returned path is
-	 *
-	 * <pre>
-	 * $gridPosition[n]$dimensionSeparator$gridPosition[n-1]$dimensionSeparator[...]$dimensionSeparator$gridPosition[0]
-	 * </pre>
-	 *
-	 * This is the file into which the data block will be stored.
-	 *
-	 * @param gridPosition
-	 * @param dimensionSeparator
-	 * @param isRowMajor
-	 *
-	 * @return
-	 */
-	protected static String getZarrDataBlockPath(
-			final long[] gridPosition,
-			final String dimensionSeparator,
-			final boolean isRowMajor) {
-
-		final StringBuilder pathStringBuilder = new StringBuilder();
-		if (isRowMajor) {
-			pathStringBuilder.append(gridPosition[gridPosition.length - 1]);
-			for (int i = gridPosition.length - 2; i >= 0; --i) {
-				pathStringBuilder.append(dimensionSeparator);
-				pathStringBuilder.append(gridPosition[i]);
-			}
-		} else {
-			pathStringBuilder.append(gridPosition[0]);
-			for (int i = 1; i < gridPosition.length; ++i) {
-				pathStringBuilder.append(dimensionSeparator);
-				pathStringBuilder.append(gridPosition[i]);
-			}
-		}
-
-		return pathStringBuilder.toString();
-	}
-
-	@Override
 	public String toString() {
 
 		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, uri.getPath());
@@ -826,14 +683,13 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 	static Gson registerGson(final GsonBuilder gsonBuilder) {
 
-		return addTypeAdapters(gsonBuilder).create();
+		return addTypeAdapters(gsonBuilder).serializeNulls().create();
 	}
 
 	protected static GsonBuilder addTypeAdapters(final GsonBuilder gsonBuilder) {
 
 		gsonBuilder.registerTypeAdapter(DataType.class, new DataType.JsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZarrCompressor.class, ZarrCompressor.jsonAdapter);
-		gsonBuilder.registerTypeAdapter(ZarrCompressor.Raw.class, ZarrCompressor.rawNullAdapter);
 		gsonBuilder.registerTypeHierarchyAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(Compression.class, CompressionAdapter.getJsonAdapter());
 		gsonBuilder.registerTypeAdapter(ZArrayAttributes.class, ZArrayAttributes.jsonAdapter);

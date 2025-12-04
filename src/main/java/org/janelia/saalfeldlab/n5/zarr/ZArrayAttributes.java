@@ -2,7 +2,7 @@
  * #%L
  * Not HDF5
  * %%
- * Copyright (C) 2019 - 2022 Stephan Saalfeld
+ * Copyright (C) 2019 - 2025 Stephan Saalfeld
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,12 +31,13 @@ package org.janelia.saalfeldlab.n5.zarr;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.n5.zarr.ZarrCompressor.Raw;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -79,10 +80,33 @@ public class ZArrayAttributes {
 	protected final int[] chunks;
 	protected final DType dtype;
 	protected final ZarrCompressor compressor;
-	protected final JsonElement fill_value;
+	protected final JsonElement fillValue;
 	protected final char order;
 	protected final String dimensionSeparator;
 	protected final List<Filter> filters = new ArrayList<>();
+
+	public ZArrayAttributes(
+			final int zarr_format,
+			final long[] shape,
+			final int[] chunks,
+			final DType dtype,
+			final ZarrCompressor compressor,
+			final JsonElement fillValue,
+			final char order,
+			final String dimensionSeparator,
+			final Collection<Filter> filters) {
+
+		this.zarr_format = zarr_format;
+		this.shape = shape;
+		this.chunks = chunks;
+		this.dtype = dtype;
+		this.compressor = compressor == null ? new ZarrCompressor.Raw() : compressor;
+		this.fillValue = fillValue;
+		this.order = order;
+		this.dimensionSeparator = dimensionSeparator;
+		if (filters != null)
+			this.filters.addAll(filters);
+	}
 
 	public ZArrayAttributes(
 			final int zarr_format,
@@ -95,16 +119,9 @@ public class ZArrayAttributes {
 			final String dimensionSeparator,
 			final Collection<Filter> filters) {
 
-		this.zarr_format = zarr_format;
-		this.shape = shape;
-		this.chunks = chunks;
-		this.dtype = dtype;
-		this.compressor = compressor == null ? new ZarrCompressor.Raw() : compressor;
-		this.fill_value = parseFillValue(fill_value, dtype.getDataType());
-		this.order = order;
-		this.dimensionSeparator = dimensionSeparator;
-		if (filters != null)
-			this.filters.addAll(filters);
+		this( zarr_format, shape, chunks, dtype, compressor,
+				parseFillValue(fill_value, dtype.getDataType()),
+				order, dimensionSeparator, filters);
 	}
 
 	public ZArrayAttributes(
@@ -121,30 +138,9 @@ public class ZArrayAttributes {
 		this(zarr_format, shape, chunks, dtype, compressor, fill_value, order, "", filters);
 	}
 
-	public ZarrDatasetAttributes getDatasetAttributes() {
-
-		final boolean isRowMajor = order == 'C';
-		final long[] dimensions = shape.clone();
-		final int[] blockSize = chunks.clone();
-
-		if (isRowMajor) {
-			ArrayUtils.reverse(dimensions);
-			ArrayUtils.reverse(blockSize);
-		}
-
-		return new ZarrDatasetAttributes(
-				dimensions,
-				blockSize,
-				dtype,
-				compressor.getCompression(),
-				isRowMajor,
-				fill_value.isJsonNull() ? null : fill_value.getAsString(),
-				dimensionSeparator);
-	}
-
 	private static JsonElement parseFillValue(String fillValue, DataType dtype) {
 
-		if (fillValue == null || fillValue.isEmpty())
+		if (fillValue == null || fillValue.isEmpty() || fillValue.equals("null"))
 			return JsonNull.INSTANCE;
 
 		// Long is more than Double, so try that first
@@ -196,7 +192,12 @@ public class ZArrayAttributes {
 
 	public String getFillValue() {
 
-		return fill_value.getAsString();
+		return fillValue.getAsString();
+	}
+
+	public JsonElement getFillValueJson() {
+
+		return fillValue;
 	}
 
 	public HashMap<String, Object> asMap() {
@@ -207,10 +208,14 @@ public class ZArrayAttributes {
 		map.put(shapeKey, shape);
 		map.put(chunksKey, chunks);
 		map.put(dTypeKey, dtype.toString());
-		map.put(fillValueKey, fill_value);
+		map.put(fillValueKey, fillValue);
 		map.put(orderKey, order);
-		map.put(filtersKey, filters);
 		map.put(dimensionSeparatorKey, dimensionSeparator);
+
+		if (filters.isEmpty())
+			map.put(filtersKey, EMPTY_FILTERS);
+		else
+			map.put(filtersKey, filters);
 
 		// compression key is required, need to write json null
 		map.put(compressorKey, compressor instanceof RawCompression ? JsonNull.INSTANCE : compressor);
@@ -232,9 +237,19 @@ public class ZArrayAttributes {
 
 			final JsonObject obj = json.getAsJsonObject();
 			final JsonElement sepElem = obj.get("dimension_separator");
+			final JsonElement fillValueJson = obj.get(ZArrayAttributes.fillValueKey);
+
 			try {
-				final Collection<Filter> filters = context.deserialize(obj.get("filters"), TypeToken.getParameterized(Collection.class, Filter.class).getType());
+
 				final String typestr = context.deserialize(obj.get("dtype"), String.class);
+
+				JsonElement filterArr = obj.get("filters");
+				final Collection<Filter> filters;
+				if (filterArr.isJsonNull())
+					filters = Collections.EMPTY_LIST;
+				else
+					filters = context.deserialize(filterArr, TypeToken.getParameterized(Collection.class, Filter.class).getType());
+
 				final DType dType = new DType(typestr, filters);
 
 				return new ZArrayAttributes(
@@ -242,8 +257,8 @@ public class ZArrayAttributes {
 						context.deserialize( obj.get("shape"), long[].class),
 						context.deserialize( obj.get("chunks"), int[].class),
 						dType, // fix
-						context.deserialize( obj.get("compressor"), ZarrCompressor.class), // fix
-						obj.get("fill_value").isJsonNull() ? null : obj.get("fill_value").getAsString(),
+						context.deserialize( obj.get("compressor"), ZarrCompressor.class),
+						fillValueJson,
 						obj.get("order").getAsCharacter(),
 						sepElem != null ? sepElem.getAsString() : ".",
 						filters);
@@ -260,15 +275,31 @@ public class ZArrayAttributes {
 			jsonObject.addProperty("zarr_format", src.getZarrFormat());
 			jsonObject.add("shape", context.serialize(src.getShape()));
 			jsonObject.add("chunks", context.serialize(src.getChunks()));
-
 			jsonObject.add("dtype", context.serialize(src.getDType().toString()));
-			jsonObject.add("compressor", context.serialize(src.getCompressor()));
-			jsonObject.addProperty("fill_value", src.getFillValue());
+			jsonObject.add("fill_value", src.getFillValueJson());
 			jsonObject.addProperty("order", src.getOrder());
 			jsonObject.addProperty("dimension_separator", src.getDimensionSeparator());
-			jsonObject.add("filters", context.serialize(src.getFilters()));
+
+			if( src.getCompressor() instanceof RawCompression ||
+				src.getCompressor() instanceof Raw  ) {
+				jsonObject.add("compressor", JsonNull.INSTANCE);
+			} else {
+				jsonObject.add("compressor", context.serialize(src.getCompressor()));
+			}
+
+			Collection<Filter> filters = src.getFilters();
+			if (filters.isEmpty())
+				jsonObject.add("filters", JsonNull.INSTANCE);
+			else
+				jsonObject.add("filters", context.serialize(filters));
 
 			return jsonObject;
 		}
 	}
+
+	// dummy instance for serialization
+	private static EmptyZarrFilters EMPTY_FILTERS = new EmptyZarrFilters();
+
+	public static class EmptyZarrFilters { }
+
 }

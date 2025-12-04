@@ -1,9 +1,9 @@
 package org.janelia.saalfeldlab.n5.zarr.chunks;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.n5.serialization.NameConfig;
 
@@ -13,15 +13,16 @@ public class DefaultChunkKeyEncoding implements ChunkKeyEncoding {
 	private static final long serialVersionUID = 2215709434854968911L;
 
 	public static Set<String> VALID_SEPARATORS = Collections.unmodifiableSet(
-			Arrays.stream(new String[]{".", "/"}).collect(Collectors.toSet())
+			Stream.of(".", "/").collect(Collectors.toSet())
 	);
+
+	public static String DEFAULT_SEPARATOR = "/";
 
 	@NameConfig.Parameter(optional = true)
 	final String separator;
 
 	protected DefaultChunkKeyEncoding() {
-
-		this.separator = "/";
+		this(DEFAULT_SEPARATOR);
 	}
 
 	public DefaultChunkKeyEncoding(final String separator) {
@@ -31,7 +32,7 @@ public class DefaultChunkKeyEncoding implements ChunkKeyEncoding {
 	}
 
 	public String getSeparator() {
-
+		
 		return separator;
 	}
 

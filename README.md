@@ -6,6 +6,10 @@ This library provides best effort compatibility with existing [Zarr v2](https://
 * self-consistency, i.e. data writing and reading in this implementation works,
 * reading of some example zarr containers written with Python (check the [examples](https://github.com/saalfeldlab/n5-zarr/blob/master/src/test/python/zarr-test.py))
 
+## Examples
+
+Tutorials and code examples can be found on the [imglib2-blog](https://imglib.github.io/imglib2-blog/#category=n5). You can also have a look at the [tests](https://github.com/saalfeldlab/n5-zarr/blob/master/src/test/java/org/janelia/saalfeldlab/n5/zarr/N5ZarrTest.java#L249).
+
 ## Build instructions
 
 Blosc compressors depend on `n5-blosc` which depends on `libblosc1`, On Ubuntu 18.04 or later, install with:
@@ -45,7 +49,3 @@ This implementation currently supports the following Zarr features
 ## N5 gimmicks
 
 Optionally, N5 dataset attributes ("dimensions", "blockSize", "compression", "dataType") can be virtually mapped such that N5-API based code that reads or writes them directly via general attribute access will see and modify the corresponding zarray (dataset) attributes.  Keep in mind that this will lead to name clashes if a Zarr dataset uses any of these attributes for other purposes, try switching the mapping off first if that is an issue.
-
-## Examples
-
-TODO add code examples.  For now, have a look at the [tests](https://github.com/saalfeldlab/n5-zarr/blob/master/src/test/java/org/janelia/saalfeldlab/n5/zarr/N5ZarrTest.java#L249).

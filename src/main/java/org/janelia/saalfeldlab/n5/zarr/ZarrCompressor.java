@@ -2,7 +2,7 @@
  * #%L
  * Not HDF5
  * %%
- * Copyright (C) 2019 - 2022 Stephan Saalfeld
+ * Copyright (C) 2019 - 2025 Stephan Saalfeld
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -60,6 +60,7 @@ public interface ZarrCompressor {
 
 	/* idiotic stream based initialization because Java cannot have static initialization code in interfaces */
 	public static Map<String, Class<? extends ZarrCompressor>> registry = Stream.of(
+			new SimpleImmutableEntry<>("raw", Raw.class),
 			new SimpleImmutableEntry<>("zstd", Zstandard.class),
 			new SimpleImmutableEntry<>("blosc", Blosc.class),
 			new SimpleImmutableEntry<>("zlib", Zlib.class),
@@ -90,36 +91,6 @@ public interface ZarrCompressor {
 			return null;
 		}
 	}
-
-	// @Override
-	// public default String getType() {
-	//
-	// return getCompression().getType();
-	// }
-	//
-	// @Override
-	// default BlockReader getReader() {
-	//
-	// return getCompression().getReader();
-	// }
-	//
-	// @Override
-	// default BlockWriter getWriter() {
-	//
-	// return getCompression().getWriter();
-	// }
-
-	// @Override
-	// default InputStream decode(final InputStream in) throws IOException {
-	//
-	// return getCompression().decode(in);
-	// }
-	//
-	// @Override
-	// default OutputStream encode(OutputStream out) throws IOException {
-	//
-	// return getCompression().encode(out);
-	// }
 
 	public Compression getCompression();
 
@@ -329,18 +300,4 @@ public interface ZarrCompressor {
 		}
 	}
 
-	TypeAdapter<Raw> rawNullAdapter = new TypeAdapter<Raw>() {
-
-		@Override public void write(JsonWriter out, Raw value) throws IOException {
-			final boolean serializeNull = out.getSerializeNulls();
-			out.setSerializeNulls(true);
-			out.nullValue();
-			out.setSerializeNulls(serializeNull);
-		}
-
-		@Override public Raw read(JsonReader in) {
-
-			return new Raw();
-		}
-	};
 }

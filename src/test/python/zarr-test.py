@@ -2,7 +2,7 @@
 # #%L
 # Not HDF5
 # %%
-# Copyright (C) 2019 - 2022 Stephan Saalfeld
+# Copyright (C) 2019 - 2025 Stephan Saalfeld
 # %%
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:

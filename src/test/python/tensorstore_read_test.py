@@ -2,7 +2,7 @@
 # #%L
 # Not HDF5
 # %%
-# Copyright (C) 2019 - 2025 Stephan Saalfeld
+# Copyright (C) 2019 - 2022 Stephan Saalfeld
 # %%
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -27,25 +27,46 @@
 # #L%
 ###
 
-from pathlib import Path
-import numpy as np
-import zarr
-from numcodecs import Zlib, GZip, BZ2, Zstd
 import sys
-import os
+import argparse
+import numpy as np
+import tensorstore as ts
 
-nested_test_path = sys.argv[1]
-group_path = os.path.join('test', 'data')
+def read(path, driver='zarr3'):
+    p={
+        'driver': driver,
+        'kvstore': {'driver':'file', 'path':path},
+        'context': {'cache_pool': {'total_bytes_limit': 100_000_000}},
+        'recheck_cached_data':'open'
+    }
+    return np.array(ts.open(p).result())
 
-nested_store = zarr.NestedDirectoryStore(str(nested_test_path))
-nested_root = zarr.group(store=nested_store, overwrite=True)
-nested_group = nested_root.create_group(group_path)
+def validate(data, message):
+    shp = data.shape
+    correct = np.all(np.arange(np.prod(shp)).reshape(shp) == data)
+    if not correct:
+        print(f"fail: incorrect data at {message}")
+        return 2
+    else:
+        return 0
 
-array_3x2_c = np.arange(0,3*2).reshape(2,3)
+parser = argparse.ArgumentParser(
+        prog='tensorstore_read_test',
+        description='Tests whether tensorstore can read zarr data')
 
-nested_group.array(
-  name='3x2_c_u1',
-  dtype='|u1',
-  data=array_3x2_c,
-  chunks=(2, 3),
-  overwrite=True)
+parser.add_argument('-p', '--path')
+parser.add_argument('-d', '--driver', default='zarr3')
+parser.add_argument('--test', action='store_true')
+args = parser.parse_args()
+
+if args.test:
+    sys.exit(0)
+
+path = args.path
+try: 
+    data = read(path, args.driver)
+except Exception as e:
+    print(f"fail: error when reading at {path}")
+    sys.exit(1)
+
+sys.exit(validate(data, path))
