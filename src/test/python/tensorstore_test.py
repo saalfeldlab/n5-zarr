@@ -118,7 +118,7 @@ def ts_create_n5_test(n5_path, data=None, chunk_shape=None, compression=None, le
     logger.debug("N5 store has been updated.")
    
 # Function to create Zarr2 dataset with TensorStore
-def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=None, level=1, fill_value=0):
+def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=None, level=1, fill_value=0, order='C'):
     """
     Function to create a Zarr2 dataset using TensorStore.
 
@@ -141,14 +141,6 @@ def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=No
     if data is None:
         data = np.arange(np.prod(chunk_shape)).reshape(chunk_shape)
     
-    # Determine the order
-    if data.flags['C_CONTIGUOUS']:
-        order = 'C'
-    elif data.flags['F_CONTIGUOUS']:
-        order = 'F'
-    else:
-        raise ValueError("Data is neither C-contiguous nor F-contiguous.")
-
     # TensorStore Zarr2 dtype
     dtype_str = np.dtype(data.dtype).str
 
@@ -164,7 +156,7 @@ def ts_create_zarr2_test(zarr2_path, data=None, chunk_shape=None, compression=No
             'dtype': dtype_str,
             'compressor': None,
             'fill_value': fill_value,
-            'order': order # TODO: Fix F or C order, based on data via data.flags['C_CONTIGUOUS'] or  data.flags['F_CONTIGUOUS']:
+            'order': order
         }
     }
 
@@ -425,6 +417,9 @@ def runZarr3Test(group_path, array_3x2_c, array_30x20_c, array_4x3x2):
     ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '3x2_c_i8_sharded'), data=array_3x2_c.astype("<i8"), shard_shape=(1, 2), chunk_shape=(1, 1))
     ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_c_i8_sharded'), data=array_30x20_c.astype("<i8"), shard_shape=(6, 10), chunk_shape=(3, 5))
 
+    ts_create_zarr3_sharded_test(zarr3_path=os.path.join(group_path, '30x20_huge-shard'), data=array_30x20_c.astype("<i8"), shard_shape=(40, 40), chunk_shape=(4, 4))
+
+
     # transpose
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_u1_transpose'), data=array_3x2_c.astype("|u1"), chunk_shape=(2, 3), transpose_order=(1,0))
     ts_create_zarr3_test(zarr3_path=os.path.join(group_path, '3x2_c_u4_transpose'), data=array_3x2_c.astype("|u4"), chunk_shape=(2, 3), transpose_order=(1,0))
@@ -439,12 +434,13 @@ def runZarr3Test(group_path, array_3x2_c, array_30x20_c, array_4x3x2):
 
 
 # For Zarr2
-def runZarr2Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f):
+def runZarr2Test(group_path, array_3x2_c, array_30x20_c):
+
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_u1'), data=array_3x2_c.astype("|u1"), chunk_shape=(2, 3))
     #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_u1'), data=array_3x2_f.astype("|u1"), chunk_shape=(2, 3))
 
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_i8'), data=array_3x2_c.astype("<i8"), chunk_shape=(2, 3))
-    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_i8'), data=array_3x2_f.astype("<i8"), chunk_shape=(2, 3))
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_f_i8'), data=array_3x2_c.astype("<i8"), chunk_shape=(2, 3), order='F')
 
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_i8'), data=array_30x20_c.astype("<i8"), chunk_shape=(7, 13))
     #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_f_i8'), data=array_30x20_f.astype("<i8"), chunk_shape=(7, 13))
@@ -473,8 +469,8 @@ def runZarr2Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x2
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u8_zstd'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='zstd')
     ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '30x20_c_u8_blosc'), data=array_30x20_c.astype(">u8"), chunk_shape=(7, 13), compression='blosc')
 
-    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_u4_f1'), data=array_3x2_c.astype(">u4"), chunk_shape=(3, 2), fill_value=1)
-    #ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_f4_fnan'), data=array_3x2_c.astype(">f4"), chunk_shape=(3, 2), fill_value=np.nan)
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_u4_f1'), data=array_3x2_c.astype(">u4"), chunk_shape=(3, 2), fill_value=1)
+    ts_create_zarr2_test(zarr2_path=os.path.join(group_path, '3x2_c_f4_fnan'), data=array_3x2_c.astype(">f4"), chunk_shape=(3, 2), fill_value=np.nan)
 
 # For N5
 def runN5Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f):
@@ -559,15 +555,12 @@ def main(test_path: str | None = None, *args) -> int:
 
     array_4x3x2 = np.arange(0, 4 * 3 * 2).reshape(2, 3, 4)
 
-    array_3x2_f = np.arange(0, 3 * 2).reshape(2, 3)
-    array_30x20_f = np.arange(0, 30 * 20).reshape(20, 30)
-
     if format == 3:
         runZarr3Test(group_path, array_3x2_c, array_30x20_c, array_4x3x2)
     elif format == 2:
-        runZarr2Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
+        runZarr2Test(group_path, array_3x2_c, array_30x20_c) 
     elif format == 'n5':
-        runN5Test(group_path, array_3x2_c, array_3x2_f, array_30x20_c, array_30x20_f)
+        runN5Test(group_path, array_3x2_c, array_30x20_c)
 
     return 0
 
