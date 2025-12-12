@@ -65,6 +65,7 @@ import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.util.FloatValueParser;
 import org.janelia.saalfeldlab.n5.zarr.Filter;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
@@ -83,8 +84,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.reflect.TypeToken;
 
+import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.LongType;
@@ -185,7 +188,6 @@ public class ZarrV3Test extends AbstractN5Test {
 		gsonBuilder.registerTypeHierarchyAdapter(Filter.class, Filter.jsonAdapter);
 		gsonBuilder.disableHtmlEscaping();
 		return gsonBuilder;
-
 	}
 
 	@Test
@@ -635,9 +637,9 @@ public class ZarrV3Test extends AbstractN5Test {
 		assertIsSequence(Views.interval(a3x2_c_bu4_f1_after, a3x2_c_bu4_f1), refUnsignedInt);
 		final RandomAccess<UnsignedIntType> ra = a3x2_c_bu4_f1_after.randomAccess();
 		final int fill_value = Integer.parseInt(n5Zarr.getZArrayAttributes(datasetName).getFillValue());
-		ra.setPosition(shape[0] - 5, 0);
+		ra.setPosition(shape[0] - 1, 0);
 		assertEquals(fill_value, ra.get().getInteger());
-		ra.setPosition(shape[1] - 5, 1);
+		ra.setPosition(shape[1] - 1, 1);
 		assertEquals(fill_value, ra.get().getInteger());
 
 		/* fill value NaN */
@@ -776,6 +778,83 @@ public class ZarrV3Test extends AbstractN5Test {
 			n5.removeAttribute(groupName, "key3");
 			Assert.assertEquals(0, n5.listAttributes(groupName).size());
 		}
+	}
+
+	@Test
+	public void testFillValues()  {
+
+		long[] dimensions = new long[]{4, 4};
+		int[] blockSize = {2, 2};
+
+		float[] fvalues = new float[]{
+				Float.NaN, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, Float.MIN_NORMAL,
+				0f, 1f, 999.99f, -1f, -888.88f
+		};
+		String[] fHexStrings = {
+				"0x7fc00000", "0xff800000", "0x7f800000", "0x00800000",
+				"0x00000000", "0x3f800000", "0x4479ff5c", "0xbf800000", "0xc45e3852"
+		}; // IEEE 754
+
+		double[] dvalues = new double[] {
+				Double.NaN, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, Double.MIN_NORMAL,
+				0.0, 1.0, 999.99, -1.0, -888.88
+		};
+		String[] dHexStrings = {
+				"0x7ff8000000000000", "0xfff0000000000000", "0x7ff0000000000000", "0x0010000000000000",
+				"0x0000000000000000", "0x3ff0000000000000", "0x408f3feb851eb852", "0xbff0000000000000", "0xc08bc70a3d70a3d7"
+		}; // IEEE 754
+
+		try (final ZarrV3KeyValueWriter n5 = (ZarrV3KeyValueWriter)createTempN5Writer()) {
+
+			int i = 0;
+			for (float value : fvalues) {
+
+				final String fillValue = FloatValueParser.encodeFloat(value);
+				ZarrV3DatasetAttributes attrs = ZarrV3DatasetAttributes.builder(dimensions, DataType.FLOAT32)
+						.blockSize(blockSize).fillValue(fillValue).build();
+				String dset = "float_" + i;
+
+				n5.createDataset(dset, attrs);
+				assertEquals( fHexStrings[i], n5.getRawAttribute(dset, "fill_value", String.class));
+
+				CachedCellImg<FloatType, ?> fimg = N5Utils.open(n5, dset);
+				assertFullOf(fimg, value);
+				i++;
+			}
+
+			i = 0;
+			for (double value : dvalues) {
+
+				final String fillValue = FloatValueParser.encodeDouble(value);
+				ZarrV3DatasetAttributes attrs = ZarrV3DatasetAttributes.builder(dimensions, DataType.FLOAT64)
+						.blockSize(blockSize).fillValue(fillValue).build();
+				String dset = "double_" + i;
+
+				n5.createDataset(dset, attrs);
+				assertEquals( dHexStrings[i], n5.getRawAttribute(dset, "fill_value", String.class));
+
+				CachedCellImg<DoubleType, ?> fimg = N5Utils.open(n5, dset);
+				assertFullOf(fimg, value);
+				i++;
+			}
+
+		}
+	}
+
+	private void assertFullOf(IterableInterval<FloatType> img, float value) {
+
+		final float delta = Float.MIN_NORMAL;
+		img.forEach(v -> {
+			assertEquals(value, v.get(), delta);
+		});
+	}
+
+	private void assertFullOf(IterableInterval<DoubleType> img, double value) {
+
+		final double delta = Double.MIN_NORMAL;
+		img.forEach(v -> {
+			assertEquals(value, v.get(), delta);
+		});
 	}
 
 	@Test

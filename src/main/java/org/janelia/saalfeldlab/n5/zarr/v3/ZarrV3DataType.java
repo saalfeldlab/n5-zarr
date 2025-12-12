@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 import java.nio.ByteBuffer;
 
 import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.util.FloatValueParser;
 
 public enum ZarrV3DataType {
 	int8(8), uint8(8), int16(16), uint16(16), int32(32), uint32(32), int64(64), uint64(64), float32(32), float64(64);
@@ -86,10 +87,18 @@ public enum ZarrV3DataType {
 					fillBuffer.putLong(Long.parseUnsignedLong(fill_value));
 					break;
 				case FLOAT32:
-					fillBuffer.putFloat(Float.parseFloat(fill_value));
+					if( fill_value.startsWith("0x")) {
+						fillBuffer.putFloat(FloatValueParser.parseFloat(fill_value));
+					} else  {
+						fillBuffer.putFloat(Float.parseFloat(fill_value));
+					}
 					break;
 				case FLOAT64:
-					fillBuffer.putDouble(Double.parseDouble(fill_value));
+					if( fill_value.startsWith("0x")) {
+						fillBuffer.putDouble(FloatValueParser.parseDouble(fill_value));
+					} else  {
+						fillBuffer.putDouble(Double.parseDouble(fill_value));
+					}
 					break;
 				}
 			} catch (final NumberFormatException e) {}

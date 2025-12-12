@@ -50,6 +50,7 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
@@ -296,46 +297,49 @@ public class TensorstoreTest {
 			testRead((ZarrV3KeyValueReader) n5Zarr, testZarrDatasetName + "/4x3x2_c_u1_transpose_2-1-0", new UnsignedByteType());
 		}
 
-		// /* compressors */
-		// final UnsignedLongType refUnsignedLong = new UnsignedLongType();
-		//
-		// assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_u8_zlib"), refUnsignedLong);
-		// assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_u8_gzip"), refUnsignedLong);
-		// assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_u8_bz2"), refUnsignedLong);
-		//
-		// /* fill value 1 */
-		// String datasetName = testZarrDatasetName + "/3x2_c_u4_f1";
-		//
-		// final RandomAccessibleInterval<UnsignedIntType> a3x2_c_bu4_f1 = N5Utils.open(n5Zarr, datasetName);
-		// assertIsSequence(a3x2_c_bu4_f1, refUnsignedInt);
-		//
-		// DatasetAttributes attributes = n5Zarr.getDatasetAttributes(datasetName);
-		// final long[] shape = attributes.getDimensions();
-		// Arrays.setAll(shape, i -> shape[i] + 5);
-		// n5Zarr.setAttribute(datasetName, "dimensions", shape);
-		//
-		// final RandomAccessibleInterval<UnsignedIntType> a3x2_c_bu4_f1_after = N5Utils.open(n5Zarr, datasetName);
-		// assertIsSequence(Views.interval(a3x2_c_bu4_f1_after, a3x2_c_bu4_f1), refUnsignedInt);
-		// final RandomAccess<UnsignedIntType> ra = a3x2_c_bu4_f1_after.randomAccess();
-		//
-		// /* fill value NaN */
-		// datasetName = testZarrDatasetName + "/3x2_c_f4_fnan";
-		//
-		// final RandomAccessibleInterval<FloatType> a3x2_c_lf4_fnan = N5Utils.open(n5Zarr, datasetName);
-		// assertIsSequence(a3x2_c_lf4_fnan, refFloat);
-		//
-		// attributes = n5Zarr.getDatasetAttributes(datasetName);
-		// final long[] shapef = attributes.getDimensions();
-		// Arrays.setAll(shapef, i -> shapef[i] + 5);
-		// n5Zarr.setAttribute(datasetName, "dimensions", shapef);
-		//
-		// final RandomAccessibleInterval<FloatType> a3x2_c_lf4_fnan_after = N5Utils.open(n5Zarr, datasetName);
-		// assertIsSequence(Views.interval(a3x2_c_lf4_fnan_after, a3x2_c_lf4_fnan), refFloat);
-		// final RandomAccess<FloatType> raf = a3x2_c_lf4_fnan_after.randomAccess();
-		// raf.setPosition(shapef[0] - 5, 0);
-		// assertTrue(Float.isNaN(raf.get().getRealFloat()));
-		// raf.setPosition(shapef[1] - 5, 1);
-		// assertTrue(Float.isNaN(raf.get().getRealFloat()));
+		final UnsignedLongType refUnsignedLong = new UnsignedLongType();
+		assertIsIntegerSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_u8_zlib"), refUnsignedLong);
+		assertIsIntegerSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_u8_gzip"), refUnsignedLong);
+
+		// bz2 not in zarr3 (as of Dec 2025)
+		if (version == Version.zarr)
+			assertIsIntegerSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/30x20_c_u8_bz2"), refUnsignedLong);
+
+		/* fill value 1 */
+		String datasetName = testZarrDatasetName + "/3x2_c_u4_f1";
+		final RandomAccessibleInterval<UnsignedIntType> a3x2_c_u4_f1 = N5Utils.open(n5Zarr, datasetName);
+		assertIsIntegerSequence(a3x2_c_u4_f1, refUnsignedInt);
+
+		DatasetAttributes attributes = n5Zarr.getDatasetAttributes(datasetName);
+		final long[] shape = attributes.getDimensions();
+		Arrays.setAll(shape, i -> shape[i] + 5);
+		n5Zarr.setAttribute(datasetName, "dimensions", shape);
+
+		final RandomAccessibleInterval<UnsignedIntType> a3x2_c_bu4_f1_after = N5Utils.open(n5Zarr, datasetName);
+		assertIsIntegerSequence(Views.interval(a3x2_c_bu4_f1_after, a3x2_c_u4_f1), refUnsignedInt);
+
+		/* fill value NaN */
+		datasetName = testZarrDatasetName + "/3x2_c_f4_fnan";
+
+		final RandomAccessibleInterval<FloatType> a3x2_c_lf4_fnan = N5Utils.open(n5Zarr, datasetName);
+		assertIsRealSequence(a3x2_c_lf4_fnan, refFloat);
+
+		/* Manually increasing the image dimensions results in empty blocks containing fill value */
+		attributes = n5Zarr.getDatasetAttributes(datasetName);
+		final long[] shapef = attributes.getDimensions();
+		Arrays.setAll(shapef, i -> shapef[i] + 5);
+		n5Zarr.setAttribute(datasetName, "dimensions", shapef);
+
+		if (version == Version.zarr) {
+			// test that non-existing blocks are filled with fill value (NaN) 
+			final RandomAccessibleInterval<FloatType> a3x2_c_lf4_fnan_after = N5Utils.open(n5Zarr, datasetName);
+			assertIsRealSequence(Views.interval(a3x2_c_lf4_fnan_after, a3x2_c_lf4_fnan), refFloat);
+			final net.imglib2.RandomAccess<FloatType> raf = a3x2_c_lf4_fnan_after.randomAccess();
+			raf.setPosition(shapef[0] - 5, 0);
+			assertTrue(Float.isNaN(raf.get().getRealFloat()));
+			raf.setPosition(shapef[1] - 5, 1);
+			assertTrue(Float.isNaN(raf.get().getRealFloat()));
+		}
 
 	}
 	

@@ -57,6 +57,7 @@ import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.codec.PaddedRawBlockCodecInfo;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -150,6 +151,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		super(shape,
 				chunkAttributes.getGrid().getShape(),
 				zarrDataType.getDataType(),
+				toJson(fillValue),
 				blockCodecInfo,
 				datasetCodecInfos,
 				toZarrV3(dataCodecInfos));
@@ -191,6 +193,10 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 		this(shape, chunkShape, dataType, fillValue, dimensionNames,
 				new DefaultChunkKeyEncoding(dimensionSeparator), blockCodecInfo, datasetCodecInfos, dataCodecInfos);
+	}
+
+	private static JsonElement toJson(String jsonString) {
+		return new Gson().toJsonTree(jsonString);
 	}
 
 	protected BlockCodecInfo defaultBlockCodecInfo() {
