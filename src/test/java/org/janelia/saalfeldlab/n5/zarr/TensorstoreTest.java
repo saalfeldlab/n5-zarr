@@ -474,6 +474,7 @@ public class TensorstoreTest {
 		n5Zarr.setAttribute(datasetName, "dimensions", shapef);
 
 		if (version == Version.zarr) {
+			// test that non-existing blocks are filled with fill value (NaN) 
 			final RandomAccessibleInterval<FloatType> a3x2_c_lf4_fnan_after = N5Utils.open(n5Zarr, datasetName);
 			assertIsRealSequence(Views.interval(a3x2_c_lf4_fnan_after, a3x2_c_lf4_fnan), refFloat);
 			final net.imglib2.RandomAccess<FloatType> raf = a3x2_c_lf4_fnan_after.randomAccess();

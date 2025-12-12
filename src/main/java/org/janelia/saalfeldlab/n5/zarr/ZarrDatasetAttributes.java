@@ -28,6 +28,7 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.Compression;
@@ -68,8 +69,9 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final String dimensionSeparator ) {
 
 		super(dimensions, blockSize, dType.getDataType(),
+				toJson(fill_value),
 				new PaddedRawBlockCodecInfo(dType.getOrder(), dType.createFillBytes(fill_value)),
-				compression);
+				null, compression);
 
 		this.zarray = createZArrayAttributes(dimensionSeparator, isRowMajor ? 'C' : 'F', this);
 		this.fillBytes = dType.createFillBytes(fill_value);
@@ -84,6 +86,10 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 			final String fill_value) {
 
 		this( dimensions, blockSize, dType, compression, isRowMajor, fill_value, ".");
+	}
+
+	private static JsonElement toJson(String jsonString) {
+		return new Gson().toJsonTree(jsonString);
 	}
 
 	protected BlockCodecInfo defaultBlockCodecInfo() {
