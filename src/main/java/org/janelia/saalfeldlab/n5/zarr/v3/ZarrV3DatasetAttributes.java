@@ -502,7 +502,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				transposeCodecs[i] = (TransposeCodecInfo)datasetCodecs[i];
 
 			TransposeCodecInfo info = TransposeCodecInfo.concatenate(transposeCodecs);
-			if( info == null || TransposeCodecInfo.isIdentity(info))
+			if (info == null || TransposeCodec.isIdentity(info.getOrder()))
 				return new DatasetCodecInfo[0];
 			else
 				return new DatasetCodecInfo[]{info};

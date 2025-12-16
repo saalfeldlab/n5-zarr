@@ -43,6 +43,9 @@ import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
+import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo;
+import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrder;
+import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrderAdapter;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 
 import com.google.gson.GsonBuilder;
@@ -368,6 +371,7 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		gsonBuilder.registerTypeAdapter(ZarrV3Compressor.class, NameConfigAdapter.getJsonAdapter(ZarrV3Compressor.class));
 		gsonBuilder.registerTypeAdapter(ZarrV3DatasetAttributes.class, ZarrV3DatasetAttributes.jsonAdapter);
 		gsonBuilder.registerTypeAdapter(ByteOrder.class, ZarrV3DatasetAttributes.byteOrderAdapter);
+		gsonBuilder.registerTypeAdapter(ZarrTransposeOrder.class, new ZarrTransposeOrderAdapter());
 		gsonBuilder.disableHtmlEscaping();
 
 		return gsonBuilder;
