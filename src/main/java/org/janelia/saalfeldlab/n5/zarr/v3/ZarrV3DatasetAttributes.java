@@ -47,6 +47,7 @@ import org.janelia.saalfeldlab.n5.codec.CodecInfo;
 import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.DatasetCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.N5BlockCodecInfo;
+import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodec;
 import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodecInfo;
 import org.janelia.saalfeldlab.n5.shard.DatasetAccess;
 import org.janelia.saalfeldlab.n5.shard.DefaultShardCodecInfo;
@@ -102,7 +103,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 	protected transient final byte[] fillBytes;
 
-	private transient final DatasetAccess<?> access;
+	private transient final DatasetAccess<?> zarrAccess;
 
 	public ZarrV3DatasetAttributes(
 			final long[] shape,
@@ -161,8 +162,8 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		this.dimensionNames = dimensionNames;
 		this.fillBytes = zarrDataType.createFillBytes(fillValue);
 
-		access = createDatasetAccess();
-		zarrBlockSize = access.getGrid().getBlockSize(0);
+		zarrAccess = createDatasetAccess();
+		zarrBlockSize = zarrAccess.getGrid().getBlockSize(0);
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -204,7 +205,16 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return new PaddedRawBlockCodecInfo(ByteOrder.nativeOrder(), getFillBytes());
 	}
 
-	protected static BlockCodecInfo defaultShardCodecInfo(int[] blockSize, DataCodecInfo[] dataCodecInfos) {
+	/**
+	 * Get the {@link DatasetAccess} for this dataset.
+	 *
+	 * @return the {@code DatasetAccess} for this dataset
+	 */
+	<T> DatasetAccess<T> getDatasetAccess() {
+
+		return (DatasetAccess<T>)zarrAccess;
+	}
+
 	protected static BlockCodecInfo defaultShardCodecInfo(int[] blockSize, DataCodecInfo[] dataCodecInfos,
 			DataCodecInfo[] shardIndexDataCodecInfos) {
 
