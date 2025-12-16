@@ -8,7 +8,6 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.codec.BlockCodec;
 import org.janelia.saalfeldlab.n5.codec.DataCodec;
-import org.janelia.saalfeldlab.n5.codec.DeterministicSizeDataCodec;
 import org.janelia.saalfeldlab.n5.codec.IdentityCodec;
 import org.janelia.saalfeldlab.n5.codec.RawBlockCodecs;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
@@ -25,8 +24,8 @@ public class PaddedRawBlockCodecs {
 			final DataCodec codec,
 			final byte[] fillBytes ) {
 
-		final BlockCodec<T> baseCodec = RawBlockCodecs.create(dataType, byteOrder, blockSize, new IdentityCodec());
-		return new PaddedRawBlockCodec<T>( baseCodec, blockSize, new DType(dataType), codec, fillBytes);
+		final BlockCodec<T> baseCodec = RawBlockCodecs.create(dataType, byteOrder, blockSize, codec);
+		return new PaddedRawBlockCodec<T>( baseCodec, blockSize, new DType(dataType), new IdentityCodec(), fillBytes);
 	}
 
 	private static class PaddedRawBlockCodec<T> implements BlockCodec<T> {
@@ -71,7 +70,6 @@ public class PaddedRawBlockCodecs {
 								dtype.getNBits(),
 								fillBytes));
 			}
-
 			return codec.encode(blockData);
 		}
 
