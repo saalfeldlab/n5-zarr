@@ -205,14 +205,21 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	}
 
 	protected static BlockCodecInfo defaultShardCodecInfo(int[] blockSize, DataCodecInfo[] dataCodecInfos) {
+	protected static BlockCodecInfo defaultShardCodecInfo(int[] blockSize, DataCodecInfo[] dataCodecInfos,
+			DataCodecInfo[] shardIndexDataCodecInfos) {
 
 		return new DefaultShardCodecInfo(
 				blockSize,
 				new PaddedRawBlockCodecInfo(),
 				toZarrV3(dataCodecInfos),
 				new PaddedRawBlockCodecInfo(),
-				new DataCodecInfo[]{},
+				shardIndexDataCodecInfos,
 				IndexLocation.END);
+	}
+
+	protected static BlockCodecInfo defaultShardCodecInfo(int[] blockSize, DataCodecInfo[] dataCodecInfos) {
+
+		return defaultShardCodecInfo(blockSize, dataCodecInfos, new DataCodecInfo[]{});
 	}
 
 	protected static DataCodecInfo[] toZarrV3(DataCodecInfo[] dataCodecInfos) {
@@ -662,6 +669,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		private BlockCodecInfo blockCodecInfo;
 		private DatasetCodecInfo[] datasetCodecInfos;
 		private DataCodecInfo[] dataCodecInfos = new DataCodecInfo[0];
+		private DataCodecInfo[] shardIndexDataCodecInfos = new DataCodecInfo[0];
 
 		// For sharding
 		private int[] shardShape;
@@ -816,6 +824,18 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		}
 
 		/**
+		 * Sets the data codec infos for the shard index;
+		 *
+		 * @param dataCodecInfos the data codecs
+		 * @return this builder
+		 */
+		public Builder shardIndexDataCodecInfos(final DataCodecInfo... shardIndexDataCodecInfos) {
+
+			this.shardIndexDataCodecInfos = shardIndexDataCodecInfos;
+			return this;
+		}
+
+		/**
 		 * Builds the {@link ZarrV3DatasetAttributes} instance.
 		 *
 		 * @return the constructed dataset attributes
@@ -841,7 +861,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 				// Sharded configuration
 				final BlockCodecInfo resolvedBlockCodecInfo = blockCodecInfo != null
 						? blockCodecInfo
-						: defaultShardCodecInfo(resolvedBlockSize, dataCodecInfos);
+						: defaultShardCodecInfo(resolvedBlockSize, dataCodecInfos, shardIndexDataCodecInfos);
 
 				// For sharding, the outer chunk is the shard shape
 				return new ZarrV3DatasetAttributes(
