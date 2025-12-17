@@ -57,6 +57,7 @@ import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.codec.PaddedRawBlockCodecInfo;
+import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -514,11 +515,20 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 			// currently ignoring the possibility DatasetCodecInfos that are not TransposeCodecInfos
 			// address this when other such codecs are implemented and supported
-			TransposeCodecInfo[] transposeCodecs = new TransposeCodecInfo[datasetCodecs.length];
-			for( int i = 0; i < datasetCodecs.length; i++ )
-				transposeCodecs[i] = (TransposeCodecInfo)datasetCodecs[i];
 
-			TransposeCodecInfo info = TransposeCodecInfo.concatenate(transposeCodecs);
+			for (int i = 0; i < datasetCodecs.length; i++)
+				if (!(datasetCodecs[i] instanceof ZarrTransposeCodecInfo)) {
+					System.err.println("Warning: can not parse " + i + "th dataset codec."
+							+ "Trying to continue.");
+
+					return new DatasetCodecInfo[0];
+				}
+
+			ZarrTransposeCodecInfo[] transposeCodecs = new ZarrTransposeCodecInfo[datasetCodecs.length];
+			for( int i = 0; i < datasetCodecs.length; i++ )
+				transposeCodecs[i] = (ZarrTransposeCodecInfo)datasetCodecs[i];
+
+			ZarrTransposeCodecInfo info = ZarrTransposeCodecInfo.concatenate(transposeCodecs);
 			if (info == null || TransposeCodec.isIdentity(info.getOrder()))
 				return new DatasetCodecInfo[0];
 			else

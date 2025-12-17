@@ -9,6 +9,7 @@ import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.codec.DatasetCodec;
 import org.janelia.saalfeldlab.n5.codec.DatasetCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodec;
+import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodecInfo;
 import org.janelia.saalfeldlab.n5.serialization.NameConfig;
 
 import com.google.gson.JsonDeserializationContext;
@@ -87,6 +88,23 @@ public class ZarrTransposeCodecInfo implements DatasetCodecInfo {
 		if (missingIndexes.length > 0)
 			throw new N5Exception("Invalid order for TransposeCodec. Missing indexes: " + Arrays.toString(missingIndexes));
 
+	}
+	
+	public static ZarrTransposeCodecInfo concatenate(ZarrTransposeCodecInfo[] infos) {
+
+		if( infos == null || infos.length == 0)
+			return null;
+		else if (infos.length == 1)
+			return infos[0];
+
+		// copy the initial order so we don't modify to the original
+		int[] order = new int[infos[0].order.param.length];
+		System.arraycopy(infos[0].order, 0, order, 0, order.length);
+
+		for( int i = 1; i < infos.length; i++ )
+			order = TransposeCodec.concatenatePermutations(order, infos[i].order.param);
+
+		return new ZarrTransposeCodecInfo(order);
 	}
 
 	/**
