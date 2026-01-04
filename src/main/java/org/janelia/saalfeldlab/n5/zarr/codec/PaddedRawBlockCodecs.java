@@ -57,15 +57,31 @@ public class PaddedRawBlockCodecs {
 		@Override
 		public ReadData encode(DataBlock<T> dataBlock) throws N5IOException {
 
+			// Handle null dataBlock (empty/default block from NonEmptyDataBlockSupplier)
+			// Return null to signal that this block should not be written
+			if (dataBlock == null) {
+				return null;
+			}
+
 			final ReadData rawBlockData = wrappedBlockCodec.encode(dataBlock);
 			final ReadData blockData;
-			if (Arrays.equals(blockSize, dataBlock.getSize())) {
+
+			// Get block size, handling null getSize()
+			final int[] dataBlockSize = dataBlock.getSize();
+
+			// Handle three cases:
+			// 1. dataBlockSize is null: use rawBlockData directly (can't pad without knowing size)
+			// 2. Sizes match: use rawBlockData directly (no padding needed)
+			// 3. Sizes differ: pad/crop to match expected blockSize
+			if (dataBlockSize == null) {
+				blockData = rawBlockData;
+			} else if (Arrays.equals(blockSize, dataBlockSize)) {
 				blockData = rawBlockData;
 			} else {
 				blockData = ReadData.from(
 						ZarrKeyValueWriter.padCrop(
 								rawBlockData.allBytes(),
-								dataBlock.getSize(),
+								dataBlockSize,
 								blockSize,
 								dtype.getNBytes(),
 								dtype.getNBits(),
