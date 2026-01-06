@@ -54,6 +54,7 @@ import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
@@ -161,11 +162,11 @@ public class ZarrV3Test extends AbstractN5Test {
 	protected Compression[] getCompressions() {
 
 		return new Compression[]{
-				// zarr v3 doesn't "officially" support compression other than Blosc and ZStandard
+				// zarr v3 doesn't "officially" support bzip compression
 				// as of Oct 2025, but we should make this work eventually
 //				 new Bzip2Compression(),
-//				 new GzipCompression(),
-//				 new GzipCompression(5, true),
+				 new GzipCompression(),
+				 new GzipCompression(5, true),
 				 new BloscCompression(),
 				 new BloscCompression("lz4", 6, BloscCompression.BITSHUFFLE, 0, 4),
 				 new ZstandardCompression(),
