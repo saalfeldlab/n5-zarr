@@ -182,9 +182,12 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 	}
 
 	public static ZArrayAttributes createZArrayAttributes(final String dimensionSeparator, char order, final DatasetAttributes datasetAttributes) {
-		if (datasetAttributes instanceof ZarrDatasetAttributes)
-			return ((ZarrDatasetAttributes)datasetAttributes).getZArrayAttributes();
 
+		if (datasetAttributes instanceof ZarrDatasetAttributes) {
+			final ZArrayAttributes zarray = ((ZarrDatasetAttributes)datasetAttributes).getZArrayAttributes();
+			if (zarray != null)
+				return zarray;
+		}
 
 		final long[] shape = datasetAttributes.getDimensions().clone();
 		ArrayUtils.reverse(shape);
@@ -198,7 +201,7 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 				chunks,
 				dType,
 				ZarrCompressor.fromCompression(datasetAttributes.getCompression()),
-				"0",
+				datasetAttributes.getDefaultValue(),
 				order,
 				dimensionSeparator,
 				dType.getFilters());
