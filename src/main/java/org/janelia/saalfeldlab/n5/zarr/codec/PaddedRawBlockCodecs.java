@@ -24,8 +24,8 @@ public class PaddedRawBlockCodecs {
 			final DataCodec codec,
 			final byte[] fillBytes ) {
 
-		final BlockCodec<T> baseCodec = RawBlockCodecs.create(dataType, byteOrder, blockSize, codec);
-		return new PaddedRawBlockCodec<T>( baseCodec, blockSize, new DType(dataType), new IdentityCodec(), fillBytes);
+		final BlockCodec<T> baseCodec = RawBlockCodecs.create(dataType, byteOrder, blockSize, new IdentityCodec());
+		return new PaddedRawBlockCodec<T>( baseCodec, blockSize, new DType(dataType), codec, fillBytes);
 	}
 
 	private static class PaddedRawBlockCodec<T> implements BlockCodec<T> {
@@ -58,6 +58,7 @@ public class PaddedRawBlockCodecs {
 
 			final ReadData rawBlockData = wrappedBlockCodec.encode(dataBlock);
 			final ReadData blockData;
+
 			if (Arrays.equals(blockSize, dataBlock.getSize())) {
 				blockData = rawBlockData;
 			} else {
