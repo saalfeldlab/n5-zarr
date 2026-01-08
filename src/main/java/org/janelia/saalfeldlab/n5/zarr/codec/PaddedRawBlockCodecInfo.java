@@ -21,8 +21,6 @@ public class PaddedRawBlockCodecInfo implements BlockCodecInfo {
 
 	private final byte[] fillValueBytes;
 
-	private final transient RawBlockCodecInfo codecInfo;
-
 	public PaddedRawBlockCodecInfo() {
 
 		// consider better default for fill value?
@@ -34,7 +32,6 @@ public class PaddedRawBlockCodecInfo implements BlockCodecInfo {
 
 		this.byteOrder = byteOrder;
 		this.fillValueBytes = fillBytes;
-		this.codecInfo = new RawBlockCodecInfo(byteOrder);
 	}
 
 	@Override
@@ -42,7 +39,7 @@ public class PaddedRawBlockCodecInfo implements BlockCodecInfo {
 
 		return TYPE;
 	}
-	
+
 	public <T> BlockCodec<T> create(final ZarrDatasetAttributes attributes, final DataCodec... codecs) {
 
 		DataType dataType = attributes.getDataType();
