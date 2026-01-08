@@ -410,7 +410,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 	public byte[] getFillBytes() {
 
-		return fillBytes;
+		return fillBytes != null ? fillBytes : new byte[8];
 	}
 
 	@Override
