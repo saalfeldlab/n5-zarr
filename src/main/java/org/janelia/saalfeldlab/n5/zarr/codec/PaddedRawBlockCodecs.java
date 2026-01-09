@@ -8,6 +8,7 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.codec.BlockCodec;
 import org.janelia.saalfeldlab.n5.codec.DataCodec;
+import org.janelia.saalfeldlab.n5.codec.DeterministicSizeDataCodec;
 import org.janelia.saalfeldlab.n5.codec.IdentityCodec;
 import org.janelia.saalfeldlab.n5.codec.RawBlockCodecs;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
@@ -82,7 +83,11 @@ public class PaddedRawBlockCodecs {
 
 		@Override
 		public long encodedSize(final int[] blockSize) throws UnsupportedOperationException {
-			return wrappedBlockCodec.encodedSize(blockSize);
+			if (codec instanceof DeterministicSizeDataCodec) {
+				return ((DeterministicSizeDataCodec) codec).encodedSize(wrappedBlockCodec.encodedSize(blockSize));
+			} else {
+				throw new UnsupportedOperationException();
+			}
 		}
 	}
 
