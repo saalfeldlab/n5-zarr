@@ -29,7 +29,7 @@ public class ZarrShardTest extends ShardTest {
 			final String basePath = new File(tempN5PathName()).toURI().normalize().getPath();
 			return new ZarrV3KeyValueWriter(
 					new FileSystemKeyValueAccess(FileSystems.getDefault()),
-					basePath, new GsonBuilder(), false, true, "/", false);
+					basePath, new GsonBuilder(), false);
 		}
 
 		private String tempN5PathName() {

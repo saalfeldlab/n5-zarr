@@ -75,8 +75,6 @@ import static org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes.createZArray
  */
 public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGsonKeyValueN5Writer {
 
-	protected String dimensionSeparator;
-
 	/**
 	 * Opens an {@link ZarrKeyValueWriter} at a given base path with a custom
 	 * {@link GsonBuilder} to support custom attributes.
@@ -239,26 +237,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			setVersion(childPath, true);
 			parent = childPath;
 		}
-	}
-
-	private HashMap<DatasetAttributes, ZarrDatasetAttributes> datasetAttributesMap = new HashMap<>();
-
-
-	private ZarrDatasetAttributes getConvertedDatasetAttributes(final DatasetAttributes datasetAttributes) {
-
-		final ZarrDatasetAttributes zarrAttrs;
-		if (datasetAttributes instanceof ZarrDatasetAttributes)
-			zarrAttrs = ((ZarrDatasetAttributes)datasetAttributes);
-		else if (datasetAttributesMap.containsKey(datasetAttributes)) {
-			zarrAttrs = datasetAttributesMap.get(datasetAttributes);
-			datasetAttributesMap.put(datasetAttributes, zarrAttrs);
-		}
-		else {
-			final ZArrayAttributes zArrayAttrs = createZArrayAttributes(dimensionSeparator, datasetAttributes);
-			zarrAttrs = new ZarrDatasetAttributes(zArrayAttrs);
-			datasetAttributesMap.put(datasetAttributes, zarrAttrs);
-		}
-		return zarrAttrs;
 	}
 
 	@Override
@@ -505,26 +483,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		writeJson(normalGroupPath, ZATTRS_FILE, attributes);
 		if (cacheMeta())
 			cache.updateCacheInfo(normalGroupPath, ZATTRS_FILE, attributes);
-	}
-
-	@Override
-	public <T> void writeBlocks(
-					final String datasetPath,
-					final DatasetAttributes datasetAttributes,
-					final DataBlock<T>... dataBlocks) {
-
-		final ZarrDatasetAttributes zarrDatasetAttributes = getConvertedDatasetAttributes(datasetAttributes);
-		CachedGsonKeyValueN5Writer.super.writeBlocks( datasetPath, zarrDatasetAttributes, dataBlocks);
-	}
-
-	@Override
-	public <T> void writeBlock(
-			final String path,
-			final DatasetAttributes datasetAttributes,
-			final DataBlock<T> dataBlock) {
-
-		final ZarrDatasetAttributes zarrDatasetAttributes = getConvertedDatasetAttributes(datasetAttributes);
-		CachedGsonKeyValueN5Writer.super.writeBlock( path, zarrDatasetAttributes, dataBlock);
 	}
 
 	public static byte[] padCrop(
