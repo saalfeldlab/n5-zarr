@@ -30,6 +30,7 @@ import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.Compression;
+import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
@@ -182,7 +183,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 
 		// These three lines are preferable to setDatasetAttributes because they
 		// are more efficient wrt caching
-		final JsonElement attributes = gson.toJsonTree(datasetAttributes);
+		final JsonElement attributes = getGson().toJsonTree(datasetAttributes);
 		final JsonObject zarrJson = attributes.getAsJsonObject();
 		zarrJson.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
 		zarrJson.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.ARRAY.toString());
@@ -227,6 +228,22 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			final String child = getKeyValueAccess().relativize(normalPath, parent);
 			if (parent != null && !child.isEmpty())
 				getCache().addChildIfPresent(parent, child);
+		}
+		return zarrAttrs;
+	}
+
+	@Override
+	public ZarrV3DatasetAttributes getConvertedDatasetAttributes(DatasetAttributes datasetAttributes) {
+		final ZarrV3DatasetAttributes zarrAttrs;
+		if (datasetAttributes instanceof ZarrV3DatasetAttributes)
+			zarrAttrs = ((ZarrV3DatasetAttributes)datasetAttributes);
+		else if (datasetAttributesMap.containsKey(datasetAttributes)) {
+			zarrAttrs = datasetAttributesMap.get(datasetAttributes);
+			datasetAttributesMap.put(datasetAttributes, zarrAttrs);
+		}
+		else {
+			zarrAttrs = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator, "0");
+			datasetAttributesMap.put(datasetAttributes, zarrAttrs);
 		}
 		return zarrAttrs;
 	}

@@ -100,27 +100,26 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	}
 
 	/**
-     * Opens an {@link ZarrV3KeyValueReader} at a given base path with a custom
-     * {@link GsonBuilder} to support custom attributes.
-     *
-     * @param keyValueAccess
-     * @param basePath       N5 base path
-     * @param gsonBuilder
-     * @param cacheMeta      cache attributes and meta data
-     *                       Setting this to true avoids frequent reading and parsing of
-     *                       JSON
-     *                       encoded attributes and other meta data that requires accessing
-     *                       the
-     *                       store. This is most interesting for high latency backends.
-     *                       Changes
-     *                       of cached attributes and meta data by an independent writer
-     *                       will
-     *                       not be tracked.
-     * @throws N5Exception if the base path cannot be read or does not exist,
-     *                     if the N5 version of the container is not compatible with
-     *                     this
-     *                     implementation.
-     */
+	 * Opens an {@link ZarrV3KeyValueReader} at a given base path with a custom
+	 * {@link GsonBuilder} to support custom attributes.
+	 *
+	 * @param keyValueAccess
+	 * @param basePath
+	 *            N5 base path
+	 * @param gsonBuilder
+	 * 			GSON builder
+	 * @param cacheMeta
+	 *            cache attributes and meta data Setting this to true avoids
+	 *            frequent reading and parsing of JSON encoded attributes and
+	 *            other meta data that requires accessing the store. This is
+	 *            most interesting for high latency backends. Changes of cached
+	 *            attributes and meta data by an independent writer will not be
+	 *            tracked.
+	 * @throws N5Exception
+	 *             if the base path cannot be read or does not exist, if the N5
+	 *             version of the container is not compatible with this
+	 *             implementation.
+	 */
 	public ZarrV3KeyValueReader(
 			final KeyValueAccess keyValueAccess,
 			final String basePath,
@@ -222,7 +221,6 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
 		return gson.fromJson(attributes, ZarrV3DatasetAttributes.class);
 	}
-
 
 	@Override
 	public ZarrV3DatasetAttributes getConvertedDatasetAttributes(DatasetAttributes attributes) {

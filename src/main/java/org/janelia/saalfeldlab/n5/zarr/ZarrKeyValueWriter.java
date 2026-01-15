@@ -239,6 +239,25 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		}
 	}
 
+	private HashMap<DatasetAttributes, ZarrDatasetAttributes> datasetAttributesMap = new HashMap<>();
+
+	public ZarrDatasetAttributes getConvertedDatasetAttributes(final DatasetAttributes datasetAttributes) {
+
+		final ZarrDatasetAttributes zarrAttrs;
+		if (datasetAttributes instanceof ZarrDatasetAttributes)
+			zarrAttrs = ((ZarrDatasetAttributes)datasetAttributes);
+		else if (datasetAttributesMap.containsKey(datasetAttributes)) {
+			zarrAttrs = datasetAttributesMap.get(datasetAttributes);
+			datasetAttributesMap.put(datasetAttributes, zarrAttrs);
+		}
+		else {
+			final ZArrayAttributes zArrayAttrs = createZArrayAttributes(dimensionSeparator, datasetAttributes);
+			zarrAttrs = new ZarrDatasetAttributes(zArrayAttrs);
+			datasetAttributesMap.put(datasetAttributes, zarrAttrs);
+		}
+		return zarrAttrs;
+	}
+
 	@Override
 	public ZarrDatasetAttributes createDataset(
 			final String path,

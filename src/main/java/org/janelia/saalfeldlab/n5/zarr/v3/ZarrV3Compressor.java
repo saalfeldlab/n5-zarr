@@ -29,11 +29,7 @@
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Type;
-import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.zip.Deflater;
 
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
@@ -46,37 +42,23 @@ import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 
 import org.janelia.saalfeldlab.n5.serialization.NameConfig;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-
-/**
- * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
- *
- */
 @NameConfig.Prefix("zarr-compressor")
 public interface ZarrV3Compressor extends DataCodecInfo, DataCodec {
 
-	/*
-	 * idiotic stream based initialization because Java cannot have static
-	 * initialization code in interfaces
-	 */
-	public static Map<String, Class<? extends ZarrV3Compressor>> registry = Stream
-			.of(new SimpleImmutableEntry<>("zstd", Zstandard.class), new SimpleImmutableEntry<>("blosc", Blosc.class),
-					new SimpleImmutableEntry<>("zlib", Zlib.class))
-			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+public static ZarrV3Compressor fromCompression(final DataCodecInfo dataCodec) {
 
-	public static ZarrV3Compressor fromCompression(final DataCodecInfo compression) {
+	if (dataCodec instanceof ZarrV3Compressor)
+		return (ZarrV3Compressor)dataCodec;
 
 		// Currently (Oct 2025), zarr 3 only officially supports Blosc and Zstandard compression
 		// but let's make as much work as we can
 		try {
-			if (compression instanceof BloscCompression) {
-				return new Blosc((BloscCompression) compression);
-			} else if (compression instanceof ZstandardCompression) {
-				return new Zstandard((ZstandardCompression) compression);
+			if (dataCodec instanceof BloscCompression) {
+				return new Blosc((BloscCompression) dataCodec);
+			} else if (dataCodec instanceof GzipCompression) {
+				return new Gzip((GzipCompression) dataCodec);
+			} else if (dataCodec instanceof ZstandardCompression) {
+				return new Zstandard((ZstandardCompression) dataCodec);
 			} else
 				return null;
 
@@ -84,6 +66,11 @@ public interface ZarrV3Compressor extends DataCodecInfo, DataCodec {
 			return null;
 		}
 
+	}
+
+	public static Compression codecToCompression(final DataCodecInfo codec) {
+		ZarrV3Compressor zarrCodec = ZarrV3Compressor.fromCompression(codec);
+		return zarrCodec != null ? zarrCodec.getCompression() : null;
 	}
 
 	@Override
@@ -273,6 +260,60 @@ public interface ZarrV3Compressor extends DataCodecInfo, DataCodec {
 		}
 	}
 
+	@NameConfig.Name("gzip")
+	public static class Gzip implements ZarrV3Compressor {
+
+		private static final String ID = "gzip";
+
+		@NameConfig.Parameter
+		private final int level;
+
+		@NameConfig.Parameter(optional = true)
+		private final boolean useZlib;
+
+		public Gzip() {
+
+			this(Deflater.DEFAULT_COMPRESSION);
+		}
+
+		public Gzip(final int level, boolean useZlib) {
+
+			this.level = level;
+			this.useZlib = useZlib;
+		}
+
+		public Gzip(final int level) {
+
+			this(level, false);
+		}
+
+		public Gzip(final GzipCompression compression) throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException {
+
+			final Class<? extends GzipCompression> clazz = compression.getClass();
+
+			final Field field = clazz.getDeclaredField("level");
+			field.setAccessible(true);
+			level = field.getInt(compression);
+			field.setAccessible(false);
+
+			final Field fieldZlib = clazz.getDeclaredField("level");
+			fieldZlib.setAccessible(true);
+			useZlib = fieldZlib.getBoolean(compression);
+			fieldZlib.setAccessible(false);
+		}
+
+		@Override
+		public GzipCompression getCompression() {
+
+			return new GzipCompression(level);
+		}
+
+		@Override
+		public String getType() {
+			return ID;
+		}
+	}
+
 	public static class Zlib implements ZarrV3Compressor {
 
 		private static final long serialVersionUID = 5878335679998800762L;
@@ -309,25 +350,5 @@ public interface ZarrV3Compressor extends DataCodecInfo, DataCodec {
 		}
 	}
 
-	public static JsonAdapter jsonAdapter = new JsonAdapter();
-
-	static public class JsonAdapter implements JsonDeserializer<ZarrV3Compressor> {
-
-		@Override
-		public ZarrV3Compressor deserialize(final JsonElement json, final Type typeOfT,
-				final JsonDeserializationContext context) throws JsonParseException {
-
-			final JsonObject jsonObject = json.getAsJsonObject();
-			final JsonElement jsonId = jsonObject.get("id");
-			if (jsonId == null)
-				return null;
-			final String id = jsonId.getAsString();
-			final Class<? extends ZarrV3Compressor> compressorClass = registry.get(id);
-			if (compressorClass == null)
-				return null;
-
-			return context.deserialize(json, compressorClass);
-		}
-	}
 
 }

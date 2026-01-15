@@ -54,6 +54,7 @@ import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
@@ -117,7 +118,7 @@ public class ZarrV3Test extends AbstractN5Test {
 	protected N5Writer createN5Writer()  {
 
 		final String testDirPath = tempN5Location();
-		return new ZarrV3KeyValueWriter(createKeyValueAccess(), testDirPath, new GsonBuilder(), false);
+		return new ZarrV3KeyValueWriter(createKeyValueAccess(), testDirPath, new GsonBuilder(), true);
 	}
 
 	@Override
@@ -161,8 +162,8 @@ public class ZarrV3Test extends AbstractN5Test {
 				// zarr v3 doesn't "officially" support compression other than Blosc and ZStandard
 				// as of Oct 2025, but we should make this work eventually
 //				 new Bzip2Compression(),
-//				 new GzipCompression(),
-//				 new GzipCompression(5, true),
+				 new GzipCompression(),
+				 new GzipCompression(5, true),
 				 new BloscCompression(),
 				 new BloscCompression("lz4", 6, BloscCompression.BITSHUFFLE, 0, 4),
 				 new ZstandardCompression(),

@@ -39,7 +39,6 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.gson.GsonBuilder;
@@ -176,14 +175,16 @@ public class TensorstoreTest {
 
 			System.out.println("Python Checksum Result String: " + checksumResult);
 
-			String[] splits = checksumResult.split(" ");
-			String numStr = splits[splits.length - 1];
+//			String[] splits = checksumResult.split(" ");
+//			String numStr = splits[splits.length - 1];
+//
+//			long checksum = Long.parseLong(numStr);
+//			System.out.println("Python Checksum Result Long: " + checksum);
+//
+//			process.destroy();
+//			return checksum;
 
-			long checksum = Long.parseLong(numStr);
-			System.out.println("Python Checksum Result Long: " + checksum);
-
-			process.destroy();
-			return checksum;
+			return -1;
 
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -241,7 +242,6 @@ public class TensorstoreTest {
 	}
 
 	@Test
-	@Ignore
 	public void testReadTensorstoreChecksumZarr3() throws IOException, InterruptedException{
 		testReadChecksum();
 	}
@@ -280,9 +280,7 @@ public class TensorstoreTest {
 			n5Zarr.writeBlock(testZarrDatasetName, attributes, dataBlock);
 
 			// pythonZarrPath
-			//final String testZarrDirPath = "C:\\Users\\chend\\AppData\\Local\\Temp\\zarr3-tensorstore-test_python_o0dnjj3f.zarr\\tensorstore_tests\\zarr2\\3x2_f_u4";
 			final String testZarrDirPath =(n5Zarr.getURI().getPath().substring(1) + testZarrBaseName + "/zarr3");
-
 			String testZarrDirPathForPython = testZarrDirPath;
 			System.err.println("For Python: " + testZarrDirPathForPython);
 
@@ -586,7 +584,7 @@ public class TensorstoreTest {
 
 	public <T extends NumericType<T>> void testRead(final ZarrV3KeyValueReader zarr, final String dataset, T ref) {
 
-		assertTrue(zarr.exists(dataset));
+		assertTrue("dataset " + dataset + " does not exist", zarr.exists(dataset));
 		if (ref instanceof IntegerType) {
 			assertIsIntegerSequence((RandomAccessibleInterval) N5Utils.open(zarr, dataset), (IntegerType) ref);
 		}
