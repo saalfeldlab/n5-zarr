@@ -687,10 +687,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 						foundBlockCodec = true;
 						blockCodecIndex = i;
 					} else if (codec instanceof DatasetCodecInfo)
-						datasetCodec/**
-						 * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
-						 *
-						 */List.add((DatasetCodecInfo)codec);
+						datasetCodecList.add((DatasetCodecInfo)codec);
 					else
 						throw new N5Exception("Codec at index " + i + " is a DataCodec, but came before a BlockCodec.");
 
