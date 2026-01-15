@@ -28,8 +28,8 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 import java.lang.reflect.Type;
 import java.nio.ByteOrder;
 import java.util.Arrays;
+import java.util.HashMap;
 
-import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
@@ -43,7 +43,6 @@ import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
-import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrder;
 import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrderAdapter;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
@@ -54,161 +53,82 @@ import com.google.gson.JsonSyntaxException;
 
 public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
+	protected HashMap<DatasetAttributes, ZarrV3DatasetAttributes> datasetAttributesMap = new HashMap<>();
+
 	// Override this constant
 	// if we try supporting v2 and v3 in parallel
 	public static final Version VERSION = new Version(3, 0, 0);
 
 	public static final String ZARR_KEY = "zarr.json";
 
-	protected final boolean mapN5DatasetAttributes;
+	public static final String DEFAULT_DIMENSION_SEPARATOR = "/";
 
-	protected final boolean mergeAttributes;
-
-
+	protected String dimensionSeparator = DEFAULT_DIMENSION_SEPARATOR;
 
 	/**
-	 * Opens an {@link ZarrV3KeyValueReader} at a given base path with a custom
-	 * {@link GsonBuilder} to support custom attributes.
-	 *
-	 * @param checkVersion
-	 *            perform version check
-	 * @param keyValueAccess
-	 * @param basePath
-	 *            N5 base path
-	 * @param gsonBuilder
-	 *            the gson builder
-	 * @param mapN5DatasetAttributes
-	 *            If true, getAttributes and variants of getAttribute methods
-	 *            will
-	 *            contain keys used by n5 datasets, and whose values are those
-	 *            for
-	 *            their corresponding zarr fields. For example, if true, the key
-	 *            "dimensions"
-	 *            (from n5) may be used to obtain the value of the key "shape"
-	 *            (from zarr).
-	 * @param mergeAttributes
-	 *            If true, fields from .zgroup, .zarray, and .zattrs will be
-	 *            merged
-	 *            when calling getAttributes, and variants of getAttribute
-	 * @param cacheMeta
-	 *            cache attributes and meta data
-	 *            Setting this to true avoids frequent reading and parsing of
-	 *            JSON
-	 *            encoded attributes and other meta data that requires accessing
-	 *            the
-	 *            store. This is most interesting for high latency backends.
-	 *            Changes
-	 *            of cached attributes and meta data by an independent writer
-	 *            will
-	 *            not be tracked.
-	 *
-	 * @throws N5Exception
-	 *             if the base path cannot be read or does not exist,
-	 *             if the N5 version of the container is not compatible with
-	 *             this
-	 *             implementation.
-	 */
+     * Opens an {@link ZarrV3KeyValueReader} at a given base path with a custom
+     * {@link GsonBuilder} to support custom attributes.
+     *
+     * @param checkVersion   perform version check
+     * @param keyValueAccess
+     * @param basePath       N5 base path
+     * @param gsonBuilder    the gson builder
+     * @param cacheMeta      cache attributes and meta data
+     *                       Setting this to true avoids frequent reading and parsing of
+     *                       JSON
+     *                       encoded attributes and other meta data that requires accessing
+     *                       the
+     *                       store. This is most interesting for high latency backends.
+     *                       Changes
+     *                       of cached attributes and meta data by an independent writer
+     *                       will
+     *                       not be tracked.
+     * @throws N5Exception if the base path cannot be read or does not exist,
+     *                     if the N5 version of the container is not compatible with
+     *                     this
+     *                     implementation.
+     */
 	public ZarrV3KeyValueReader(
 			final boolean checkVersion,
 			final KeyValueAccess keyValueAccess,
 			final String basePath,
 			final GsonBuilder gsonBuilder,
-			final boolean mapN5DatasetAttributes,
-			final boolean mergeAttributes,
-			final boolean cacheMeta)
+            final boolean cacheMeta)
 			throws N5Exception {
 
-		this(checkVersion, keyValueAccess, basePath, gsonBuilder, mapN5DatasetAttributes, mergeAttributes, cacheMeta, true);
+		this(checkVersion, keyValueAccess, basePath, gsonBuilder, cacheMeta, true);
 	}
 
 	/**
-	 * Opens an {@link ZarrV3KeyValueReader} at a given base path with a custom
-	 * {@link GsonBuilder} to support custom attributes.
-	 *
-	 * @param checkVersion
-	 *            perform version check
-	 * @param keyValueAccess
-	 * @param basePath
-	 *            N5 base path
-	 * @param gsonBuilder
-	 *            the gson builder
-	 * @param cacheMeta
-	 *            cache attributes and meta data
-	 *            Setting this to true avoids frequent reading and parsing of
-	 *            JSON
-	 *            encoded attributes and other meta data that requires accessing
-	 *            the
-	 *            store. This is most interesting for high latency backends.
-	 *            Changes
-	 *            of cached attributes and meta data by an independent writer
-	 *            will
-	 *            not be tracked.
-	 *
-	 * @throws N5Exception
-	 *             if the base path cannot be read or does not exist,
-	 *             if the N5 version of the container is not compatible with
-	 *             this
-	 *             implementation.
-	 */
-	public ZarrV3KeyValueReader(
-			final boolean checkVersion,
-			final KeyValueAccess keyValueAccess,
-			final String basePath,
-			final GsonBuilder gsonBuilder,
-			final boolean cacheMeta)
-			throws N5Exception {
-
-		this(checkVersion, keyValueAccess, basePath, gsonBuilder, false, false, cacheMeta, true);
-	}
-
-	/**
-	 * Opens an {@link ZarrV3KeyValueReader} at a given base path with a custom
-	 * {@link GsonBuilder} to support custom attributes.
-	 *
-	 * @param keyValueAccess
-	 * @param basePath
-	 *            N5 base path
-	 * @param gsonBuilder
-	 * @param cacheMeta
-	 *            cache attributes and meta data
-	 *            Setting this to true avoids frequent reading and parsing of
-	 *            JSON
-	 *            encoded attributes and other meta data that requires accessing
-	 *            the
-	 *            store. This is most interesting for high latency backends.
-	 *            Changes
-	 *            of cached attributes and meta data by an independent writer
-	 *            will
-	 *            not be tracked.
-	 * @param mapN5DatasetAttributes
-	 *            If true, getAttributes and variants of getAttribute methods
-	 *            will
-	 *            contain keys used by n5 datasets, and whose values are those
-	 *            for
-	 *            their corresponding zarr fields. For example, if true, the key
-	 *            "dimensions"
-	 *            (from n5) may be used to obtain the value of the key "shape"
-	 *            (from zarr).
-	 * @param mergeAttributes
-	 *            If true, fields from .zgroup, .zarray, and .zattrs will be
-	 *            merged
-	 *            when calling getAttributes, and variants of getAttribute
-	 * @throws N5Exception
-	 *             if the base path cannot be read or does not exist,
-	 *             if the N5 version of the container is not compatible with
-	 *             this
-	 *             implementation.
-	 */
+     * Opens an {@link ZarrV3KeyValueReader} at a given base path with a custom
+     * {@link GsonBuilder} to support custom attributes.
+     *
+     * @param keyValueAccess
+     * @param basePath       N5 base path
+     * @param gsonBuilder
+     * @param cacheMeta      cache attributes and meta data
+     *                       Setting this to true avoids frequent reading and parsing of
+     *                       JSON
+     *                       encoded attributes and other meta data that requires accessing
+     *                       the
+     *                       store. This is most interesting for high latency backends.
+     *                       Changes
+     *                       of cached attributes and meta data by an independent writer
+     *                       will
+     *                       not be tracked.
+     * @throws N5Exception if the base path cannot be read or does not exist,
+     *                     if the N5 version of the container is not compatible with
+     *                     this
+     *                     implementation.
+     */
 	public ZarrV3KeyValueReader(
 			final KeyValueAccess keyValueAccess,
 			final String basePath,
 			final GsonBuilder gsonBuilder,
-			final boolean mapN5DatasetAttributes,
-			final boolean mergeAttributes,
-			final boolean cacheMeta)
+            final boolean cacheMeta)
 			throws N5Exception {
 
-		this(true, keyValueAccess, basePath, gsonBuilder, mapN5DatasetAttributes, mergeAttributes, cacheMeta);
+		this(true, keyValueAccess, basePath, gsonBuilder, cacheMeta);
 	}
 
 	protected ZarrV3KeyValueReader(
@@ -216,14 +136,18 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 			final KeyValueAccess keyValueAccess,
 			final String basePath,
 			final GsonBuilder gsonBuilder,
-			final boolean mapN5DatasetAttributes,
-			final boolean mergeAttributes,
 			final boolean cacheMeta,
 			final boolean checkRootExists) {
 
 		super(checkVersion, keyValueAccess, basePath, addTypeAdapters(gsonBuilder), cacheMeta, checkRootExists);
-		this.mergeAttributes = mergeAttributes;
-		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
+	}
+
+	public String getDimensionSeparator() {
+		return dimensionSeparator;
+	}
+
+	public void setDimensionSeparator(String dimensionSeparator) {
+		this.dimensionSeparator = dimensionSeparator;
 	}
 
 	@Override
@@ -299,10 +223,21 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		return gson.fromJson(attributes, ZarrV3DatasetAttributes.class);
 	}
 
-	public JsonElement getZarrAttributes(final String path) {
 
-		// TODO decide how attributes work
-		return getAttribute(ZARR_KEY, ZarrV3Node.ATTRIBUTES_KEY, JsonElement.class);
+	@Override
+	public ZarrV3DatasetAttributes getConvertedDatasetAttributes(DatasetAttributes attributes) {
+		final ZarrV3DatasetAttributes zarrAttrs;
+		if (attributes instanceof ZarrV3DatasetAttributes)
+			zarrAttrs = ((ZarrV3DatasetAttributes)attributes);
+		else if (datasetAttributesMap.containsKey(attributes)) {
+			zarrAttrs = datasetAttributesMap.get(attributes);
+			datasetAttributesMap.put(attributes, zarrAttrs);
+		}
+		else {
+			zarrAttrs = ZarrV3DatasetAttributes.from(attributes, getDimensionSeparator(), "0");
+			datasetAttributesMap.put(attributes, zarrAttrs);
+		}
+		return zarrAttrs;
 	}
 
 	public JsonElement getRawAttributes(final String pathName) throws N5IOException {
@@ -385,8 +320,7 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	 */
 	protected String mapAttributeKey(final String attributePath) {
 
-		final String key = mapN5DatasetAttributes ? n5AttributeKeyToZarr(attributePath) : attributePath;
-		return isAttributes(key) ? key : ZarrV3Node.ATTRIBUTES_KEY + "/" + key;
+        return isAttributes(attributePath) ? attributePath : ZarrV3Node.ATTRIBUTES_KEY + "/" + attributePath;
 	}
 
 	protected boolean isAttributes(final String attributePath) {
@@ -394,47 +328,6 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		if (!Arrays.stream(ZarrV3DatasetAttributes.REQUIRED_KEYS).anyMatch(attributePath::equals))
 			return false;
 
-		if (mapN5DatasetAttributes &&
-				!Arrays.stream(DatasetAttributes.N5_DATASET_ATTRIBUTES).anyMatch(attributePath::equals)) {
-			return false;
-		}
-
 		return true;
 	}
-
-	protected String n5AttributeKeyToZarr(final String attributePath) {
-
-		switch (attributePath) {
-		case DatasetAttributes.DIMENSIONS_KEY:
-			return ZarrV3DatasetAttributes.SHAPE_KEY;
-		case DatasetAttributes.BLOCK_SIZE_KEY:
-			return ZarrV3DatasetAttributes.CHUNK_GRID_KEY + "/configuration/chunk_shape"; // TODO gross
-		case DatasetAttributes.DATA_TYPE_KEY:
-			return ZarrV3DatasetAttributes.DATA_TYPE_KEY;
-		case DatasetAttributes.CODEC_KEY:
-			return ZarrV3DatasetAttributes.CODECS_KEY;
-		default:
-			return attributePath;
-		}
-	}
-
-	protected static <T> void fillWithFillValue(final ZarrV3DatasetAttributes datasetAttributes, final DataBlock<T> dataBlock) {
-
-		final JsonElement fillValueJson = datasetAttributes.fillValue;
-		final T data = dataBlock.getData();
-		if (data instanceof byte[]) {
-			Arrays.fill((byte[])data, fillValueJson.getAsByte());
-		} else if (data instanceof short[]) {
-			Arrays.fill((short[])data, fillValueJson.getAsShort());
-		} else if (data instanceof int[]) {
-			Arrays.fill((int[])data, fillValueJson.getAsInt());
-		} else if (data instanceof long[]) {
-			Arrays.fill((long[])data, fillValueJson.getAsLong());
-		} else if (data instanceof float[]) {
-			Arrays.fill((float[])data, fillValueJson.getAsFloat());
-		} else if (data instanceof double[]) {
-			Arrays.fill((double[])data, fillValueJson.getAsDouble());
-		}
-	}
-
 }

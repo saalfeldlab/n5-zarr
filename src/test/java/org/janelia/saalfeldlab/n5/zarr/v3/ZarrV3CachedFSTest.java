@@ -41,7 +41,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 	protected N5Writer createN5Writer() {
 
 		final String testDirPath = tempN5Location();
-		return new ZarrV3KeyValueWriter(new FileSystemKeyValueAccess(FileSystems.getDefault()), testDirPath, new GsonBuilder(), true, true, "/", true);
+		return new ZarrV3KeyValueWriter(new FileSystemKeyValueAccess(FileSystems.getDefault()), testDirPath, new GsonBuilder(), true);
 	}
 
 	protected N5Writer createTempN5Writer(final boolean cacheAttributes) {
@@ -64,7 +64,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 	@Override
 	protected N5Reader createN5Reader(final String location, final GsonBuilder gson) throws IOException {
 
-		return new ZarrV3KeyValueReader(new FileSystemKeyValueAccess(FileSystems.getDefault()), location, gson, false, false, true);
+		return new ZarrV3KeyValueReader(new FileSystemKeyValueAccess(FileSystems.getDefault()), location, gson, true);
 	}
 
 	protected N5Writer createTempN5Writer(
@@ -72,7 +72,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 			final GsonBuilder gsonBuilder,
 			final String dimensionSeparator) throws IOException {
 
-		return new ZarrV3KeyValueWriter(new FileSystemKeyValueAccess(FileSystems.getDefault()), location, gsonBuilder, dimensionSeparator, true);
+		return new ZarrV3KeyValueWriter(new FileSystemKeyValueAccess(FileSystems.getDefault()), location, gsonBuilder, true);
 	}
 
 	protected static String tempN5PathName() {
@@ -415,7 +415,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 		public ZarrV3TrackingStorage(final KeyValueAccess keyValueAccess, final String basePath,
 				final GsonBuilder gsonBuilder, final boolean cacheAttributes) {
 
-			super(keyValueAccess, basePath, gsonBuilder, true, true, "/", cacheAttributes);
+			super(keyValueAccess, basePath, gsonBuilder, cacheAttributes);
 		}
 
 		@Override
