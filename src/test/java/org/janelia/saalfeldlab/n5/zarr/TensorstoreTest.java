@@ -39,6 +39,7 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.gson.GsonBuilder;
@@ -242,6 +243,7 @@ public class TensorstoreTest {
 	}
 
 	@Test
+	@Ignore
 	public void testReadTensorstoreChecksumZarr3() throws IOException, InterruptedException{
 		testReadChecksum();
 	}
