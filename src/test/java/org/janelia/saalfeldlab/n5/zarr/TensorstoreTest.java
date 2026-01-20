@@ -533,12 +533,12 @@ public class TensorstoreTest {
 			// unsharded
 			String dset = String.format("3x2_%s", dtype.toString());
 			N5Utils.save(img, n5Zarr, dset, new int[] { 3, 2 }, new RawCompression());
-			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dset, "-d", version.toString()));
+			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPathForPython + dset, "-d", version.toString()));
 
 			// unsharded big
 			String dsetBig = String.format("12x9%s", dtype.toString());
 			N5Utils.save(imgBig, n5Zarr, dsetBig, new int[] { 2, 3 }, new RawCompression());
-			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPath + dsetBig, "-d", version.toString()));
+			assertTrue( runPythonTest("tensorstore_read_test.py", "-p", testZarrDirPathForPython + dsetBig, "-d", version.toString()));
 
 			// TODO
 //			if( version == Version.zarr3 ) {
