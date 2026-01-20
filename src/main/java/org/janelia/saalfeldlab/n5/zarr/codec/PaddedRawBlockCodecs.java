@@ -59,6 +59,7 @@ public class PaddedRawBlockCodecs {
 
 			final ReadData rawBlockData = wrappedBlockCodec.encode(dataBlock);
 			final ReadData blockData;
+
 			if (Arrays.equals(blockSize, dataBlock.getSize())) {
 				blockData = rawBlockData;
 			} else {
@@ -71,7 +72,6 @@ public class PaddedRawBlockCodecs {
 								dtype.getNBits(),
 								fillBytes));
 			}
-
 			return codec.encode(blockData);
 		}
 
@@ -83,7 +83,11 @@ public class PaddedRawBlockCodecs {
 
 		@Override
 		public long encodedSize(final int[] blockSize) throws UnsupportedOperationException {
-			return wrappedBlockCodec.encodedSize(blockSize);
+			if (codec instanceof DeterministicSizeDataCodec) {
+				return ((DeterministicSizeDataCodec) codec).encodedSize(wrappedBlockCodec.encodedSize(blockSize));
+			} else {
+				throw new UnsupportedOperationException();
+			}
 		}
 	}
 

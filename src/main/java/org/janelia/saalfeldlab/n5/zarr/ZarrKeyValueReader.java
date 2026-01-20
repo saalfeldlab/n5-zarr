@@ -32,6 +32,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Reader;
 import org.janelia.saalfeldlab.n5.Compression;
@@ -57,6 +58,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+
+import static org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes.createZArrayAttributes;
 
 /**
  * {@link N5Reader} implementation through {@link KeyValueAccess} with JSON attributes parsed with {@link Gson}.
@@ -84,9 +87,13 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 	protected URI uri;
 
-	final protected boolean mapN5DatasetAttributes;
+	protected final HashMap<DatasetAttributes, ZarrDatasetAttributes> datasetAttributesMap = new HashMap<>();
 
-	final protected boolean mergeAttributes;
+	protected final boolean mapN5DatasetAttributes;
+
+	protected final boolean mergeAttributes;
+
+	protected String dimensionSeparator;
 
 	/**
 	 * Opens an {@link ZarrKeyValueReader} at a given base path with a custom {@link GsonBuilder} to support custom
@@ -353,6 +360,24 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		return createDatasetAttributes(getZArray(pathName));
 	}
 
+	@Override
+	public ZarrDatasetAttributes getConvertedDatasetAttributes(DatasetAttributes attributes) {
+
+		final ZarrDatasetAttributes zarrAttrs;
+		if (attributes instanceof ZarrDatasetAttributes)
+			zarrAttrs = ((ZarrDatasetAttributes)attributes);
+		else if (datasetAttributesMap.containsKey(attributes)) {
+			zarrAttrs = datasetAttributesMap.get(attributes);
+			datasetAttributesMap.put(attributes, zarrAttrs);
+		}
+		else {
+			final ZArrayAttributes zArrayAttrs = createZArrayAttributes(dimensionSeparator, attributes);
+			zarrAttrs = new ZarrDatasetAttributes(zArrayAttrs);
+			datasetAttributesMap.put(attributes, zarrAttrs);
+		}
+		return zarrAttrs;
+	}
+
 	/**
 	 * Returns the {@link ZArrayAttributes} located at the given path, if present.
 	 *
@@ -383,7 +408,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	public DatasetAttributes createDatasetAttributes(final JsonElement attributes) {
 
 		final ZArrayAttributes zarray = getZArrayAttributes(attributes);
-		return zarray != null ? zarray.getDatasetAttributes() : null;
+		return zarray != null ? new ZarrDatasetAttributes(zarray) : null;
 	}
 
 	@Override

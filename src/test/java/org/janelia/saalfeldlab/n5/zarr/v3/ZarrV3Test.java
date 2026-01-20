@@ -54,6 +54,7 @@ import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
@@ -117,7 +118,7 @@ public class ZarrV3Test extends AbstractN5Test {
 	protected N5Writer createN5Writer()  {
 
 		final String testDirPath = tempN5Location();
-		return new ZarrV3KeyValueWriter(createKeyValueAccess(), testDirPath, new GsonBuilder(), false);
+		return new ZarrV3KeyValueWriter(createKeyValueAccess(), testDirPath, new GsonBuilder(), true);
 	}
 
 	@Override
@@ -143,7 +144,7 @@ public class ZarrV3Test extends AbstractN5Test {
 			final String dimensionSeparator,
 			final boolean cacheAttributes) {
 
-		final ZarrV3KeyValueWriter tempWriter = new ZarrV3KeyValueWriter(createKeyValueAccess(), location, gsonBuilder, dimensionSeparator, cacheAttributes);
+		final ZarrV3KeyValueWriter tempWriter = new ZarrV3KeyValueWriter(createKeyValueAccess(), location, gsonBuilder, cacheAttributes);
 		tempWriters.add(tempWriter);
 		return tempWriter;
 	}
@@ -151,7 +152,7 @@ public class ZarrV3Test extends AbstractN5Test {
 	@Override
 	protected N5Reader createN5Reader(final String location, final GsonBuilder gson) throws IOException {
 
-		return new ZarrV3KeyValueReader(createKeyValueAccess(), location, gson, true, true, false);
+		return new ZarrV3KeyValueReader(createKeyValueAccess(), location, gson, false);
 	}
 
 	@Override
@@ -161,8 +162,8 @@ public class ZarrV3Test extends AbstractN5Test {
 				// zarr v3 doesn't "officially" support compression other than Blosc and ZStandard
 				// as of Oct 2025, but we should make this work eventually
 //				 new Bzip2Compression(),
-//				 new GzipCompression(),
-//				 new GzipCompression(5, true),
+				 new GzipCompression(),
+				 new GzipCompression(5, true),
 				 new BloscCompression(),
 				 new BloscCompression("lz4", 6, BloscCompression.BITSHUFFLE, 0, 4),
 				 new ZstandardCompression(),
@@ -194,7 +195,7 @@ public class ZarrV3Test extends AbstractN5Test {
 
 		final String path = "src/test/resources/shardExamples/test.zarr/mid_sharded";
 		try (ZarrV3KeyValueReader n5 = new ZarrV3KeyValueReader(
-				new FileSystemKeyValueAccess(FileSystems.getDefault()), path, addZarrAdapters(new GsonBuilder()), false, false, true)) {
+				new FileSystemKeyValueAccess(FileSystems.getDefault()), path, addZarrAdapters(new GsonBuilder()), true)) {
 
 			final ChunkGrid chunkGrid = n5.getAttribute("/", "chunk_grid", ChunkGrid.class);
 			final ChunkKeyEncoding chunkKeyEncoding = n5.getAttribute("/", "chunk_key_encoding", ChunkKeyEncoding.class);

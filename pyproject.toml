@@ -13,6 +13,7 @@ zarr = "^2.15.0"
 numcodecs = "^0.11.0"
 pathlib = "^1.0.1"
 tensorstore = "^0.1.64"
+crc32c = "^2.7.1"
 
 
 [build-system]

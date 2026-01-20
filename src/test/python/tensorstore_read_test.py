@@ -48,7 +48,6 @@ def validate(data, message):
         print(f"fail: incorrect data at {message}")
         return 2
     else:
-        print("success")
         return 0
 
 parser = argparse.ArgumentParser(
@@ -61,7 +60,6 @@ parser.add_argument('--test', action='store_true')
 args = parser.parse_args()
 
 if args.test:
-    print("tensorstore_read_test")
     sys.exit(0)
 
 path = args.path

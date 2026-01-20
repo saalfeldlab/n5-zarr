@@ -203,7 +203,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertEquals(getCompressions()[0].getClass(), info.getCompression().getClass());
 
 			final JsonElement elem = n5.getAttribute(datasetName, "/", JsonElement.class);
-			assertTrue(elem.getAsJsonObject().get("fill_value").getAsJsonPrimitive().isNumber());
+			final JsonElement fillValueJson = elem.getAsJsonObject().get("fill_value");
+			assertTrue(fillValueJson.isJsonNull() || fillValueJson.getAsJsonPrimitive().isNumber());
 		}
 	}
 
@@ -269,10 +270,23 @@ public class N5ZarrTest extends AbstractN5Test {
 	public void testBlocksPaddedWithFillValue() {
 
 		final String dsetPath = "";
-		final long[] dimensions = new long[]{4, 3};
-		final int[] blockSize = new int[]{3, 3};
+		final long[] shape = new long[]{3, 4};
+		final int[] chunkSize = new int[]{3, 3};
 		final String fillValue = "111";
 		final DType dtype = new DType(DataType.INT8);
+
+		final ZArrayAttributes zarray = new ZArrayAttributes(
+				2,
+				shape,
+				chunkSize,
+				dtype,
+				ZarrCompressor.fromCompression(new RawCompression()),
+				fillValue,
+				'F',
+				".",
+				dtype.getFilters());
+
+		ZarrDatasetAttributes attributes = new ZarrDatasetAttributes(zarray);
 
 		final long[] pos = new long[]{1, 0};
 		final byte[] data = new byte[]{1, 2, 3};
@@ -284,7 +298,6 @@ public class N5ZarrTest extends AbstractN5Test {
 		int[] croppedBlockSize = {1, 3};
 		DataBlock<byte[]> blk10 = new ByteArrayDataBlock(croppedBlockSize, pos, data);
 
-		ZarrDatasetAttributes attributes = new ZarrDatasetAttributes(dimensions, blockSize, dtype, new RawCompression(), false, fillValue);
 		try (final N5Writer n5 = createTempN5Writer()) {
 
 			n5.createDataset(dsetPath, attributes);
@@ -514,10 +527,19 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testReadZarrPython() throws IOException, InterruptedException {
 
-		final String testZarrDirPath = tempN5Location();
-
+		final String testZarrDirPath = tempN5Location();	
+		//TODO: decided what to do with it for windows
+		String testZarrDirPathForPython;
+		
+		if (System.getProperty("os.name").startsWith("Windows"))
+			testZarrDirPathForPython = testZarrDirPath.substring(1);
+		else
+			testZarrDirPathForPython = testZarrDirPath;
+		
+		System.err.println("For Python: " + testZarrDirPathForPython);
+				
 		/* create test data with python */
-		if (!runPythonTest("zarr-test.py", testZarrDirPath)) {
+		if (!runPythonTest("zarr-test.py", testZarrDirPathForPython)) {
 			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
 			return;
 		}
