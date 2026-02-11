@@ -70,6 +70,7 @@ import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
+import org.janelia.saalfeldlab.n5.readdata.VolatileReadData;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -303,9 +304,9 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.writeBlock(dsetPath, attributes, blk10);
 
 			final KeyValueAccess kva = ((GsonKeyValueN5Writer)n5).getKeyValueAccess();
-
-			ReadData rd = kva.createReadData(kva.compose(n5.getURI(), "1.0"));
-			assertArrayEquals(expectedPaddedData, rd.allBytes());
+			try (VolatileReadData rd = kva.createReadData(kva.compose(n5.getURI(), "1.0"))) {
+				assertArrayEquals(expectedPaddedData, rd.allBytes());
+			}
 
 			DataBlock<byte[]> readBlock = n5.readBlock(dsetPath, attributes, pos);
 			assertArrayEquals(expectedPaddedData, readBlock.getData());
@@ -767,10 +768,11 @@ public class N5ZarrTest extends AbstractN5Test {
 				new RawCompression());
 
 		final String zarrayLocation = n5.getKeyValueAccess().compose(n5.getURI(), testZarrDatasetName, ".zarray");
-		final LockedChannel zarrayChannel = n5.getKeyValueAccess().lockForReading(zarrayLocation);
+		final KeyValueAccess kva = n5.getKeyValueAccess();
 		final JSONParser jsonParser = new JSONParser();
-		try (Reader reader = zarrayChannel.newReader()) {
-			final JSONObject zarray = (JSONObject)jsonParser.parse(reader);
+		try ( VolatileReadData rd = kva.createReadData(zarrayLocation) ) {
+			String json = new String(rd.allBytes());
+			final JSONObject zarray = (JSONObject)jsonParser.parse(json);
 			final JSONObject compressor = (JSONObject)zarray.get("compressor");
 			assertNull(compressor);
 		}
