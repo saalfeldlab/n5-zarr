@@ -28,8 +28,6 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
-import java.nio.file.FileSystems;
-
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -70,7 +68,7 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 			final boolean mapN5DatasetAttributes, final boolean cacheAttributes) throws N5Exception {
 
 		super(
-				new FileSystemKeyValueAccess(FileSystems.getDefault()),
+				new FileSystemKeyValueAccess(),
 				basePath,
 				gsonBuilder,
 				mapN5DatasetAttributes,

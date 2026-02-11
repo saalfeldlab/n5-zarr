@@ -42,7 +42,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URISyntaxException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collection;
@@ -106,7 +105,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	static private final String testZarrDatasetName = "test/data";
 
 	public static KeyValueAccess createKeyValueAccess() {
-		return new FileSystemKeyValueAccess(FileSystems.getDefault());
+		return new FileSystemKeyValueAccess();
 	}
 
 	@Override

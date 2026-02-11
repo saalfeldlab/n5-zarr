@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.io.File;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 
 import org.janelia.saalfeldlab.n5.DataType;
@@ -28,7 +27,7 @@ public class ZarrShardTest extends ShardTest {
 
 			final String basePath = new File(tempN5PathName()).toURI().normalize().getPath();
 			return new ZarrV3KeyValueWriter(
-					new FileSystemKeyValueAccess(FileSystems.getDefault()),
+					new FileSystemKeyValueAccess(),
 					basePath, new GsonBuilder(), false);
 		}
 

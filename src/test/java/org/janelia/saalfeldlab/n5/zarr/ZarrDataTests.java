@@ -3,8 +3,6 @@ package org.janelia.saalfeldlab.n5.zarr;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.nio.file.FileSystems;
-
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
@@ -19,7 +17,7 @@ public class ZarrDataTests {
 	public void dimensionTests() {
 
 		String path = "src/test/resources/examples/dimensionOrder.zarr";
-		ZarrKeyValueReader n5 = new ZarrKeyValueReader(new FileSystemKeyValueAccess(FileSystems.getDefault()), path, new GsonBuilder(), false, false, true);
+		ZarrKeyValueReader n5 = new ZarrKeyValueReader(new FileSystemKeyValueAccess(), path, new GsonBuilder(), false, false, true);
 
 		final int N = 3 * 4 * 5; // data size
 		final byte[] cExpectedData = new byte[N];
