@@ -101,7 +101,7 @@ public class ZarrV3Test extends AbstractN5Test {
 	static private final String testZarrDatasetName = "/test/data";
 
 	public static KeyValueAccess createKeyValueAccess() {
-		return new FileSystemKeyValueAccess(FileSystems.getDefault());
+		return new FileSystemKeyValueAccess();
 	}
 
 	@Override
@@ -195,7 +195,7 @@ public class ZarrV3Test extends AbstractN5Test {
 
 		final String path = "src/test/resources/shardExamples/test.zarr/mid_sharded";
 		try (ZarrV3KeyValueReader n5 = new ZarrV3KeyValueReader(
-				new FileSystemKeyValueAccess(FileSystems.getDefault()), path, addZarrAdapters(new GsonBuilder()), true)) {
+				new FileSystemKeyValueAccess(), path, addZarrAdapters(new GsonBuilder()), true)) {
 
 			final ChunkGrid chunkGrid = n5.getAttribute("/", "chunk_grid", ChunkGrid.class);
 			final ChunkKeyEncoding chunkKeyEncoding = n5.getAttribute("/", "chunk_key_encoding", ChunkKeyEncoding.class);

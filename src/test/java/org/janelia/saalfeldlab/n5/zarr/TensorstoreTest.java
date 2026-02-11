@@ -11,7 +11,6 @@ import java.io.InputStreamReader;
 import java.lang.ProcessBuilder.Redirect;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -252,7 +251,7 @@ public class TensorstoreTest {
 	public void testReadChecksum() throws IOException, InterruptedException {
 
 		try ( final ZarrV3KeyValueWriter n5Zarr = new ZarrV3KeyValueWriter(
-				new FileSystemKeyValueAccess(FileSystems.getDefault()), tempN5Location(), new GsonBuilder(), false)) {
+				new FileSystemKeyValueAccess(), tempN5Location(), new GsonBuilder(), false)) {
 
 			final String testZarrDatasetName = String.join("/", testZarrBaseName, "3");
 			n5Zarr.createDataset(
@@ -332,10 +331,10 @@ public class TensorstoreTest {
 		switch (version) {
 		case zarr3:
 			n5Zarr = new ZarrV3KeyValueWriter(
-					new FileSystemKeyValueAccess(FileSystems.getDefault()), testZarrDirPath, new GsonBuilder(), false);
+					new FileSystemKeyValueAccess(), testZarrDirPath, new GsonBuilder(), false);
 			break;
 		default:
-			n5Zarr = new ZarrKeyValueWriter(new FileSystemKeyValueAccess(FileSystems.getDefault()),
+			n5Zarr = new ZarrKeyValueWriter(new FileSystemKeyValueAccess(),
 					testZarrDirPath, new GsonBuilder(), true, true, "/", false);
 			break;
 		}
@@ -507,10 +506,10 @@ public class TensorstoreTest {
 		switch (version) {
 		case zarr3:
 			n5Zarr = new ZarrV3KeyValueWriter(
-					new FileSystemKeyValueAccess(FileSystems.getDefault()), testZarrDirPath, new GsonBuilder(), false);
+					new FileSystemKeyValueAccess(), testZarrDirPath, new GsonBuilder(), false);
 			break;
 		default:
-			n5Zarr = new ZarrKeyValueWriter(new FileSystemKeyValueAccess(FileSystems.getDefault()),
+			n5Zarr = new ZarrKeyValueWriter(new FileSystemKeyValueAccess(),
 					testZarrDirPath, new GsonBuilder(), true, true, "/", false);
 			break;
 		}

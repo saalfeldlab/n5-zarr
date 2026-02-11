@@ -14,7 +14,6 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -41,7 +40,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 	protected N5Writer createN5Writer() {
 
 		final String testDirPath = tempN5Location();
-		return new ZarrV3KeyValueWriter(new FileSystemKeyValueAccess(FileSystems.getDefault()), testDirPath, new GsonBuilder(), true);
+		return new ZarrV3KeyValueWriter(new FileSystemKeyValueAccess(), testDirPath, new GsonBuilder(), true);
 	}
 
 	protected N5Writer createTempN5Writer(final boolean cacheAttributes) {
@@ -64,7 +63,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 	@Override
 	protected N5Reader createN5Reader(final String location, final GsonBuilder gson) throws IOException {
 
-		return new ZarrV3KeyValueReader(new FileSystemKeyValueAccess(FileSystems.getDefault()), location, gson, true);
+		return new ZarrV3KeyValueReader(new FileSystemKeyValueAccess(), location, gson, true);
 	}
 
 	protected N5Writer createTempN5Writer(
@@ -72,7 +71,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 			final GsonBuilder gsonBuilder,
 			final String dimensionSeparator) throws IOException {
 
-		return new ZarrV3KeyValueWriter(new FileSystemKeyValueAccess(FileSystems.getDefault()), location, gsonBuilder, true);
+		return new ZarrV3KeyValueWriter(new FileSystemKeyValueAccess(), location, gsonBuilder, true);
 	}
 
 	protected static String tempN5PathName() {
@@ -146,7 +145,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 
 		final String loc = tempN5Location();
 		// make an uncached n5 writer
-		final FileSystemKeyValueAccess keyValueAccess = new FileSystemKeyValueAccess(FileSystems.getDefault());
+		final FileSystemKeyValueAccess keyValueAccess = new FileSystemKeyValueAccess();
 		try (final ZarrV3TrackingStorage n5 = new ZarrV3TrackingStorage(keyValueAccess, loc, new GsonBuilder(), true)) {
 
 			zarrCacheBehaviorHelper(n5);

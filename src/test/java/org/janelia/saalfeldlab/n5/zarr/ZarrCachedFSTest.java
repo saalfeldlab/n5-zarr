@@ -36,7 +36,6 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -181,7 +180,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 
 		final String loc = tempN5Location();
 		// make an uncached n5 writer
-		final FileSystemKeyValueAccess keyValueAccess = new FileSystemKeyValueAccess(FileSystems.getDefault());
+		final FileSystemKeyValueAccess keyValueAccess = new FileSystemKeyValueAccess();
 		try (final ZarrTrackingStorage n5 = new ZarrTrackingStorage(keyValueAccess, loc, new GsonBuilder(), true)) {
 
 			zarrCacheBehaviorHelper(n5);
