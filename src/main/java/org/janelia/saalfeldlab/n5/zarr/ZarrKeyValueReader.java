@@ -48,6 +48,7 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
+import org.janelia.saalfeldlab.n5.readdata.VolatileReadData;
 import org.janelia.saalfeldlab.n5.serialization.JsonArrayUtils;
 import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
 
@@ -627,10 +628,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		if (!keyValueAccess.isFile(absolutePath))
 			return null;
 
-		try (final LockedChannel lockedChannel = keyValueAccess.lockForReading(absolutePath)) {
-			return GsonUtils.readAttributes(lockedChannel.newReader(), gson);
-		} catch (final IOException | UncheckedIOException e) {
-			throw new N5IOException("Failed to read " + absolutePath, e);
+		try (final VolatileReadData rd = keyValueAccess.createReadData(absolutePath)) {
+			return gson.fromJson(new String(rd.allBytes()), JsonElement.class);
 		}
 	}
 
