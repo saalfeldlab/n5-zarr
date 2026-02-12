@@ -442,14 +442,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			return;
 
 		final String absolutePath = keyValueAccess.compose(uri, normalPath, jsonName);
-//		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
-//			final Writer writer = lock.newWriter();
-//			writer.append(attributes.toString());
-//			writer.flush();
-//		} catch (final Throwable e) {
-//			throw new N5IOException("Failed to write " + absolutePath, e);
-//		}
-		
 		keyValueAccess.write(absolutePath, ReadData.from(attributes.toString().getBytes()));
 	}
 
@@ -462,17 +454,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			return;
 
 		writeJson(normalPath, jsonName, gson.toJsonTree(attributes));
-
-//		final String absolutePath = keyValueAccess.compose(uri, normalPath, jsonName);
-//		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
-//			final Writer writer = lock.newWriter();
-//			gson.toJson(attributes, writer);
-//			writer.flush();
-//		} catch (final Throwable e) {
-//			throw new N5IOException("Failed to write " + absolutePath, e);
-//		}
-//		
-//		keyValueAccess.write(absolutePath, ReadData.from(attributes.toString().getBytes()));
 	}
 
 	protected void writeZArray(
