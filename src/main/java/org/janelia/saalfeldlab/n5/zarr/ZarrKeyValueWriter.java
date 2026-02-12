@@ -46,6 +46,7 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
+import org.janelia.saalfeldlab.n5.readdata.ReadData;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -441,13 +442,15 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 			return;
 
 		final String absolutePath = keyValueAccess.compose(uri, normalPath, jsonName);
-		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
-			final Writer writer = lock.newWriter();
-			writer.append(attributes.toString());
-			writer.flush();
-		} catch (final Throwable e) {
-			throw new N5IOException("Failed to write " + absolutePath, e);
-		}
+//		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
+//			final Writer writer = lock.newWriter();
+//			writer.append(attributes.toString());
+//			writer.flush();
+//		} catch (final Throwable e) {
+//			throw new N5IOException("Failed to write " + absolutePath, e);
+//		}
+		
+		keyValueAccess.write(absolutePath, ReadData.from(attributes.toString().getBytes()));
 	}
 
 	protected void writeJsonResource(
@@ -458,14 +461,18 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		if (attributes == null)
 			return;
 
-		final String absolutePath = keyValueAccess.compose(uri, normalPath, jsonName);
-		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
-			final Writer writer = lock.newWriter();
-			gson.toJson(attributes, writer);
-			writer.flush();
-		} catch (final Throwable e) {
-			throw new N5IOException("Failed to write " + absolutePath, e);
-		}
+		writeJson(normalPath, jsonName, gson.toJsonTree(attributes));
+
+//		final String absolutePath = keyValueAccess.compose(uri, normalPath, jsonName);
+//		try (final LockedChannel lock = keyValueAccess.lockForWriting(absolutePath)) {
+//			final Writer writer = lock.newWriter();
+//			gson.toJson(attributes, writer);
+//			writer.flush();
+//		} catch (final Throwable e) {
+//			throw new N5IOException("Failed to write " + absolutePath, e);
+//		}
+//		
+//		keyValueAccess.write(absolutePath, ReadData.from(attributes.toString().getBytes()));
 	}
 
 	protected void writeZArray(
