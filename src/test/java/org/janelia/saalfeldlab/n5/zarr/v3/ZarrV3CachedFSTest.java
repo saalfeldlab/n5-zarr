@@ -4,11 +4,13 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.FileSystemRootedKeyValueAccess;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5CachedFSTest.TrackingStorage;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -40,7 +42,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 	protected N5Writer createN5Writer() {
 
 		final String testDirPath = tempN5Location();
-		return new ZarrV3KeyValueWriter(new FileSystemKeyValueAccess(), testDirPath, new GsonBuilder(), true);
+		return new ZarrV3KeyValueWriter(new FileSystemKeyValueAccess(), new FileSystemRootedKeyValueAccess(testDirPath),testDirPath, new GsonBuilder(), true);
 	}
 
 	protected N5Writer createTempN5Writer(final boolean cacheAttributes) {
@@ -63,7 +65,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 	@Override
 	protected N5Reader createN5Reader(final String location, final GsonBuilder gson) throws IOException {
 
-		return new ZarrV3KeyValueReader(new FileSystemKeyValueAccess(), location, gson, true);
+		return new ZarrV3KeyValueReader(new FileSystemKeyValueAccess(), new FileSystemRootedKeyValueAccess(location), location, gson, true);
 	}
 
 	protected N5Writer createTempN5Writer(
@@ -71,7 +73,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 			final GsonBuilder gsonBuilder,
 			final String dimensionSeparator) throws IOException {
 
-		return new ZarrV3KeyValueWriter(new FileSystemKeyValueAccess(), location, gsonBuilder, true);
+		return new ZarrV3KeyValueWriter(new FileSystemKeyValueAccess(), new FileSystemRootedKeyValueAccess(location), location, gsonBuilder, true);
 	}
 
 	protected static String tempN5PathName() {
@@ -146,8 +148,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 		final String loc = tempN5Location();
 		// make an uncached n5 writer
 		final FileSystemKeyValueAccess keyValueAccess = new FileSystemKeyValueAccess();
-		try (final ZarrV3TrackingStorage n5 = new ZarrV3TrackingStorage(keyValueAccess, loc, new GsonBuilder(), true)) {
-
+		try (final ZarrV3TrackingStorage n5 = new ZarrV3TrackingStorage(keyValueAccess, new FileSystemRootedKeyValueAccess(loc), loc, new GsonBuilder(), true)) {
 			zarrCacheBehaviorHelper(n5);
 			n5.remove();
 		}
@@ -411,10 +412,12 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 		public int listCallCount = 0;
 		public int writeAttrCallCount = 0;
 
-		public ZarrV3TrackingStorage(final KeyValueAccess keyValueAccess, final String basePath,
+		public ZarrV3TrackingStorage(final KeyValueAccess keyValueAccess,
+				final RootedKeyValueAccess rootedKeyValueAccess,
+				final String basePath,
 				final GsonBuilder gsonBuilder, final boolean cacheAttributes) {
 
-			super(keyValueAccess, basePath, gsonBuilder, cacheAttributes);
+			super(keyValueAccess, rootedKeyValueAccess, basePath, gsonBuilder, cacheAttributes);
 		}
 
 		@Override

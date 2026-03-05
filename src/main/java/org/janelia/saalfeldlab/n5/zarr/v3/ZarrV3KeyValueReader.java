@@ -38,6 +38,7 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
+import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
 import org.janelia.saalfeldlab.n5.codec.CodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
@@ -91,12 +92,13 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	public ZarrV3KeyValueReader(
 			final boolean checkVersion,
 			final KeyValueAccess keyValueAccess,
+			final RootedKeyValueAccess rootedKeyValueAccess,
 			final String basePath,
 			final GsonBuilder gsonBuilder,
             final boolean cacheMeta)
 			throws N5Exception {
 
-		this(checkVersion, keyValueAccess, basePath, gsonBuilder, cacheMeta, true);
+		this(checkVersion, keyValueAccess, rootedKeyValueAccess, basePath, gsonBuilder, cacheMeta, true);
 	}
 
 	/**
@@ -122,23 +124,25 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	 */
 	public ZarrV3KeyValueReader(
 			final KeyValueAccess keyValueAccess,
+			final RootedKeyValueAccess rootedKeyValueAccess,
 			final String basePath,
 			final GsonBuilder gsonBuilder,
             final boolean cacheMeta)
 			throws N5Exception {
 
-		this(true, keyValueAccess, basePath, gsonBuilder, cacheMeta);
+		this(true, keyValueAccess, rootedKeyValueAccess, basePath, gsonBuilder, cacheMeta);
 	}
 
 	protected ZarrV3KeyValueReader(
 			final boolean checkVersion,
 			final KeyValueAccess keyValueAccess,
+			final RootedKeyValueAccess rootedKeyValueAccess,
 			final String basePath,
 			final GsonBuilder gsonBuilder,
 			final boolean cacheMeta,
 			final boolean checkRootExists) {
 
-		super(checkVersion, keyValueAccess, basePath, addTypeAdapters(gsonBuilder), cacheMeta, checkRootExists);
+		super(checkVersion, keyValueAccess, rootedKeyValueAccess, basePath, addTypeAdapters(gsonBuilder), cacheMeta, checkRootExists);
 	}
 
 	public String getDimensionSeparator() {

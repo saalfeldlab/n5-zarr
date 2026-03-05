@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.FileSystemRootedKeyValueAccess;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -250,8 +251,9 @@ public class TensorstoreTest {
 	// ZarrV3 only
 	public void testReadChecksum() throws IOException, InterruptedException {
 
+		final String basePath = tempN5Location();
 		try ( final ZarrV3KeyValueWriter n5Zarr = new ZarrV3KeyValueWriter(
-				new FileSystemKeyValueAccess(), tempN5Location(), new GsonBuilder(), false)) {
+				new FileSystemKeyValueAccess(),  new FileSystemRootedKeyValueAccess(basePath), basePath, new GsonBuilder(), false)) {
 
 			final String testZarrDatasetName = String.join("/", testZarrBaseName, "3");
 			n5Zarr.createDataset(
@@ -331,7 +333,7 @@ public class TensorstoreTest {
 		switch (version) {
 		case zarr3:
 			n5Zarr = new ZarrV3KeyValueWriter(
-					new FileSystemKeyValueAccess(), testZarrDirPath, new GsonBuilder(), false);
+					new FileSystemKeyValueAccess(), new FileSystemRootedKeyValueAccess(testZarrDirPath), testZarrDirPath, new GsonBuilder(), false);
 			break;
 		default:
 			n5Zarr = new ZarrKeyValueWriter(new FileSystemKeyValueAccess(),
@@ -471,7 +473,7 @@ public class TensorstoreTest {
 		n5Zarr.setAttribute(datasetName, "dimensions", shapef);
 
 		if (version == Version.zarr) {
-			// test that non-existing blocks are filled with fill value (NaN) 
+			// test that non-existing blocks are filled with fill value (NaN)
 			final RandomAccessibleInterval<FloatType> a3x2_c_lf4_fnan_after = N5Utils.open(n5Zarr, datasetName);
 			assertIsRealSequence(Views.interval(a3x2_c_lf4_fnan_after, a3x2_c_lf4_fnan), refFloat);
 			final net.imglib2.RandomAccess<FloatType> raf = a3x2_c_lf4_fnan_after.randomAccess();
@@ -482,10 +484,10 @@ public class TensorstoreTest {
 		}
 
 	}
-	
+
 	public <T extends NativeType<T> & NumericType<T>> void testWriteTensorstore(Version version) throws IOException, InterruptedException, ExecutionException {
-		
-		/* 
+
+		/*
 		 * run the python script in a test mode and return early if we can't run it.
 		 */
 		skipPython = !runPythonTest("tensorstore_read_test.py", "--test" );
@@ -506,7 +508,7 @@ public class TensorstoreTest {
 		switch (version) {
 		case zarr3:
 			n5Zarr = new ZarrV3KeyValueWriter(
-					new FileSystemKeyValueAccess(), testZarrDirPath, new GsonBuilder(), false);
+					new FileSystemKeyValueAccess(), new FileSystemRootedKeyValueAccess(testZarrDirPath), testZarrDirPath, new GsonBuilder(), false);
 			break;
 		default:
 			n5Zarr = new ZarrKeyValueWriter(new FileSystemKeyValueAccess(),
@@ -514,7 +516,7 @@ public class TensorstoreTest {
 			break;
 		}
 
-		final DataType[] dtypes =  new DataType[]{ 
+		final DataType[] dtypes =  new DataType[]{
 				DataType.INT8, DataType.UINT8,
 				DataType.INT16, DataType.UINT16,
 				DataType.INT32, DataType.UINT32,

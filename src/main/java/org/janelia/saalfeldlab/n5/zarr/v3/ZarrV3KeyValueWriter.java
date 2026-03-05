@@ -39,6 +39,7 @@ import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 
 import com.google.gson.GsonBuilder;
@@ -75,12 +76,13 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
      */
 	public ZarrV3KeyValueWriter(
 			final KeyValueAccess keyValueAccess,
+			final RootedKeyValueAccess rootedKeyValueAccess,
 			final String basePath,
 			final GsonBuilder gsonBuilder,
             final boolean cacheAttributes)
 			throws N5Exception {
 
-		super(false, keyValueAccess, basePath, gsonBuilder,
+		super(false, keyValueAccess, rootedKeyValueAccess, basePath, gsonBuilder,
 				cacheAttributes, false);
 
 		Version version = null;
