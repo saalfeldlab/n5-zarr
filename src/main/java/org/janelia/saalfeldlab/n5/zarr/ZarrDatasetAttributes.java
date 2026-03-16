@@ -191,7 +191,7 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 
 		final long[] shape = datasetAttributes.getDimensions().clone();
 		ArrayUtils.reverse(shape);
-		final int[] chunks = datasetAttributes.getBlockSize().clone();
+		final int[] chunks = datasetAttributes.getChunkSize().clone();
 		ArrayUtils.reverse(chunks);
 		final DType dType = new DType(datasetAttributes.getDataType());
 

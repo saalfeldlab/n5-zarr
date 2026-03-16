@@ -301,14 +301,14 @@ public class N5ZarrTest extends AbstractN5Test {
 		try (final N5Writer n5 = createTempN5Writer()) {
 
 			n5.createDataset(dsetPath, attributes);
-			n5.writeBlock(dsetPath, attributes, blk10);
+			n5.writeChunk(dsetPath, attributes, blk10);
 
 			final KeyValueAccess kva = ((GsonKeyValueN5Writer)n5).getKeyValueAccess();
 			try (VolatileReadData rd = kva.createReadData(kva.compose(n5.getURI(), "1.0"))) {
 				assertArrayEquals(expectedPaddedData, rd.allBytes());
 			}
 
-			DataBlock<byte[]> readBlock = n5.readBlock(dsetPath, attributes, pos);
+			DataBlock<byte[]> readBlock = n5.readChunk(dsetPath, attributes, pos);
 			assertArrayEquals(expectedPaddedData, readBlock.getData());
 		}
 	}
@@ -475,8 +475,8 @@ public class N5ZarrTest extends AbstractN5Test {
 				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
 				final DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
 				final StringDataBlock dataBlock = new StringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
-				n5.writeBlock("/test/group/dataset", attributes, dataBlock);
-				final DataBlock<?> loadedDataBlock = n5.readBlock("/test/group/dataset", attributes, 0L, 0L, 0L);
+				n5.writeChunk("/test/group/dataset", attributes, dataBlock);
+				final DataBlock<?> loadedDataBlock = n5.readChunk("/test/group/dataset", attributes, 0L, 0L, 0L);
 				assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());
 				assertTrue(n5.remove("/test/group/dataset"));
 			}
@@ -713,19 +713,19 @@ public class N5ZarrTest extends AbstractN5Test {
 		String[] expected = {"", "a", "bc", "de", "fgh", ":-þ"}; // C-order
 		datasetName = testZarrDatasetName + "/3x2_c_str";
 		DatasetAttributes strAttributes = n5Zarr.getDatasetAttributes(datasetName);
-		DataBlock<?> loadedDataBlock = n5Zarr.readBlock(datasetName, strAttributes, 0L, 0L);
+		DataBlock<?> loadedDataBlock = n5Zarr.readChunk(datasetName, strAttributes, 0L, 0L);
 		assertArrayEquals(expected, ((String[])loadedDataBlock.getData()));
 
 		expected = new String[] {"", "de", "a", "fgh", "bc", ":-þ"}; // F-order
 		datasetName = testZarrDatasetName + "/3x2_f_str";
 		strAttributes = n5Zarr.getDatasetAttributes(datasetName);
-		loadedDataBlock = n5Zarr.readBlock(datasetName, strAttributes, 0L, 0L);
+		loadedDataBlock = n5Zarr.readChunk(datasetName, strAttributes, 0L, 0L);
 		assertArrayEquals(expected, ((String[])loadedDataBlock.getData()));
 
 		expected = new String[] {"bc", "", ":-þ", ""}; // chunked and compressed (second chunk)
 		datasetName = testZarrDatasetName + "/3x2_c_str_bz2";
 		strAttributes = n5Zarr.getDatasetAttributes(datasetName);
-		loadedDataBlock = n5Zarr.readBlock(datasetName, strAttributes, 1L, 0L);
+		loadedDataBlock = n5Zarr.readChunk(datasetName, strAttributes, 1L, 0L);
 		assertArrayEquals(expected, ((String[])loadedDataBlock.getData()));
 	}
 

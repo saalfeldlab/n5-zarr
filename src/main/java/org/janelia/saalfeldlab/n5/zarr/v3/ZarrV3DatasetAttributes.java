@@ -52,6 +52,7 @@ import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodec;
 import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodecInfo;
 import org.janelia.saalfeldlab.n5.shard.DatasetAccess;
 import org.janelia.saalfeldlab.n5.shard.DefaultShardCodecInfo;
+import org.janelia.saalfeldlab.n5.shard.Nesting.NestedGrid;
 import org.janelia.saalfeldlab.n5.shard.ShardCodecInfo;
 import org.janelia.saalfeldlab.n5.shard.ShardIndex.IndexLocation;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
@@ -96,6 +97,8 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	// at this time, needs to be separated from the final field in DatasetAttributes
 	// because it is inferred from codecs and used in the constructor
 	// this class can not set the final field, therefore has its own
+	private final int[] zarrChunkSize;
+
 	private final int[] zarrBlockSize;
 
 	protected final ChunkAttributes chunkAttributes; // only support regular chunk grids for now
@@ -221,7 +224,9 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		this.fillBytes = zarrDataType.createFillBytes(fillValue);
 
 		zarrAccess = createDatasetAccess();
-		zarrBlockSize = zarrAccess.getGrid().getBlockSize(0);
+		final NestedGrid grid = zarrAccess.getGrid();
+		zarrBlockSize = zarrAccess.getGrid().getBlockSize(grid.numLevels() - 1);
+		zarrChunkSize = zarrAccess.getGrid().getBlockSize(0);
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -373,7 +378,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		final long[] shape = datasetAttributes.getDimensions().clone();
 
 		final int[] chunkShape = inferChunkShape(datasetAttributes.getBlockCodecInfo(),
-				() -> datasetAttributes.getBlockSize().clone());
+				() -> datasetAttributes.getChunkSize().clone());
 
 		// TODO this may not be correct when sharding?
 		final ChunkAttributes chunkAttrs = new ChunkAttributes(
@@ -397,6 +402,12 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			return new PaddedRawBlockCodecInfo(ByteOrder.nativeOrder(), dType.createFillBytes(fillValue));
 		else
 			return codecInfo;
+	}
+
+	@Override
+	public int[] getChunkSize() {
+
+		return zarrChunkSize;
 	}
 
 	@Override

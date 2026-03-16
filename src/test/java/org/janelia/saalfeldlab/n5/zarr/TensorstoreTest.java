@@ -278,7 +278,7 @@ public class TensorstoreTest {
 			}
 
 			final ShortArrayDataBlock dataBlock = new ShortArrayDataBlock(new int[]{1, 2, 3}, new long[]{0, 0, 0}, shortBlock);
-			n5Zarr.writeBlock(testZarrDatasetName, attributes, dataBlock);
+			n5Zarr.writeChunk(testZarrDatasetName, attributes, dataBlock);
 
 			// pythonZarrPath
 			final String testZarrDirPath =(n5Zarr.getURI().getPath().substring(1) + testZarrBaseName + "/zarr3");
