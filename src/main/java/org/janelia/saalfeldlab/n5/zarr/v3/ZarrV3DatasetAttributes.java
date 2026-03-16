@@ -670,6 +670,10 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return dataCodecs;
 	}
 
+	/**
+	 * Use class in n5-core
+	 */
+	@Deprecated
 	private static class CodecParser {
 
 		private DatasetCodecInfo[] datasetCodecInfos;
