@@ -28,6 +28,7 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import java.nio.ByteOrder;
 import java.util.Arrays;
@@ -241,6 +242,22 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		return elem == null ? null : elem.getAsJsonObject().get(ZarrV3Node.ATTRIBUTES_KEY);
 	}
 
+	public <T> T getRawAttribute(
+			final String pathName,
+			final String key,
+			final Class<T> clazz) throws N5Exception {
+
+		return getRawAttribute(pathName, key, TypeToken.get(clazz).getType());
+	}
+
+	public <T> T getRawAttribute(
+			final String pathName,
+			final String key,
+			final Type type) throws N5Exception {
+
+		return super.getAttribute(pathName, key, type);
+	}
+
 	public <T> T getAttribute(
 			final String pathName,
 			final String key,
@@ -261,14 +278,6 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
 			throw new N5Exception.N5ClassCastException(e);
 		}
-	}
-
-	public <T> T getRawAttribute(
-			final String pathName,
-			final String key,
-			final Class<T> clazz) throws N5Exception {
-
-		return super.getAttribute(pathName, key, clazz);
 	}
 
 	@Override
