@@ -62,10 +62,13 @@ import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
+import org.janelia.saalfeldlab.n5.N5Path;
+import org.janelia.saalfeldlab.n5.N5Path.N5GroupPath;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.n5.RootedFileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
@@ -105,10 +108,6 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	static private final String testZarrDatasetName = "test/data";
 
-	public static KeyValueAccess createKeyValueAccess() {
-		return new FileSystemKeyValueAccess();
-	}
-
 	@Override
 	protected String tempN5Location() {
 
@@ -123,7 +122,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	protected N5Writer createN5Writer()  {
 
 		final String testDirPath = tempN5Location();
-		return new ZarrKeyValueWriter(createKeyValueAccess(), testDirPath, new GsonBuilder(), true, true, ".",false);
+		return new ZarrKeyValueWriter(new RootedFileSystemKeyValueAccess(testDirPath), new GsonBuilder(), true, true, ".", false);
 	}
 
 	@Override
@@ -158,7 +157,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			final boolean mapN5DatasetAttributes,
 			final boolean cacheAttributes) {
 
-		final ZarrKeyValueWriter tempWriter = new ZarrKeyValueWriter(createKeyValueAccess(), location, gsonBuilder, mapN5DatasetAttributes, true, dimensionSeparator, cacheAttributes);
+		final ZarrKeyValueWriter tempWriter = new ZarrKeyValueWriter(new RootedFileSystemKeyValueAccess(location),
+				gsonBuilder, mapN5DatasetAttributes, true, dimensionSeparator, cacheAttributes);
 		tempWriters.add(tempWriter);
 		return tempWriter;
 	}
@@ -166,7 +166,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Override
 	protected N5Reader createN5Reader(final String location, final GsonBuilder gson) throws IOException {
 
-		return new ZarrKeyValueReader(createKeyValueAccess(), location, gson, true, true, false);
+		return new ZarrKeyValueReader(new RootedFileSystemKeyValueAccess(location), gson, true, true, false);
 	}
 
 	@Override
@@ -260,7 +260,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		final byte[] dst = N5ZarrWriter.padCrop(src, srcBlockSize, dstBlockSize, nBytes, nBits, fillValue);
 		assertArrayEquals(new byte[]{1, 2, 99, 3, 4, 99, 99, 99, 99}, dst);
 	}
-	
+
 	@Test
 	@Ignore("Zarr does not truncate blocks")
 	public void testUnalignedBlocksTruncatedAtEnd() {
@@ -325,7 +325,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 			final JsonObject bumpVersion = new JsonObject();
 			bumpVersion.add(N5ZarrReader.ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor() + 1));
-			zarr.writeZGroup("", bumpVersion);
+			zarr.writeZGroup(N5GroupPath.of(""), bumpVersion);
 
 			final Version version = writer.getVersion();
 			assertFalse(N5ZarrReader.VERSION.isCompatible(version));
@@ -527,17 +527,17 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testReadZarrPython() throws IOException, InterruptedException {
 
-		final String testZarrDirPath = tempN5Location();	
+		final String testZarrDirPath = tempN5Location();
 		//TODO: decided what to do with it for windows
 		String testZarrDirPathForPython;
-		
+
 		if (System.getProperty("os.name").startsWith("Windows"))
 			testZarrDirPathForPython = testZarrDirPath.substring(1);
 		else
 			testZarrDirPathForPython = testZarrDirPath;
-		
+
 		System.err.println("For Python: " + testZarrDirPathForPython);
-				
+
 		/* create test data with python */
 		if (!runPythonTest("zarr-test.py", testZarrDirPathForPython)) {
 			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");

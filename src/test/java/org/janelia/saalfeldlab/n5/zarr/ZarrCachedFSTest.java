@@ -51,6 +51,8 @@ import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5CachedFSTest.TrackingStorage;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.RootedFileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -180,8 +182,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 
 		final String loc = tempN5Location();
 		// make an uncached n5 writer
-		final FileSystemKeyValueAccess keyValueAccess = new FileSystemKeyValueAccess();
-		try (final ZarrTrackingStorage n5 = new ZarrTrackingStorage(keyValueAccess, loc, new GsonBuilder(), true)) {
+		try (final ZarrTrackingStorage n5 = new ZarrTrackingStorage(new RootedFileSystemKeyValueAccess(loc), new GsonBuilder(), true)) {
 
 			zarrCacheBehaviorHelper(n5);
 			n5.remove();
@@ -441,10 +442,10 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		public int listCallCount = 0;
 		public int writeAttrCallCount = 0;
 
-		public ZarrTrackingStorage(final KeyValueAccess keyValueAccess, final String basePath,
+		public ZarrTrackingStorage(final RootedKeyValueAccess keyValueAccess,
 				final GsonBuilder gsonBuilder, final boolean cacheAttributes) {
 
-			super(keyValueAccess, basePath, gsonBuilder, true, true, ".", cacheAttributes);
+			super(keyValueAccess, gsonBuilder, true, true, ".", cacheAttributes);
 		}
 
 		@Override

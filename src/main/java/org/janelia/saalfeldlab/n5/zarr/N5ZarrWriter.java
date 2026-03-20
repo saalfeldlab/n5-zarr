@@ -28,11 +28,10 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
-import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import com.google.gson.GsonBuilder;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Writer;
-
-import com.google.gson.GsonBuilder;
+import org.janelia.saalfeldlab.n5.RootedFileSystemKeyValueAccess;
 
 /**
  * @author Stephan Saalfeld
@@ -68,8 +67,7 @@ public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
 			final boolean mapN5DatasetAttributes, final boolean cacheAttributes) throws N5Exception {
 
 		super(
-				new FileSystemKeyValueAccess(),
-				basePath,
+				new RootedFileSystemKeyValueAccess(basePath),
 				gsonBuilder,
 				mapN5DatasetAttributes,
 				true,

@@ -25,17 +25,19 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonSyntaxException;
 import java.lang.reflect.Type;
 import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.HashMap;
-
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
-import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
+import org.janelia.saalfeldlab.n5.N5Path.N5GroupPath;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
@@ -47,10 +49,6 @@ import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrder;
 import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrderAdapter;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
-
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonSyntaxException;
 
 public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
@@ -72,7 +70,6 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
      *
      * @param checkVersion   perform version check
      * @param keyValueAccess
-     * @param basePath       N5 base path
      * @param gsonBuilder    the gson builder
      * @param cacheMeta      cache attributes and meta data
      *                       Setting this to true avoids frequent reading and parsing of
@@ -91,14 +88,12 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
      */
 	public ZarrV3KeyValueReader(
 			final boolean checkVersion,
-			final KeyValueAccess keyValueAccess,
-			final RootedKeyValueAccess rootedKeyValueAccess,
-			final String basePath,
+			final RootedKeyValueAccess keyValueAccess,
 			final GsonBuilder gsonBuilder,
             final boolean cacheMeta)
 			throws N5Exception {
 
-		this(checkVersion, keyValueAccess, rootedKeyValueAccess, basePath, gsonBuilder, cacheMeta, true);
+		this(checkVersion, keyValueAccess, gsonBuilder, cacheMeta, true);
 	}
 
 	/**
@@ -106,8 +101,6 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	 * {@link GsonBuilder} to support custom attributes.
 	 *
 	 * @param keyValueAccess
-	 * @param basePath
-	 *            N5 base path
 	 * @param gsonBuilder
 	 * 			GSON builder
 	 * @param cacheMeta
@@ -123,26 +116,22 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	 *             implementation.
 	 */
 	public ZarrV3KeyValueReader(
-			final KeyValueAccess keyValueAccess,
-			final RootedKeyValueAccess rootedKeyValueAccess,
-			final String basePath,
+			final RootedKeyValueAccess keyValueAccess,
 			final GsonBuilder gsonBuilder,
             final boolean cacheMeta)
 			throws N5Exception {
 
-		this(true, keyValueAccess, rootedKeyValueAccess, basePath, gsonBuilder, cacheMeta);
+		this(true, keyValueAccess, gsonBuilder, cacheMeta);
 	}
 
 	protected ZarrV3KeyValueReader(
 			final boolean checkVersion,
-			final KeyValueAccess keyValueAccess,
-			final RootedKeyValueAccess rootedKeyValueAccess,
-			final String basePath,
+			final RootedKeyValueAccess keyValueAccess,
 			final GsonBuilder gsonBuilder,
 			final boolean cacheMeta,
 			final boolean checkRootExists) {
 
-		super(checkVersion, keyValueAccess, rootedKeyValueAccess, basePath, addTypeAdapters(gsonBuilder), cacheMeta, checkRootExists);
+		super(checkVersion, keyValueAccess, addTypeAdapters(gsonBuilder), cacheMeta, checkRootExists);
 	}
 
 	public String getDimensionSeparator() {
@@ -187,10 +176,9 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
 		// Overridden because of the difference in how n5 and zarr define "group" and "dataset".
 		// The implementation in CachedGsonKeyValueReader is simpler but more low-level
-		final String normalPathName = N5URI.normalizeGroupPath(pathName);
 
 		// Note that datasetExists and groupExists use the cache
-		return groupExists(normalPathName) || datasetExists(normalPathName);
+		return groupExists(pathName) || datasetExists(pathName);
 	}
 
 	@Override
@@ -258,14 +246,15 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 			final String key,
 			final Type type) throws N5Exception {
 
-		final String normalPathName = N5URI.normalizeGroupPath(pathName);
+//		final String normalPathName = N5URI.normalizeGroupPath(pathName);
 		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
 		JsonElement attributes;
 		if (cacheMeta()) {
-			final JsonElement zarrJson = getCache().getAttributes(normalPathName, getAttributesKey());
+			final N5GroupPath group = N5GroupPath.of(pathName);
+			final JsonElement zarrJson = getCache().getAttributes(group.normalPath(), getAttributesKey());
 			attributes = zarrJson.getAsJsonObject().get(ZarrV3Node.ATTRIBUTES_KEY);
 		} else {
-			attributes = getAttributes(normalPathName);
+			attributes = getAttributes(pathName);
 		}
 		try {
 			return GsonUtils.readAttribute(attributes, normalizedAttributePath, type, getGson());
@@ -295,7 +284,7 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	@Override
 	public String toString() {
 
-		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, uri.getPath());
+		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, getURI().getPath());
 	}
 
 	protected static GsonBuilder addTypeAdapters(final GsonBuilder gsonBuilder) {

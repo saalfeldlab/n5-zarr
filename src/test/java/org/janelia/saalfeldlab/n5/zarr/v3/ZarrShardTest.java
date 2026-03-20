@@ -5,8 +5,7 @@ import java.nio.file.Files;
 
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
-import org.janelia.saalfeldlab.n5.FileSystemRootedKeyValueAccess;
+import org.janelia.saalfeldlab.n5.RootedFileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5FSTest;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.shard.ShardTest;
@@ -28,8 +27,8 @@ public class ZarrShardTest extends ShardTest {
 
 			final String basePath = new File(tempN5PathName()).toURI().normalize().getPath();
 			return new ZarrV3KeyValueWriter(
-					new FileSystemKeyValueAccess(), new FileSystemRootedKeyValueAccess(basePath),
-					basePath, new GsonBuilder(), false);
+					new RootedFileSystemKeyValueAccess(basePath),
+					new GsonBuilder(), false);
 		}
 
 		private String tempN5PathName() {

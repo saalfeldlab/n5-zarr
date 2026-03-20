@@ -25,8 +25,7 @@ import org.apache.commons.io.FileUtils;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
-import org.janelia.saalfeldlab.n5.FileSystemRootedKeyValueAccess;
+import org.janelia.saalfeldlab.n5.RootedFileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -252,8 +251,8 @@ public class TensorstoreTest {
 	public void testReadChecksum() throws IOException, InterruptedException {
 
 		final String basePath = tempN5Location();
-		try ( final ZarrV3KeyValueWriter n5Zarr = new ZarrV3KeyValueWriter(
-				new FileSystemKeyValueAccess(),  new FileSystemRootedKeyValueAccess(basePath), basePath, new GsonBuilder(), false)) {
+		try (final ZarrV3KeyValueWriter n5Zarr = new ZarrV3KeyValueWriter(
+				new RootedFileSystemKeyValueAccess(basePath), new GsonBuilder(), false)) {
 
 			final String testZarrDatasetName = String.join("/", testZarrBaseName, "3");
 			n5Zarr.createDataset(
@@ -333,11 +332,11 @@ public class TensorstoreTest {
 		switch (version) {
 		case zarr3:
 			n5Zarr = new ZarrV3KeyValueWriter(
-					new FileSystemKeyValueAccess(), new FileSystemRootedKeyValueAccess(testZarrDirPath), testZarrDirPath, new GsonBuilder(), false);
+					new RootedFileSystemKeyValueAccess(testZarrDirPath), new GsonBuilder(), false);
 			break;
 		default:
-			n5Zarr = new ZarrKeyValueWriter(new FileSystemKeyValueAccess(),
-					testZarrDirPath, new GsonBuilder(), true, true, "/", false);
+			n5Zarr = new ZarrKeyValueWriter(new RootedFileSystemKeyValueAccess(testZarrDirPath),
+					new GsonBuilder(), true, true, "/", false);
 			break;
 		}
 
@@ -508,11 +507,11 @@ public class TensorstoreTest {
 		switch (version) {
 		case zarr3:
 			n5Zarr = new ZarrV3KeyValueWriter(
-					new FileSystemKeyValueAccess(), new FileSystemRootedKeyValueAccess(testZarrDirPath), testZarrDirPath, new GsonBuilder(), false);
+					new RootedFileSystemKeyValueAccess(testZarrDirPath), new GsonBuilder(), false);
 			break;
 		default:
-			n5Zarr = new ZarrKeyValueWriter(new FileSystemKeyValueAccess(),
-					testZarrDirPath, new GsonBuilder(), true, true, "/", false);
+			n5Zarr = new ZarrKeyValueWriter(new RootedFileSystemKeyValueAccess(testZarrDirPath),
+					new GsonBuilder(), true, true, "/", false);
 			break;
 		}
 
