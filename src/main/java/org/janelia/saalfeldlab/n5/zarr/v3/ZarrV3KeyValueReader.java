@@ -272,16 +272,6 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	}
 
 	@Override
-	public <T> T getAttribute(
-			final String pathName,
-			final String key,
-			final Class<T> clazz) throws N5Exception {
-
-		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
-		return super.getAttribute(pathName, ZarrV3Node.ATTRIBUTES_KEY + "/" + normalizedAttributePath, clazz);
-	}
-
-	@Override
 	public String toString() {
 
 		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, getURI().getPath());
