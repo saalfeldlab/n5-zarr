@@ -32,7 +32,6 @@ import java.lang.reflect.Type;
 import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -328,18 +327,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return blockSize;
 	}
 
-	protected static int[] inferChunkShape(final BlockCodecInfo blockCodecInfo, Supplier<int[]> defaultSize) {
-
-		return Optional.ofNullable(deepestChunkShape(blockCodecInfo))
-				.orElseGet(defaultSize);
-	}
-
-	protected static int[] inferChunkShape(final ChunkAttributes chunkAttributes, final BlockCodecInfo blockCodecInfo) {
-
-		return Optional.ofNullable(deepestChunkShape(blockCodecInfo))
-				.orElse(chunkAttributes.getGrid().getShape());
-	}
-
 	public static ZarrV3DatasetAttributes from(final DatasetAttributes datasetAttributes,
 			final String dimensionSeparator,
 			final String fillValue) {
@@ -348,9 +335,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			return (ZarrV3DatasetAttributes)datasetAttributes;
 
 		final long[] shape = datasetAttributes.getDimensions().clone();
-
-		final int[] chunkShape = inferChunkShape(datasetAttributes.getBlockCodecInfo(),
-				() -> datasetAttributes.getChunkSize().clone());
+		final int[] chunkShape = datasetAttributes.getChunkSize().clone();
 
 		// TODO this may not be correct when sharding?
 		final ChunkAttributes chunkAttrs = new ChunkAttributes(
