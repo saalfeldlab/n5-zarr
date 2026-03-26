@@ -30,7 +30,6 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.lang.reflect.Type;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -40,19 +39,17 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.codec.BlockCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.CodecInfo;
+import org.janelia.saalfeldlab.n5.codec.CodecParser;
 import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.DatasetCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.N5BlockCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodec;
 import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodecInfo;
-import org.janelia.saalfeldlab.n5.shard.DatasetAccess;
 import org.janelia.saalfeldlab.n5.shard.DefaultShardCodecInfo;
-import org.janelia.saalfeldlab.n5.shard.Nesting.NestedGrid;
 import org.janelia.saalfeldlab.n5.shard.ShardCodecInfo;
 import org.janelia.saalfeldlab.n5.shard.ShardIndex.IndexLocation;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
@@ -613,99 +610,11 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		}
 	}
 
-	private static BlockCodecInfo getBlockCodecInfo(CodecInfo[] codecs) {
-
-		if (!(codecs[0] instanceof BlockCodecInfo))
-			throw new N5Exception("First codec must be a BlockCodec, but was: " + codecs[0].getClass());
-
-		return convertShardCodec((BlockCodecInfo)codecs[0]);
-	}
-
-	private static DataCodecInfo[] getDataCodecInfos(CodecInfo[] codecs) {
-
-		final DataCodecInfo[] dataCodecs = new DataCodecInfo[codecs.length - 1];
-		for (int i = 1; i < codecs.length; i++) {
-			if (!(codecs[i] instanceof DataCodecInfo))
-				throw new N5Exception("Codec at position " + i + " must be a DataCodec, but was: " + codecs[i].getClass());
-
-			dataCodecs[i - 1] = (DataCodecInfo)codecs[i];
-		}
-		return dataCodecs;
-	}
-
-	/**
-	 * Use class in n5-core
-	 */
-	@Deprecated
-	private static class CodecParser {
-
-		private DatasetCodecInfo[] datasetCodecInfos;
-		private BlockCodecInfo blockCodecInfo;
-		private DataCodecInfo[] dataCodecInfos;
-
-		public CodecParser(CodecInfo[] codecs) {
-
-			parse(codecs);
-		}
-
-		public void parse(CodecInfo[] codecs) {
-
-			final ArrayList<DataCodecInfo> dataCodecList = new ArrayList<>();
-			final ArrayList<DatasetCodecInfo> datasetCodecList = new ArrayList<>();
-
-			boolean foundBlockCodec = false;
-
-			int i = 0;
-			int blockCodecIndex = -1;
-			for (CodecInfo codec : codecs) {
-				if (!foundBlockCodec) {
-
-					if (codec instanceof BlockCodecInfo) {
-						blockCodecInfo = (BlockCodecInfo)codec;
-						foundBlockCodec = true;
-						blockCodecIndex = i;
-					} else if (codec instanceof DatasetCodecInfo)
-						datasetCodecList.add((DatasetCodecInfo)codec);
-					else
-						throw new N5Exception("Codec at index " + i + " is a DataCodec, but came before a BlockCodec.");
-
-				} else if (codec instanceof BlockCodecInfo)
-					throw new N5Exception("Codec at index " + i + " is a BlockCodec, but came after a BlockCodec at position " + blockCodecIndex);
-				else if (codec instanceof DatasetCodecInfo)
-					throw new N5Exception("Codec at index " + i + " is a DatasetCodec, but came after a BlockCodec at position " + blockCodecIndex);
-				else
-					dataCodecList.add((DataCodecInfo)codec);
-
-				i++;
-			}
-
-			datasetCodecInfos = datasetCodecList.stream().toArray(n -> new DatasetCodecInfo[n]);
-			dataCodecInfos = dataCodecList.stream().toArray(n -> new DataCodecInfo[n]);
-		}
-
-	}
-
 	private static CodecInfo[] concatenateCodecs( ZarrV3DatasetAttributes attributes) {
 		final CodecInfo[] codecs = new CodecInfo[ attributes.getDataCodecInfos().length + 1 ];
 		codecs[0] = attributes.getBlockCodecInfo();
 		System.arraycopy(attributes.getDataCodecInfos(), 0, codecs, 1, attributes.getDataCodecInfos().length);
 		return codecs;
-	}
-
-	private static BlockCodecInfo convertShardCodec(BlockCodecInfo info) {
-
-		if (info instanceof DefaultShardCodecInfo) {
-			DefaultShardCodecInfo shardInfoParsed = (DefaultShardCodecInfo)info;
-			return new DefaultShardCodecInfo(
-					shardInfoParsed.getInnerBlockSize(),
-					getBlockCodecInfo(shardInfoParsed.getCodecs()),
-					getDataCodecInfos(shardInfoParsed.getCodecs()),
-					getBlockCodecInfo(shardInfoParsed.getIndexCodecs()),
-					getDataCodecInfos(shardInfoParsed.getIndexCodecs()),
-					shardInfoParsed.getIndexLocation());
-
-		}
-		return info;
 	}
 
 	public static Builder builder(final long[] shape, final DataType dataType) {
