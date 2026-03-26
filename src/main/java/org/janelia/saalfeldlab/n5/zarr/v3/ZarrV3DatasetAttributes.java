@@ -93,22 +93,12 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			FILL_VALUE_KEY, CODECS_KEY,
 	};
 
-	// number of samples per block per dimension
-	// at this time, needs to be separated from the final field in DatasetAttributes
-	// because it is inferred from codecs and used in the constructor
-	// this class can not set the final field, therefore has its own
-	private final int[] zarrChunkSize;
-
-	private final int[] zarrBlockSize;
-
 	protected final ChunkAttributes chunkAttributes; // only support regular chunk grids for now
 	protected final ZarrV3DataType zarrDataType;
 	protected final JsonElement fillValue;
 	protected final String[] dimensionNames;
 
 	protected transient final byte[] fillBytes;
-
-	private transient final DatasetAccess<?> zarrAccess;
 
 	public ZarrV3DatasetAttributes(
 			final long[] shape,
@@ -120,7 +110,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			shape,
 			defaultChunkAttributes(blockSize),
 			ZarrV3DataType.fromDataType(dataType),
-			"0", // default fill value 
+			"0", // default fill value
 			defaultDimensionNames(shape.length),
 			null,
 			null,
@@ -222,11 +212,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		this.fillValue = parseFillValue(fillValue, zarrDataType.getDataType());
 		this.dimensionNames = dimensionNames;
 		this.fillBytes = zarrDataType.createFillBytes(fillValue);
-
-		zarrAccess = createDatasetAccess();
-		final NestedGrid grid = zarrAccess.getGrid();
-		zarrBlockSize = zarrAccess.getGrid().getBlockSize(grid.numLevels() - 1);
-		zarrChunkSize = zarrAccess.getGrid().getBlockSize(0);
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -240,7 +225,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final DatasetCodecInfo[] datasetCodecInfos,
 			final DataCodecInfo... dataCodecInfos) {
 
-		this(shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dataType, fillValue, 
+		this(shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dataType, fillValue,
 				dimensionNames, blockCodecInfo, datasetCodecInfos, dataCodecInfos );
 	}
 
@@ -266,16 +251,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	protected BlockCodecInfo defaultBlockCodecInfo() {
 
 		return new PaddedRawBlockCodecInfo(ByteOrder.nativeOrder(), getFillBytes());
-	}
-
-	/**
-	 * Get the {@link DatasetAccess} for this dataset.
-	 *
-	 * @return the {@code DatasetAccess} for this dataset
-	 */
-	<T> DatasetAccess<T> getDatasetAccess() {
-
-		return (DatasetAccess<T>)zarrAccess;
 	}
 
 	protected static BlockCodecInfo defaultShardCodecInfo(int[] blockSize, DataCodecInfo[] dataCodecInfos,
@@ -404,18 +379,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			return codecInfo;
 	}
 
-	@Override
-	public int[] getChunkSize() {
-
-		return zarrChunkSize;
-	}
-
-	@Override
-	public int[] getBlockSize() {
-
-		return zarrBlockSize;
-	}
-
 	public String relativeBlockPath(long... gridPosition) {
 
 		return chunkAttributes.getChunkPath(gridPosition);
@@ -498,7 +461,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	}
 
 	public static JsonAdapter jsonAdapter = new JsonAdapter();
-	
+
 	static NameConfigAdapter<CodecInfo> codecAdapter = NameConfigAdapter.getJsonAdapter(CodecInfo.class);
 
 	public static class JsonAdapter implements JsonDeserializer<ZarrV3DatasetAttributes>, JsonSerializer<ZarrV3DatasetAttributes> {
@@ -568,9 +531,9 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			jsonObject.add(CODECS_KEY, serializeCodecs(concatenateCodecs(src), CodecInfo[].class, context));
 			return jsonObject;
 		}
-		
+
 		private JsonArray serializeCodecs( CodecInfo[] codecs, Type typeOfSrc, JsonSerializationContext context ) {
-			
+
 			JsonArray array = new JsonArray(codecs.length);
 			for( CodecInfo c : codecs)
 				array.add(codecAdapter.serialize(c, typeOfSrc, context));
@@ -594,7 +557,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		 * 	<li>Combines any adjacent {@link TransposeCodecInfo}s.</li>
 		 * 	<li>Removes the resulting TransposeCodec if it is the identity.</li>
 		 * </ol>
-		 * 
+		 *
 		 * @param datasetCodecs
 		 *            the input codecs
 		 * @return the simplified codecs
@@ -938,7 +901,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		/**
 		 * Sets the data codec infos for the shard index;
 		 *
-		 * @param dataCodecInfos the data codecs
+		 * @param shardIndexDataCodecInfos the data codecs
 		 * @return this builder
 		 */
 		public Builder shardIndexDataCodecInfos(final DataCodecInfo... shardIndexDataCodecInfos) {
@@ -963,7 +926,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final DefaultChunkKeyEncoding resolvedChunkKeyEncoding = chunkKeyEncoding != null
 					? chunkKeyEncoding
 					: new DefaultChunkKeyEncoding(dimensionSeparator);
-			
+
 			final int[] resolvedBlockSize = blockSize != null
 					? blockSize
 					: defaultChunkShape(shape);

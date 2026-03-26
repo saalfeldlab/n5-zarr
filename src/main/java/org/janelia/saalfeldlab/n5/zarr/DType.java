@@ -442,14 +442,14 @@ public class DType {
 		return byteBlockFactory.createByteBlock(blockSize, gridPosition, DataBlock.getNumElements(blockSize));
 	}
 
-	private static interface DataBlockFactory {
+	private interface DataBlockFactory {
 
-		public DataBlock<?> createDataBlock(final int[] blockSize, final long[] gridPosition, final int numElements);
+		DataBlock<?> createDataBlock(int[] blockSize, long[] gridPosition, int numElements);
 	}
 
-	private static interface ByteBlockFactory {
+	private interface ByteBlockFactory {
 
-		public ByteArrayDataBlock createByteBlock(final int[] blockSize, final long[] gridPosition, final int numElements);
+		ByteArrayDataBlock createByteBlock(int[] blockSize, long[] gridPosition, int numElements);
 	}
 
 	public ByteOrder getOrder() {
@@ -486,7 +486,7 @@ public class DType {
 		final byte[] fillBytes = new byte[nBytes];
 		final ByteBuffer fillBuffer = ByteBuffer.wrap(fillBytes);
 		fillBuffer.order(order);
-		
+
 		if (fill_value == null)
 			return fillBytes;
 
