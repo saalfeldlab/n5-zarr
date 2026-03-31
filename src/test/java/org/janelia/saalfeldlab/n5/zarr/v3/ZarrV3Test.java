@@ -115,6 +115,7 @@ public class ZarrV3Test extends AbstractN5Test {
 
 		final String testDirPath = tempN5Location();
 		return new ZarrV3KeyValueWriter(new RootedFileSystemKeyValueAccess(testDirPath), new GsonBuilder(), true);
+		// TODO: shouldn't this set cacheAttributes==false?
 	}
 
 	@Override
@@ -255,31 +256,32 @@ public class ZarrV3Test extends AbstractN5Test {
 		}
 	}
 
-	@Override
-	@Test
-	public void testVersion() throws NumberFormatException, IOException, URISyntaxException {
-
-		try (final N5Writer writer = createTempN5Writer()) {
-
-			@SuppressWarnings("resource") // closed by the try block above
-			final ZarrV3KeyValueWriter zarr = (ZarrV3KeyValueWriter)writer;
-
-			final Version n5Version = writer.getVersion();
-			assertEquals(n5Version, ZarrV3KeyValueReader.VERSION);
-
-			final JsonObject bumpVersion = new JsonObject();
-			final JsonElement elem = zarr.getRawAttributes("/");
-			elem.getAsJsonObject().add(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY,
-					new JsonPrimitive(ZarrV3KeyValueReader.VERSION.getMajor() + 1));
-			zarr.writeAttributes("", elem);
-
-			final Version version = writer.getVersion();
-			assertFalse(ZarrV3KeyValueReader.VERSION.isCompatible(version));
-
-			// check that writer creation fails for incompatible version
-			assertThrows(N5Exception.N5IOException.class, () -> createTempN5Writer(writer.getURI().toString()));
-		}
-	}
+	// TODO [ ]
+//	@Override
+//	@Test
+//	public void testVersion() throws NumberFormatException, IOException, URISyntaxException {
+//
+//		try (final N5Writer writer = createTempN5Writer()) {
+//
+//			@SuppressWarnings("resource") // closed by the try block above
+//			final ZarrV3KeyValueWriter zarr = (ZarrV3KeyValueWriter)writer;
+//
+//			final Version n5Version = writer.getVersion();
+//			assertEquals(n5Version, ZarrV3KeyValueReader.VERSION);
+//
+//			final JsonObject bumpVersion = new JsonObject();
+//			final JsonElement elem = zarr.getRawAttributes("/");
+//			elem.getAsJsonObject().add(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY,
+//					new JsonPrimitive(ZarrV3KeyValueReader.VERSION.getMajor() + 1));
+//			zarr.writeAttributes("", elem);
+//
+//			final Version version = writer.getVersion();
+//			assertFalse(ZarrV3KeyValueReader.VERSION.isCompatible(version));
+//
+//			// check that writer creation fails for incompatible version
+//			assertThrows(N5Exception.N5IOException.class, () -> createTempN5Writer(writer.getURI().toString()));
+//		}
+//	}
 
 	@Test
 	@Override

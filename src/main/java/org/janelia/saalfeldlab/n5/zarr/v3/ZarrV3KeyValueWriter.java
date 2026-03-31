@@ -27,6 +27,7 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import java.util.Arrays;
@@ -104,78 +105,23 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 					ZarrV3KeyValueReader.VERSION.getMajor());
 	}
 
-	/**
-	 * Creates a group at the given path only without the associated checks or recursion.
-	 * Expected to be called from a method that ensures the parent of `normalPath` exists
-	 * and can contain a group at `normalPath`.
-	 *
-	 * @param normalPath path to group relative to root
-	 */
-	private void createGroupNonrecursive(final String normalPath) {
-
-		if (groupExists(normalPath))
-			return;
-		else if (datasetExists(normalPath))
-			throw new N5Exception("Can't make a group on existing dataset.");
-
-		keyValueAccess.createDirectories(normalPath);
-
-		final JsonObject obj = new JsonObject();
-		obj.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
-		obj.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.GROUP.toString());
-
-		writeAttributes(normalPath, obj);
-	}
-
+	// TODO [+]
 	@Override
 	public void createGroup(final String path) {
 
-
-		if (groupExists(path))
+		if (groupExists(path)) {
 			return;
-		else if (datasetExists(path))
+		} else if (datasetExists(path)) {
 			throw new N5Exception("Can't make a group on existing dataset.");
-
-		// check all nodes that are parents of the added node, if they have
-		// a children set, add the new child to it
-		final N5GroupPath group = N5GroupPath.of(path);
-		String[] pathParts = group.components();
-		String parent = "";
-
-		for (final String child : pathParts) {
-
-			final String childPath = parent.isEmpty() ? child : parent + "/" + child;
-			createGroupNonrecursive(childPath);
-
-			if (cacheMeta()) {
-				// Only add if the parent exists and has children cached already.
-				// Note that the only reason to have child.isEmpty() is if the group is "".
-				if (!child.isEmpty())
-					getCache().addChildIfPresent(parent, child);
-			}
-
-			parent = childPath;
 		}
-	}
 
-	/**
-	 * Creates a dataset at the given path only without the associated checks or recursion.
-	 * Expected to be called from a method that ensures the parent of `normalPath` exists
-	 * and can contain a dataset at `normalPath`.
-	 *
-	 * @param normalPath path to group relative to root
-	 */
-	private void createDatasetNonrecursive(final String normalPath, final ZarrV3DatasetAttributes datasetAttributes) {
+		final JsonObject obj = new JsonObject();
+		obj.addProperty(ZarrV3Node.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
+		obj.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.GROUP.toString());
 
-		keyValueAccess.createDirectories(normalPath);
-
-		// These three lines are preferable to setDatasetAttributes because they
-		// are more efficient wrt caching
-		final JsonElement attributes = getGson().toJsonTree(datasetAttributes);
-		final JsonObject zarrJson = attributes.getAsJsonObject();
-		zarrJson.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
-		zarrJson.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.ARRAY.toString());
-		writeAttributes(normalPath, zarrJson);
+		final N5GroupPath group = N5GroupPath.of(path);
+		metaStore.store_createDirectories(group);
+		metaStore.store_writeAttributesJson(group, ZARR_KEY, obj, gson);
 	}
 
 	@Override
@@ -190,6 +136,26 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		return createDataset(datasetPath, datasetAttributes);
 	}
 
+	// TODO [+]
+	/**
+	 * Creates a dataset at the given path only without the associated checks or recursion.
+	 * Expected to be called from a method that ensures the parent of `normalPath` exists
+	 * and can contain a dataset at `normalPath`.
+	 */
+	private void createDatasetNonrecursive(final N5GroupPath dataset, final ZarrV3DatasetAttributes datasetAttributes) {
+
+		metaStore.store_createDirectories(dataset);
+
+		// These three lines are preferable to setDatasetAttributes because they
+		// are more efficient wrt caching
+		final JsonElement attributes = getGson().toJsonTree(datasetAttributes);
+		final JsonObject zarrJson = attributes.getAsJsonObject();
+		zarrJson.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
+		zarrJson.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.ARRAY.toString());
+		metaStore.store_writeAttributesJson(dataset, ZARR_KEY, zarrJson, gson);
+	}
+
+	// TODO [+]
 	@Override
 	public ZarrV3DatasetAttributes createDataset(String datasetPath, DatasetAttributes datasetAttributes) throws N5Exception {
 
@@ -202,15 +168,8 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		if (parent != null) {
 			createGroup(parent.path());
 		}
-
 		final ZarrV3DatasetAttributes zarrAttrs = getConvertedDatasetAttributes(datasetAttributes);
-		createDatasetNonrecursive(datasetPath, zarrAttrs);
-
-		if (cacheMeta() && parent != null) {
-			// only add if the parent exists and has children cached already
-			final String[] pathParts = dataset.components();
-			getCache().addChildIfPresent(parent.normalPath(), pathParts[pathParts.length - 1]);
-		}
+		createDatasetNonrecursive(dataset, zarrAttrs);
 		return zarrAttrs;
 	}
 
@@ -265,21 +224,35 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		return true;
 	}
 
-
+	// TODO [+]
 	public void setRawAttributes(final String path, final Map<String, ?> attributes) throws N5Exception {
 
-		// TODO should this and other raw attribute methods be protected?
-		// maybe best to have single public get/setRawAttributes(path,JsonObject)
-		CachedGsonKeyValueN5Writer.super.setAttributes(path, attributes);
+		if (!metaStore.store_isDirectory(N5GroupPath.of(path)))
+			throw new N5IOException("\"" + path + "\" is not a group or dataset.");
+
+		if (attributes != null && !attributes.isEmpty()) {
+			JsonElement root = getRawAttributes(path);
+			root = root != null && root.isJsonObject()
+					? root.getAsJsonObject()
+					: new JsonObject();
+			root = GsonUtils.insertAttributes(root, attributes, getGson());
+			setRawAttributes(path, root);
+		}
 	}
 
+	// TODO [+]
 	public void setRawAttributes(final String path, final JsonElement attributes) throws N5Exception {
 
-		CachedGsonKeyValueN5Writer.super.setAttributes(path, attributes);
+		final N5GroupPath group = N5GroupPath.of(path);
+
+		if (!metaStore.store_isDirectory(group))
+			throw new N5IOException("\"" + path + "\" is not a group or dataset.");
+
+		getDelegateStore().store_writeAttributesJson(group, ZARR_KEY, attributes, getGson());
 	}
 
-
-	// TODO: This is maybe a bug. @bogovicj will look into it. Revisit later...
+	// TODO [ ]
+	@Override
 	public void setAttributes(
 			final String path,
 			final Map<String, ?> attributes) throws N5Exception {
@@ -297,13 +270,14 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			if (!rootObj.has(ZarrV3Node.ATTRIBUTES_KEY))
 				rootObj.add(ZarrV3Node.ATTRIBUTES_KEY, new JsonObject());
 
-			JsonElement userAttrs = rootObj.get(ZarrV3Node.ATTRIBUTES_KEY);
-			userAttrs = GsonUtils.insertAttributes(userAttrs, attributes, getGson());
+			final JsonElement userAttrs = rootObj.get(ZarrV3Node.ATTRIBUTES_KEY);
+			GsonUtils.insertAttributes(userAttrs, attributes, getGson());
 
-			writeAttributes(path, root);
+			setRawAttributes(path, root);
 		}
 	}
 
+	// TODO [ ]
 	@Override
 	public void setAttributes(
 			final String path,
@@ -315,6 +289,21 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		setRawAttributes(path, rootObj);
 	}
 
+
+	// TODO [+]
+	@Override
+	public boolean removeAttribute(final String pathName, final String attributePath) throws N5Exception {
+
+		final String normalKey = N5URI.normalizeAttributePath(ZarrV3Node.ATTRIBUTES_KEY + "/" + attributePath);
+		final JsonElement attributes = getRawAttributes(pathName);
+		if (GsonUtils.removeAttribute(attributes, normalKey) != null) {
+			setRawAttributes(pathName, attributes);
+			return true;
+		}
+		return false;
+	}
+
+	// TODO [+]
 	@Override
 	public <T> T removeAttribute(final String pathName, final String key, final Class<T> cls) throws N5Exception {
 
@@ -327,29 +316,8 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			throw new N5Exception.N5ClassCastException(e);
 		}
 		if (obj != null) {
-			writeAttributes(pathName, attributes);
+			setRawAttributes(pathName, attributes);
 		}
 		return obj;
 	}
-
-	@Override
-	public void writeAttributes(
-			final String normalGroupPath,
-			final Map<String, ?> attributes) throws N5Exception {
-
-		if (attributes != null && !attributes.isEmpty()) {
-			JsonElement root = getRawAttributes(normalGroupPath);
-			root = root != null && root.isJsonObject()
-					? root.getAsJsonObject()
-					: new JsonObject();
-			root = GsonUtils.insertAttributes(root, attributes, getGson());
-			writeAttributes(normalGroupPath, root);
-		}
-	}
-
-	protected static String userAttributePath( final String key ) {
-
-		return ZarrV3Node.ATTRIBUTES_KEY + "/" + key;
-	}
-
 }

@@ -170,7 +170,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		versionObject.add(ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
 
 		N5GroupPath group = N5GroupPath.of(path);
-		getDelegateStore().store_createDirectories(group);
+		metaStore.store_createDirectories(group);
 		while (group != null) {
 			writeZGroup(group, versionObject);
 			group = group.parent();
