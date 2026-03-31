@@ -37,6 +37,8 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Reader;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.CompressionAdapter;
@@ -45,12 +47,15 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
+import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
+import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Path.N5FilePath;
 import org.janelia.saalfeldlab.n5.N5Path.N5GroupPath;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
+import org.janelia.saalfeldlab.n5.cache.DelegateStore;
 import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
 import org.janelia.saalfeldlab.n5.readdata.VolatileReadData;
 import org.janelia.saalfeldlab.n5.serialization.JsonArrayUtils;
@@ -64,7 +69,7 @@ import static org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes.createZArray
  * @author Stephan Saalfeld
  * @author John Bogovic
  */
-public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCacheableContainer {
+public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 
 	public static final Version VERSION_ZERO = new Version(0, 0, 0);
 	public static final Version VERSION = new Version(2, 0, 0);
@@ -76,13 +81,13 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 
 	protected final RootedKeyValueAccess keyValueAccess;
 
-	protected final Gson gson;
+	private final DelegateStore metaStore;
 
-	protected final ZarrJsonCache cache;
+	protected final Gson gson;
 
 	protected final boolean cacheMeta;
 
-	protected final HashMap<DatasetAttributes, ZarrDatasetAttributes> datasetAttributesMap = new HashMap<>();
+	protected final Map<DatasetAttributes, ZarrDatasetAttributes> datasetAttributesMap = new ConcurrentHashMap<>();
 
 	protected final boolean mapN5DatasetAttributes;
 
@@ -142,20 +147,12 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		this.keyValueAccess = keyValueAccess;
 		this.gson = registerGson(gsonBuilder);
 		this.cacheMeta = cacheMeta;
+		this.metaStore = createMetaStore(keyValueAccess, cacheMeta);
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
 		this.mergeAttributes = mergeAttributes;
 
-		if (cacheMeta)
-			// note normalExists isn't quite the normal version of exists.
-			// rather, it only checks for the existence of the requested on the
-			// backend
-			// (this is the desired behavior the cache needs
-			cache = new ZarrJsonCache(this);
-		else
-			cache = null;
-
 		if (checkRootExists && !exists("/"))
-			throw new N5Exception.N5IOException("No container exists at " + getURI());
+			throw new N5IOException("No container exists at " + getURI());
 
 	}
 
@@ -209,21 +206,21 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	@Override
-	public boolean cacheMeta() {
-
-		return cacheMeta;
-	}
-
-	@Override
-	public ZarrJsonCache getCache() {
-
-		return cache;
-	}
-
-	@Override
 	public RootedKeyValueAccess getRootedKeyValueAccess() {
 
 		return keyValueAccess;
+	}
+
+	@Override
+	public DelegateStore getDelegateStore() {
+
+		return metaStore;
+	}
+
+	@Override
+	public boolean cacheMeta() {
+
+		return cacheMeta;
 	}
 
 	@Override
@@ -259,7 +256,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		return groupExists(pathName) || datasetExists(pathName);
 	}
 
-	/**
+	/*
 	 * Tests whether the key at normalPathName exists for the backend. Such a key may exist for paths that are neither
 	 * zarr groups nor zarr datasets.
 	 *
@@ -267,73 +264,72 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 *            normalized path name
 	 * @return true if the key exists
 	 */
-	public boolean existsFromContainer(final String normalPathName) {
+	// TODO remove
+//	public boolean existsFromContainer(final String normalPathName) {
+//
+//		// A cloud keyValueAccess may return false for
+//		// exists(groupPath(normalPathName)),
+//		// so instead need to check for existence of either .zarray or .zgroup
+//		final N5GroupPath group = N5GroupPath.of(normalPathName);
+//		return keyValueAccess.isFile(group.resolve(ZGROUP_FILE)) ||
+//				keyValueAccess.isFile(group.resolve(ZARRAY_FILE));
+//
+//		// TODO: use isGroupFromContainer || isDatasetFromContainer ????
+//	}
 
-		// A cloud keyValueAccess may return false for
-		// exists(groupPath(normalPathName)),
-		// so instead need to check for existence of either .zarray or .zgroup
-		final N5GroupPath group = N5GroupPath.of(normalPathName);
-		return keyValueAccess.isFile(group.resolve(ZGROUP_FILE)) ||
-				keyValueAccess.isFile(group.resolve(ZARRAY_FILE));
-
-		// TODO: use isGroupFromContainer || isDatasetFromContainer ????
-	}
-
+	// TODO [+]
 	@Override
 	public boolean groupExists(final String pathName) {
 
-		// Overriden because the parent implementation uses attributes.json,
-		// this uses .zgroup.
-		if (cacheMeta()) {
-			final String normalPath = N5GroupPath.of(pathName).normalPath();
-			return cache.isGroup(normalPath, ZGROUP_FILE);
-		}
-		return isGroupFromContainer(pathName);
+		final N5GroupPath group = N5GroupPath.of(pathName);
+		final JsonElement zgroup = metaStore.store_readAttributesJson(group, ZGROUP_FILE, gson);
+		return zgroup != null;
 	}
 
+	// TODO remove
+//	@Override
+//	public boolean isGroupFromContainer(final String normalPath) {
+//
+//		final N5GroupPath group = N5GroupPath.of(normalPath);
+//		return keyValueAccess.isFile(group.resolve(ZGROUP_FILE));
+//	}
+
+	// TODO remove
+//	@Override
+//	public boolean isGroupFromAttributes(final String normalCacheKey, final JsonElement attributes) {
+//
+//		return attributes != null && attributes.isJsonObject() && attributes.getAsJsonObject().has(ZARR_FORMAT_KEY);
+//	}
+
+	// TODO [+]
 	@Override
-	public boolean isGroupFromContainer(final String normalPath) {
+	public boolean datasetExists(final String pathName) throws N5IOException {
 
-		final N5GroupPath group = N5GroupPath.of(normalPath);
-		return keyValueAccess.isFile(group.resolve(ZGROUP_FILE));
+		return getDatasetAttributes(pathName) != null;
 	}
 
-	@Override
-	public boolean isGroupFromAttributes(final String normalCacheKey, final JsonElement attributes) {
+	// TODO remove
+//	@Override
+//	public boolean isDatasetFromContainer(final String normalPath) throws N5Exception {
+//
+//		final N5GroupPath group = N5GroupPath.of(normalPath);
+//		if (keyValueAccess.isFile(group.resolve(ZARRAY_FILE))) {
+//			return isDatasetFromAttributes(ZARRAY_FILE, getAttributesFromContainer(normalPath, ZARRAY_FILE));
+//		} else {
+//			return false;
+//		}
+//	}
 
-		return attributes != null && attributes.isJsonObject() && attributes.getAsJsonObject().has(ZARR_FORMAT_KEY);
-	}
-
-	@Override
-	public boolean datasetExists(final String pathName) throws N5Exception.N5IOException {
-
-		if (cacheMeta()) {
-			final String normalPath = N5GroupPath.of(pathName).normalPath();
-			return cache.isDataset(normalPath, ZARRAY_FILE);
-		}
-		return isDatasetFromContainer(pathName);
-	}
-
-	@Override
-	public boolean isDatasetFromContainer(final String normalPath) throws N5Exception {
-
-		final N5GroupPath group = N5GroupPath.of(normalPath);
-		if (keyValueAccess.isFile(group.resolve(ZARRAY_FILE))) {
-			return isDatasetFromAttributes(ZARRAY_FILE, getAttributesFromContainer(normalPath, ZARRAY_FILE));
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public boolean isDatasetFromAttributes(final String normalCacheKey, final JsonElement attributes) {
-
-		if (normalCacheKey.equals(ZARRAY_FILE) && attributes != null && attributes.isJsonObject()) {
-			return createDatasetAttributes(attributes) != null;
-		} else {
-			return false;
-		}
-	}
+	// TODO remove
+//	@Override
+//	public boolean isDatasetFromAttributes(final String normalCacheKey, final JsonElement attributes) {
+//
+//		if (normalCacheKey.equals(ZARRAY_FILE) && attributes != null && attributes.isJsonObject()) {
+//			return createDatasetAttributes(attributes) != null;
+//		} else {
+//			return false;
+//		}
+//	}
 
 	/**
 	 * Returns the {@link ZarrDatasetAttributes} located at the given path, if present.
@@ -344,31 +340,21 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 * @throws N5Exception
 	 *             the exception
 	 */
+	// TODO [+]
 	@Override
 	public DatasetAttributes getDatasetAttributes(final String pathName) throws N5Exception {
 
 		return createDatasetAttributes(getZArray(pathName));
 	}
 
+	// TODO [+]
 	@Override
 	public ZarrDatasetAttributes getConvertedDatasetAttributes(DatasetAttributes attributes) {
 
-		// TODO: Make datasetAttributesMap a ConcurrentHashMap
-		//       Use computeIfAbsent(...)
-
-		final ZarrDatasetAttributes zarrAttrs;
-		if (attributes instanceof ZarrDatasetAttributes)
-			zarrAttrs = ((ZarrDatasetAttributes)attributes);
-		else if (datasetAttributesMap.containsKey(attributes)) {
-			zarrAttrs = datasetAttributesMap.get(attributes);
-			datasetAttributesMap.put(attributes, zarrAttrs);
+		if (attributes instanceof ZarrDatasetAttributes) {
+			return ((ZarrDatasetAttributes) attributes);
 		}
-		else {
-			final ZArrayAttributes zArrayAttrs = createZArrayAttributes(dimensionSeparator, attributes);
-			zarrAttrs = new ZarrDatasetAttributes(zArrayAttrs);
-			datasetAttributesMap.put(attributes, zarrAttrs);
-		}
-		return zarrAttrs;
+		return datasetAttributesMap.computeIfAbsent(attributes, attr -> new ZarrDatasetAttributes(createZArrayAttributes(dimensionSeparator, attr)));
 	}
 
 	/**
@@ -380,6 +366,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 * @throws N5Exception
 	 *             the exception
 	 */
+	// TODO [ ] ???
 	public ZArrayAttributes getZArrayAttributes(final String pathName) throws N5Exception {
 
 		return getZArrayAttributes(getZArray(pathName));
@@ -392,11 +379,13 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 *            the json element
 	 * @return the zarr array attributse
 	 */
+	// TODO [ ] ???
 	protected ZArrayAttributes getZArrayAttributes(final JsonElement attributes) {
 
 		return gson.fromJson(attributes, ZArrayAttributes.class);
 	}
 
+	// TODO [ ] ???
 	@Override
 	public DatasetAttributes createDatasetAttributes(final JsonElement attributes) {
 
@@ -404,18 +393,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		return zarray != null ? new ZarrDatasetAttributes(zarray) : null;
 	}
 
-	@Override
-	public <T> T getAttribute(final String pathName, final String key, final Class<T> clazz) throws N5Exception {
-
-		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
-		final JsonElement attributes = getAttributes(pathName); // handles caching
-		try {
-			return GsonUtils.readAttribute(attributes, normalizedAttributePath, clazz, gson);
-		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
-			throw new N5Exception.N5ClassCastException(e);
-		}
-	}
-
+	// TODO [+]
 	@Override
 	public <T> T getAttribute(final String pathName, final String key, final Type type) throws N5Exception {
 
@@ -424,11 +402,10 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		try {
 			return GsonUtils.readAttribute(attributes, normalizedAttributePath, type, gson);
 		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
-
-			if ( key.equals("filters") && attributes.getAsJsonObject().get("filters").isJsonNull())
-				return (T)Collections.EMPTY_LIST;
-			else
-				throw new N5Exception.N5ClassCastException(e);
+			if (key.equals("filters") && attributes.getAsJsonObject().get("filters").isJsonNull()) {
+				return (T) Collections.EMPTY_LIST;
+			}
+			throw new N5ClassCastException(e);
 		}
 	}
 
@@ -444,15 +421,16 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 * @throws N5Exception
 	 *             the exception
 	 */
-	protected JsonElement getJsonResource(final String pathName, final String jsonName) throws N5Exception { // TODO: Make N5GroupPath version?
-
-		if (cacheMeta()) {
-			final String normalPath = N5GroupPath.of(pathName).normalPath();
-			return cache.getAttributes(normalPath, jsonName);
-		} else {
-			return getAttributesFromContainer(pathName, jsonName);
-		}
-	}
+	// TODO remove
+//	protected JsonElement getJsonResource(final String pathName, final String jsonName) throws N5Exception {
+//
+//		if (cacheMeta()) {
+//			final String normalPath = N5GroupPath.of(pathName).normalPath();
+//			return cache.getAttributes(normalPath, jsonName);
+//		} else {
+//			return getAttributesFromContainer(pathName, jsonName);
+//		}
+//	}
 
 	protected static JsonElement reverseAttrsWhenCOrder(final JsonElement elem) {
 
@@ -483,9 +461,11 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 * @throws N5Exception
 	 *             the exception
 	 */
+	// TODO [+]
 	protected JsonElement getZGroup(final String path) throws N5Exception {
 
-		return getJsonResource(path, ZGROUP_FILE);
+		final N5GroupPath group = N5GroupPath.of(path);
+		return metaStore.store_readAttributesJson(group, ZGROUP_FILE, gson);
 	}
 
 	/**
@@ -498,11 +478,31 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 * @throws N5Exception
 	 *             the exception
 	 */
+	// TODO [+]
 	protected JsonElement getZArray(final String path) throws N5Exception {
 
-		return getJsonResource(path, ZARRAY_FILE);
+		final N5GroupPath group = N5GroupPath.of(path);
+		return metaStore.store_readAttributesJson(group, ZARRAY_FILE, gson);
 	}
 
+	/**
+	 * Returns a {@link JsonElement} representing the contents of .zattrs located at the given path if present, and null
+	 * if not.
+	 *
+	 * @param path
+	 *            the path
+	 * @return the JSON element
+	 * @throws N5Exception
+	 *             the exception
+	 */
+	// TODO [+]
+	protected JsonElement getZAttributes(final String path) throws N5Exception {
+
+		final N5GroupPath group = N5GroupPath.of(path);
+		return metaStore.store_readAttributesJson(group, ZATTRS_FILE, gson);
+	}
+
+	// TODO [ ]
 	protected JsonElement zarrToN5DatasetAttributes(final JsonElement elem) {
 
 		if (!mapN5DatasetAttributes || elem == null || !elem.isJsonObject())
@@ -527,6 +527,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 		return attrs;
 	}
 
+	// TODO [ ]
 	protected JsonElement n5ToZarrDatasetAttributes(final JsonElement elem) {
 
 		if (!mapN5DatasetAttributes || elem == null || !elem.isJsonObject())
@@ -546,28 +547,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	/**
-	 * Returns a {@link JsonElement} representing the contents of .zattrs located at the given path if present, and null
-	 * if not. public static JsonObject serialize(JsonSerializationContext context, final DefaultChunkKeyEncoding cke) {
-	 *
-	 * final JsonObject out = new JsonObject(); out.addProperty("name", "default");
-	 *
-	 * final JsonObject config = new JsonObject(); config.addProperty("separator", cke.separator);
-	 * out.add("configuration", config);
-	 *
-	 * return out; }
-	 *
-	 * @param path
-	 *            the path
-	 * @return the JSON element
-	 * @throws N5Exception
-	 *             the exception
-	 */
-	public JsonElement getZAttributes(final String path) throws N5Exception {
-
-		return getJsonResource(path, ZATTRS_FILE);
-	}
-
-	/**
 	 * Returns the attributes at the given path.
 	 * <p>
 	 * If this reader was constructed with mergeAttributes as true, this method will attempt to combine the contents of
@@ -580,51 +559,53 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	 * @throws N5Exception
 	 *             the exception
 	 */
+	// TODO [~] combine with slightly different method below?
 	@Override
 	public JsonElement getAttributes(final String path) throws N5Exception {
 
-		JsonElement out;
+		final N5GroupPath group = N5GroupPath.of(path);
+		final JsonElement zattrs = metaStore.store_readAttributesJson(group, ZATTRS_FILE, gson);
+
 		if (mergeAttributes) {
-			out = combineAll(
-					getJsonResource(path, ZGROUP_FILE),
-					zarrToN5DatasetAttributes(reverseAttrsWhenCOrder(getJsonResource(path, ZARRAY_FILE))),
-					getJsonResource(path, ZATTRS_FILE));
-		} else
-			out = getZAttributes(path);
-
-		return out;
-	}
-
-	protected JsonElement getAttributesUnmapped(final String path) throws N5Exception {
-
-		JsonElement out;
-		if (mergeAttributes) {
-
-			out = combineAll(
-					getJsonResource(path, ZGROUP_FILE),
-					reverseAttrsWhenCOrder(getJsonResource(path, ZARRAY_FILE)),
-					getJsonResource(path, ZATTRS_FILE));
-		} else
-			out = getZAttributes(path);
-
-		return out;
-	}
-
-	@Override
-	public JsonElement getAttributesFromContainer(
-			final String normalResourceParent,
-			final String normalResourcePath) throws N5Exception {
-
-		final N5GroupPath group = N5GroupPath.of(normalResourceParent);
-		final N5FilePath path = group.resolve(normalResourcePath).asFile();
-
-		if (!keyValueAccess.isFile(path))
-			return null;
-
-		try (final VolatileReadData rd = keyValueAccess.createReadData(path)) {
-			return gson.fromJson(new String(rd.allBytes()), JsonElement.class);
+			final JsonElement zgroup = metaStore.store_readAttributesJson(group, ZGROUP_FILE, gson);
+			final JsonElement zarray = metaStore.store_readAttributesJson(group, ZARRAY_FILE, gson);
+			return combineAll(zgroup, zattrs, zarrToN5DatasetAttributes(reverseAttrsWhenCOrder(zarray)));
+		} else {
+			return zattrs;
 		}
 	}
+
+	// TODO [~] combine with slightly different method above?
+	protected JsonElement getAttributesUnmapped(final String path) throws N5Exception {
+
+		final N5GroupPath group = N5GroupPath.of(path);
+		final JsonElement zattrs = metaStore.store_readAttributesJson(group, ZATTRS_FILE, gson);
+
+		if (mergeAttributes) {
+			final JsonElement zgroup = metaStore.store_readAttributesJson(group, ZGROUP_FILE, gson);
+			final JsonElement zarray = metaStore.store_readAttributesJson(group, ZARRAY_FILE, gson);
+			return combineAll(zgroup, zattrs, reverseAttrsWhenCOrder(zarray));
+		} else {
+			return zattrs;
+		}
+	}
+
+	// TODO remove
+//	@Override
+//	public JsonElement getAttributesFromContainer(
+//			final String normalResourceParent,
+//			final String normalResourcePath) throws N5Exception {
+//
+//		final N5GroupPath group = N5GroupPath.of(normalResourceParent);
+//		final N5FilePath path = group.resolve(normalResourcePath).asFile();
+//
+//		if (!keyValueAccess.isFile(path))
+//			return null;
+//
+//		try (final VolatileReadData rd = keyValueAccess.createReadData(path)) {
+//			return gson.fromJson(new String(rd.allBytes()), JsonElement.class);
+//		}
+//	}
 
 	@Override
 	public String toString() {
@@ -646,56 +627,47 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader, N5JsonCac
 	}
 
 	/**
-	 * Returns one {@link JsonElement} that (attempts to) combine all passed json elements. Reduces the list by
-	 * repeatedly calling the two-argument {@link #combine} method.
+	 * Returns one {@link JsonElement} that (attempts to) combine all passed
+	 * json elements. The returned instance is a deep copy, and the arguments
+	 * are not modified.
+	 * <p>
+	 * If all {@code elements} are {@code null}, {@code null} is returned.
+	 * Otherwise, the base element is a deep copy of the first non-null element.
+	 * The remaining {@code elements} are combined into the base element one by
+	 * one:
+	 * <p>
+	 * The base element is returned if two arguments can not be combined. The
+	 * two arguments may be combined if they are both {@link JsonObject}s or
+	 * both {@link JsonArray}s.
+	 * <p>
+	 * If both arguments are {@link JsonObject}s, every key-value pair in the
+	 * add argument is added to the base argument, overwriting any duplicate
+	 * keys. If both arguments are {@link JsonArray}s, the add argument is
+	 * concatenated to the base argument.
 	 *
 	 * @param elements
 	 *            an array of json elements
 	 * @return a new, combined element
 	 */
+	// TODO [+]
 	protected static JsonElement combineAll(final JsonElement... elements) {
 
-		return Arrays.stream(elements).reduce(null, ZarrKeyValueReader::combine);
-	}
-
-	/**
-	 * Returns one {@link JsonElement} that combines two others. The returned instance is a deep copy, and the arguments
-	 * are not modified. A copy of base element is returned if the two arguments can not be combined. The two arguments
-	 * may be combined if they are both {@link JsonObject}s or both {@link JsonArray}s.
-	 * <p>
-	 * If both arguments are {@link JsonObject}s, every key-value pair in the add argument is added to the (copy of) the
-	 * base argument, overwriting any duplicate keys. If both arguments are {@link JsonArray}s, the add argument is
-	 * concatenated to the (copy of) the base argument.
-	 *
-	 * @param base
-	 *            the base element
-	 * @param add
-	 *            the element to add
-	 * @return the new element
-	 */
-	protected static JsonElement combine(final JsonElement base, final JsonElement add) {
-
-		if (base == null)
-			return add == null ? null : add.deepCopy();
-		else if (add == null)
-			return base == null ? null : base.deepCopy();
-
-		if (base.isJsonObject() && add.isJsonObject()) {
-			final JsonObject baseObj = base.getAsJsonObject().deepCopy();
-			final JsonObject addObj = add.getAsJsonObject();
-			for (final String k : addObj.keySet())
-				baseObj.add(k, addObj.get(k));
-
-			return baseObj;
-		} else if (base.isJsonArray() && add.isJsonArray()) {
-			final JsonArray baseArr = base.getAsJsonArray().deepCopy();
-			final JsonArray addArr = add.getAsJsonArray();
-			for (int i = 0; i < addArr.size(); i++)
-				baseArr.add(addArr.get(i));
-
-			return baseArr;
+		JsonElement base = null;
+		for (final JsonElement element : elements) {
+			if (element != null) {
+				final JsonElement add = element.deepCopy();
+				if (base == null) {
+					base = add;
+				} else if (base.isJsonObject() && add.isJsonObject()) {
+					final JsonObject baseObj = base.getAsJsonObject();
+					add.getAsJsonObject().asMap().forEach(baseObj::add);
+				} else if (base.isJsonArray() && add.isJsonArray()) {
+					final JsonArray baseArr = base.getAsJsonArray();
+					baseArr.addAll(add.getAsJsonArray());
+				} // else: trying to combine incompatible JsonElements
+			}
 		}
-		return base == null ? null : base.deepCopy();
+		return base;
 	}
 
 	static Gson registerGson(final GsonBuilder gsonBuilder) {
