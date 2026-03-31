@@ -28,14 +28,23 @@
  */
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import java.lang.reflect.Type;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
-
 import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
@@ -59,18 +68,6 @@ import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.codec.PaddedRawBlockCodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 
 public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3Node {
 
@@ -117,7 +114,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			shape,
 			defaultChunkAttributes(blockSize),
 			ZarrV3DataType.fromDataType(dataType),
-			"0", // default fill value 
+			"0", // default fill value
 			defaultDimensionNames(shape.length),
 			null,
 			null,
@@ -235,7 +232,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final DatasetCodecInfo[] datasetCodecInfos,
 			final DataCodecInfo... dataCodecInfos) {
 
-		this(shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dataType, fillValue, 
+		this(shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dataType, fillValue,
 				dimensionNames, blockCodecInfo, datasetCodecInfos, dataCodecInfos );
 	}
 
@@ -351,18 +348,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return blockSize;
 	}
 
-	protected static int[] inferChunkShape(final BlockCodecInfo blockCodecInfo, Supplier<int[]> defaultSize) {
-
-		return Optional.ofNullable(deepestChunkShape(blockCodecInfo))
-				.orElseGet(defaultSize);
-	}
-
-	protected static int[] inferChunkShape(final ChunkAttributes chunkAttributes, final BlockCodecInfo blockCodecInfo) {
-
-		return Optional.ofNullable(deepestChunkShape(blockCodecInfo))
-				.orElse(chunkAttributes.getGrid().getShape());
-	}
-
 	public static ZarrV3DatasetAttributes from(final DatasetAttributes datasetAttributes,
 			final String dimensionSeparator,
 			final String fillValue) {
@@ -371,9 +356,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			return (ZarrV3DatasetAttributes)datasetAttributes;
 
 		final long[] shape = datasetAttributes.getDimensions().clone();
-
-		final int[] chunkShape = inferChunkShape(datasetAttributes.getBlockCodecInfo(),
-				() -> datasetAttributes.getBlockSize().clone());
+		final int[] chunkShape = datasetAttributes.getBlockSize().clone();
 
 		// TODO this may not be correct when sharding?
 		final ChunkAttributes chunkAttrs = new ChunkAttributes(
@@ -487,7 +470,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	}
 
 	public static JsonAdapter jsonAdapter = new JsonAdapter();
-	
+
 	static NameConfigAdapter<CodecInfo> codecAdapter = NameConfigAdapter.getJsonAdapter(CodecInfo.class);
 
 	public static class JsonAdapter implements JsonDeserializer<ZarrV3DatasetAttributes>, JsonSerializer<ZarrV3DatasetAttributes> {
@@ -557,9 +540,9 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			jsonObject.add(CODECS_KEY, serializeCodecs(concatenateCodecs(src), CodecInfo[].class, context));
 			return jsonObject;
 		}
-		
+
 		private JsonArray serializeCodecs( CodecInfo[] codecs, Type typeOfSrc, JsonSerializationContext context ) {
-			
+
 			JsonArray array = new JsonArray(codecs.length);
 			for( CodecInfo c : codecs)
 				array.add(codecAdapter.serialize(c, typeOfSrc, context));
@@ -583,7 +566,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		 * 	<li>Combines any adjacent {@link TransposeCodecInfo}s.</li>
 		 * 	<li>Removes the resulting TransposeCodec if it is the identity.</li>
 		 * </ol>
-		 * 
+		 *
 		 * @param datasetCodecs
 		 *            the input codecs
 		 * @return the simplified codecs
@@ -948,7 +931,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final DefaultChunkKeyEncoding resolvedChunkKeyEncoding = chunkKeyEncoding != null
 					? chunkKeyEncoding
 					: new DefaultChunkKeyEncoding(dimensionSeparator);
-			
+
 			final int[] resolvedBlockSize = blockSize != null
 					? blockSize
 					: defaultChunkShape(shape);
