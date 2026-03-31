@@ -33,6 +33,8 @@ import java.lang.reflect.Type;
 import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.N5Exception;
@@ -53,7 +55,7 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 
 public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
-	protected HashMap<DatasetAttributes, ZarrV3DatasetAttributes> datasetAttributesMap = new HashMap<>();
+	protected final Map<DatasetAttributes, ZarrV3DatasetAttributes> datasetAttributesMap = new ConcurrentHashMap<>();
 
 	// Override this constant
 	// if we try supporting v2 and v3 in parallel
@@ -173,6 +175,16 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	}
 
 	@Override
+	public boolean groupExists(final String normalPath) {
+
+		// TODO
+		throw new UnsupportedOperationException();
+
+
+		return metaStore.store_isDirectory(N5GroupPath.of(normalPath));
+	}
+
+	@Override
 	public boolean exists(final String pathName) {
 
 		// Overridden because of the difference in how n5 and zarr define "group" and "dataset".
@@ -233,13 +245,7 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
 	public JsonElement getRawAttributes(final String pathName) throws N5IOException {
 
-		return super.getAttributes(pathName);
-	}
-
-	@Override
-	public JsonElement getAttributes(final String pathName) throws N5IOException {
-		final JsonElement elem = getRawAttributes(pathName);
-		return elem == null ? null : elem.getAsJsonObject().get(ZarrV3Node.ATTRIBUTES_KEY);
+		return getDelegateStore().store_readAttributesJson(N5GroupPath.of(pathName), ZARR_KEY, gson);
 	}
 
 	public <T> T getRawAttribute(
@@ -257,6 +263,17 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
 		return super.getAttribute(pathName, key, type);
 	}
+
+	@Override
+	public JsonElement getAttributes(final String pathName) throws N5IOException {
+		final JsonElement elem = getRawAttributes(pathName);
+		return elem == null ? null : elem.getAsJsonObject().get(ZarrV3Node.ATTRIBUTES_KEY);
+	}
+
+
+
+
+
 
 	public <T> T getAttribute(
 			final String pathName,
