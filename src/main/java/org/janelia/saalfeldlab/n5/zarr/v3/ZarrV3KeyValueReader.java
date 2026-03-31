@@ -44,6 +44,7 @@ import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
 import org.janelia.saalfeldlab.n5.codec.CodecInfo;
+import org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
@@ -215,6 +216,22 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		} else {
 			return false;
 		}
+	}
+
+	/**
+	 * Returns the {@link ZarrV3DatasetAttributes} located at the given path, if present.
+	 *
+	 * @param pathName
+	 *            the path relative to the container's root
+	 * @return the zarr array attributes
+	 * @throws N5Exception
+	 *             the exception
+	 */
+	// TODO [+]
+	@Override
+	public ZarrV3DatasetAttributes getDatasetAttributes(final String pathName) throws N5Exception {
+
+		return createDatasetAttributes(getRawAttributes(pathName));
 	}
 
 	@Override

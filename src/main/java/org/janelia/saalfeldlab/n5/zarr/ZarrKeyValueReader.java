@@ -336,7 +336,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	 */
 	// TODO [+]
 	@Override
-	public DatasetAttributes getDatasetAttributes(final String pathName) throws N5Exception {
+	public ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws N5Exception {
 
 		return createDatasetAttributes(getZArray(pathName));
 	}
@@ -381,7 +381,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 
 	// TODO [ ] ???
 	@Override
-	public DatasetAttributes createDatasetAttributes(final JsonElement attributes) {
+	public ZarrDatasetAttributes createDatasetAttributes(final JsonElement attributes) {
 
 		final ZArrayAttributes zarray = getZArrayAttributes(attributes);
 		return zarray != null ? new ZarrDatasetAttributes(zarray) : null;

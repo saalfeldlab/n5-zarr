@@ -115,11 +115,15 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			throw new N5Exception("Can't make a group on existing dataset.");
 		}
 
+		final N5GroupPath group = N5GroupPath.of(path);
+		final N5GroupPath parent = group.parent();
+		if (parent != null) {
+			createGroup(parent.path());
+		}
+
 		final JsonObject obj = new JsonObject();
 		obj.addProperty(ZarrV3Node.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
 		obj.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.GROUP.toString());
-
-		final N5GroupPath group = N5GroupPath.of(path);
 		metaStore.store_createDirectories(group);
 		metaStore.store_writeAttributesJson(group, ZARR_KEY, obj, gson);
 	}
@@ -150,8 +154,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		// are more efficient wrt caching
 		final JsonElement attributes = getGson().toJsonTree(datasetAttributes);
 		final JsonObject zarrJson = attributes.getAsJsonObject();
-		zarrJson.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
-		zarrJson.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.ARRAY.toString());
+		// NB: getAsJsonObject already populates ZARR_FORMAT_KEY and NODE_TYPE_KEY
 		metaStore.store_writeAttributesJson(dataset, ZARR_KEY, zarrJson, gson);
 	}
 
