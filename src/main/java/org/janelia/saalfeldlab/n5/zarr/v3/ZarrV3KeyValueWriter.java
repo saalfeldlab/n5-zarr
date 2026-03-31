@@ -29,6 +29,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
@@ -240,9 +241,30 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			final String groupPath,
 			final String attributePath,
 			final T attribute) throws N5Exception {
+
 		final String normalizedAttributePath = N5URI.normalizeAttributePath(attributePath);
 		setRawAttribute(groupPath, mapAttributeKey(normalizedAttributePath), attribute);
 	}
+
+	/**
+	 * Converts an attribute path
+	 *
+	 * @param attributePath
+	 * @return
+	 */
+	protected String mapAttributeKey(final String attributePath) {
+
+		return isAttributes(attributePath) ? attributePath : ZarrV3Node.ATTRIBUTES_KEY + "/" + attributePath;
+	}
+
+	protected boolean isAttributes(final String attributePath) {
+
+		if (!Arrays.stream(ZarrV3DatasetAttributes.REQUIRED_KEYS).anyMatch(attributePath::equals))
+			return false;
+
+		return true;
+	}
+
 
 	public void setRawAttributes(final String path, final Map<String, ?> attributes) throws N5Exception {
 

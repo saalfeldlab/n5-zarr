@@ -923,7 +923,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		/**
 		 * Sets the data codec infos for the shard index;
 		 *
-		 * @param dataCodecInfos the data codecs
+		 * @param shardIndexDataCodecInfos the data codecs
 		 * @return this builder
 		 */
 		public Builder shardIndexDataCodecInfos(final DataCodecInfo... shardIndexDataCodecInfos) {

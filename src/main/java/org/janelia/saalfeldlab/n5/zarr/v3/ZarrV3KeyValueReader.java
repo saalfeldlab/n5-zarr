@@ -38,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.N5Exception;
+import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5KeyValueReader;
 import org.janelia.saalfeldlab.n5.N5Path.N5GroupPath;
@@ -175,46 +176,43 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	}
 
 	@Override
-	public boolean groupExists(final String normalPath) {
-
-		// TODO
-		throw new UnsupportedOperationException();
-
-
-		return metaStore.store_isDirectory(N5GroupPath.of(normalPath));
-	}
-
-	@Override
 	public boolean exists(final String pathName) {
 
 		// Overridden because of the difference in how n5 and zarr define "group" and "dataset".
-		// The implementation in CachedGsonKeyValueReader is simpler but more low-level
-
-		// Note that datasetExists and groupExists use the cache
 		return groupExists(pathName) || datasetExists(pathName);
 	}
 
 	@Override
-	public boolean isGroupFromContainer(final String normalPath) {
+	public boolean groupExists(final String normalPath) {
 
-		return NodeType.isGroup(getRawAttribute(normalPath, ZarrV3DatasetAttributes.NODE_TYPE_KEY, String.class));
+		return isGroupFromAttributes(getRawAttributes(normalPath));
 	}
 
 	@Override
-	public boolean isGroupFromAttributes(final String normalCacheKey, final JsonElement attributes) {
+	public boolean datasetExists(final String pathName) throws N5Exception {
 
-		if (normalCacheKey.equals(ZARR_KEY) && attributes != null && attributes.isJsonObject() && NodeType.isGroup(attributes.getAsJsonObject().getAsJsonPrimitive(ZarrV3Node.NODE_TYPE_KEY).getAsString())) {
+		return isDatasetFromAttributes(getRawAttributes(pathName));
+	}
+
+	// TODO: make this nicer
+	//   [ ] static	NodeType.of(String) --> null if unknown
+	//   [ ] NodeType nodeType(final JsonElement attributes) --> null if attributes == null
+	//   [ ] groupExists -> nodeType(...) == GROUP
+	//   [ ] datasetExists -> nodeType(...) == ARRAY
+	//   [ ] exists -> nodeType(...) != null
+
+	private boolean isGroupFromAttributes(final JsonElement attributes) {
+
+		if (attributes != null && attributes.isJsonObject() && NodeType.isGroup(attributes.getAsJsonObject().getAsJsonPrimitive(ZarrV3Node.NODE_TYPE_KEY).getAsString())) {
 			return true;
 		} else {
 			return false;
 		}
 	}
 
+	private boolean isDatasetFromAttributes(final JsonElement attributes) {
 
-	@Override
-	public boolean isDatasetFromAttributes(final String normalCacheKey, final JsonElement attributes) {
-
-		if (normalCacheKey.equals(ZARR_KEY) && attributes != null && attributes.isJsonObject() && NodeType.isArray(attributes.getAsJsonObject().getAsJsonPrimitive(ZarrV3Node.NODE_TYPE_KEY).getAsString())) {
+		if (attributes != null && attributes.isJsonObject() && NodeType.isArray(attributes.getAsJsonObject().getAsJsonPrimitive(ZarrV3Node.NODE_TYPE_KEY).getAsString())) {
 			return createDatasetAttributes(attributes) != null;
 		} else {
 			return false;
@@ -228,7 +226,7 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	}
 
 	@Override
-	public ZarrV3DatasetAttributes getConvertedDatasetAttributes(DatasetAttributes attributes) {
+	public ZarrV3DatasetAttributes getConvertedDatasetAttributes(final DatasetAttributes attributes) {
 		final ZarrV3DatasetAttributes zarrAttrs;
 		if (attributes instanceof ZarrV3DatasetAttributes)
 			zarrAttrs = ((ZarrV3DatasetAttributes)attributes);
@@ -261,40 +259,19 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 			final String key,
 			final Type type) throws N5Exception {
 
-		return super.getAttribute(pathName, key, type);
+		final JsonElement attributes = getRawAttributes(pathName);
+		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
+		try {
+			return GsonUtils.readAttribute(attributes, normalizedAttributePath, type, getGson());
+		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
+			throw new N5ClassCastException(e);
+		}
 	}
 
 	@Override
 	public JsonElement getAttributes(final String pathName) throws N5IOException {
 		final JsonElement elem = getRawAttributes(pathName);
 		return elem == null ? null : elem.getAsJsonObject().get(ZarrV3Node.ATTRIBUTES_KEY);
-	}
-
-
-
-
-
-
-	public <T> T getAttribute(
-			final String pathName,
-			final String key,
-			final Type type) throws N5Exception {
-
-//		final String normalPathName = N5URI.normalizeGroupPath(pathName);
-		final String normalizedAttributePath = N5URI.normalizeAttributePath(key);
-		JsonElement attributes;
-		if (cacheMeta()) {
-			final N5GroupPath group = N5GroupPath.of(pathName);
-			final JsonElement zarrJson = getCache().getAttributes(group.normalPath(), getAttributesKey());
-			attributes = zarrJson.getAsJsonObject().get(ZarrV3Node.ATTRIBUTES_KEY);
-		} else {
-			attributes = getAttributes(pathName);
-		}
-		try {
-			return GsonUtils.readAttribute(attributes, normalizedAttributePath, type, getGson());
-		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
-			throw new N5Exception.N5ClassCastException(e);
-		}
 	}
 
 	@Override
@@ -317,24 +294,5 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 		gsonBuilder.disableHtmlEscaping();
 
 		return gsonBuilder;
-	}
-
-	/**
-	 * Converts an attribute path
-	 *
-	 * @param attributePath
-	 * @return
-	 */
-	protected String mapAttributeKey(final String attributePath) {
-
-        return isAttributes(attributePath) ? attributePath : ZarrV3Node.ATTRIBUTES_KEY + "/" + attributePath;
-	}
-
-	protected boolean isAttributes(final String attributePath) {
-
-		if (!Arrays.stream(ZarrV3DatasetAttributes.REQUIRED_KEYS).anyMatch(attributePath::equals))
-			return false;
-
-		return true;
 	}
 }
