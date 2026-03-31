@@ -34,9 +34,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import java.lang.reflect.Type;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Reader;
@@ -49,17 +47,13 @@ import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
-import org.janelia.saalfeldlab.n5.N5Path.N5FilePath;
 import org.janelia.saalfeldlab.n5.N5Path.N5GroupPath;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
 import org.janelia.saalfeldlab.n5.cache.DelegateStore;
-import org.janelia.saalfeldlab.n5.cache.N5JsonCacheableContainer;
-import org.janelia.saalfeldlab.n5.readdata.VolatileReadData;
 import org.janelia.saalfeldlab.n5.serialization.JsonArrayUtils;
-import org.janelia.saalfeldlab.n5.zarr.cache.ZarrJsonCache;
 
 import static org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes.createZArrayAttributes;
 
@@ -81,7 +75,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 
 	protected final RootedKeyValueAccess keyValueAccess;
 
-	private final DelegateStore metaStore;
+	protected final DelegateStore metaStore;
 
 	protected final Gson gson;
 
@@ -499,6 +493,10 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	protected JsonElement getZAttributes(final String path) throws N5Exception {
 
 		final N5GroupPath group = N5GroupPath.of(path);
+		return metaStore.store_readAttributesJson(group, ZATTRS_FILE, gson);
+	}
+	protected JsonElement readZattrs(final N5GroupPath group) throws N5Exception {
+
 		return metaStore.store_readAttributesJson(group, ZATTRS_FILE, gson);
 	}
 

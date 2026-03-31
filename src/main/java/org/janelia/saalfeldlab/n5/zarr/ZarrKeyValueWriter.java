@@ -32,7 +32,6 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSyntaxException;
-import java.io.IOException;
 import java.util.Map;
 import java.util.function.Supplier;
 import net.imglib2.Cursor;
@@ -50,12 +49,11 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
+import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Path.N5GroupPath;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
-import org.janelia.saalfeldlab.n5.cache.N5JsonCache;
-import org.janelia.saalfeldlab.n5.readdata.ReadData;
 
 /**
  * Zarr {@link KeyValueAccess} implementation.
@@ -115,7 +113,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		if (exists("/")) {
 			version = getVersion();
 			if (!isCompatible(version))
-				throw new N5Exception.N5IOException(
+				throw new N5IOException(
 						"Incompatible version " + version + " (this is " + ZarrKeyValueReader.VERSION + ").");
 		}
 
@@ -139,71 +137,47 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		return ZarrKeyValueReader.VERSION.isCompatible(version);
 	}
 
+	// TODO [+]
 	@Override
 	public void setVersion(final String path) throws N5Exception {
 
-		setVersion(path, false);
-	}
-
-	protected void setVersion(final String path, final boolean create) throws N5Exception {
-
-		final JsonObject versionObject = new JsonObject();
-		versionObject.add(ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
-
-		if (create || groupExists(path))
+		if (groupExists(path)) {
+			final JsonObject versionObject = new JsonObject();
+			versionObject.add(ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
 			writeZGroup(N5GroupPath.of(path), versionObject); // updates cache
-		else if (datasetExists(path)) {
+		} else if (datasetExists(path)) {
 			final JsonObject zarrayJson = getZArray(path).getAsJsonObject();
 			zarrayJson.add(ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
 			writeZArray(N5GroupPath.of(path), zarrayJson); // updates cache
 		}
 	}
 
+	// TODO [+]
 	@Override
 	public void createGroup(final String path) throws N5Exception {
-
-		final N5GroupPath group = N5GroupPath.of(path);
 
 		// avoid hitting the backend if this path is already a group according to the cache
 		// else if exists is true (then a dataset is present) so throw an exception to avoid
 		// overwriting / invalidating existing data
-		if (cacheMeta()) {
-			final String normalPath = group.normalPath();
-			if( getCache().isGroup(normalPath, ZGROUP_FILE))
-				return;
-			else if ( getCache().isDataset(normalPath, ZARRAY_FILE)){
-				throw new N5Exception("Can't make a group on existing dataset.");
-			}
+		if (groupExists(path)) {
+			return;
+		} else if (datasetExists(path)) {
+			throw new N5Exception("Can't make a group on existing dataset.");
 		}
 
-		// Overridden to change the cache key, though it may not be necessary
-		// since the contents is null
-		keyValueAccess.createDirectories(group);
 
 		final JsonObject versionObject = new JsonObject();
 		versionObject.add(ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
 
-		String[] pathParts = group.components();
-		String parent = "";
-
-		for (final String child : pathParts) {
-
-			final String childPath = parent.isEmpty() ? child : parent + "/" + child;
-			if (cacheMeta()) {
-				getCache().initializeNonemptyCache(childPath, ZGROUP_FILE);
-				getCache().updateCacheInfo(childPath, ZGROUP_FILE, versionObject);
-
-				// Only add if the parent exists and has children cached already.
-				// Note that the only reason to have child.isEmpty() is if the group is "".
-				if (!child.isEmpty())
-					getCache().addChildIfPresent(parent, child);
-			}
-
-			setVersion(childPath, true);
-			parent = childPath;
+		N5GroupPath group = N5GroupPath.of(path);
+		getDelegateStore().store_createDirectories(group);
+		while (group != null) {
+			writeZGroup(group, versionObject);
+			group = group.parent();
 		}
 	}
 
+	// TODO [+]
 	@Override
 	public ZarrDatasetAttributes createDataset(
 			final String path,
@@ -214,61 +188,33 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		// since groups and datasets are mutually exclusive.
 
 		final N5GroupPath dataset = N5GroupPath.of(path);
-
-		boolean wasGroup = false;
-		if (cacheMeta()) {
-			final String normalPath = dataset.normalPath();
-			if (getCache().isDataset(normalPath, ZARRAY_FILE)) {
-				return getConvertedDatasetAttributes(datasetAttributes);
-			}
-			else if (getCache().isGroup(normalPath, ZGROUP_FILE)) {
-				wasGroup = true;
-				// TODO tests currently require that we can make a dataset on a group
-//				throw new N5Exception("Can't make a group on existing path.");
-			}
+		if (groupExists(path)) {
+			// TODO tests currently require that we can make a dataset on a group
+//			throw new N5Exception("Can't make a group on existing path.");
+			metaStore.store_removeAttributesJson(dataset, ZGROUP_FILE);
 		}
-
-		keyValueAccess.createDirectories(dataset);
 
 		// create parent group
 		final N5GroupPath parent = dataset.parent();
-		if (parent != null)
+		if (parent != null) {
 			createGroup(parent.path());
+		}
 
-		// These three lines are preferable to setDatasetAttributes because they
-		// are more efficient wrt caching
 		final ZarrDatasetAttributes zarrDatasetAttributes = getConvertedDatasetAttributes(datasetAttributes);
 		final ZArrayAttributes zarray = zarrDatasetAttributes.getZArrayAttributes();
-		final JsonElement attributes = gson.toJsonTree(zarray);
-		writeJson(dataset, ZARRAY_FILE, attributes);
-
-		if (wasGroup)
-			deleteJsonResource(dataset, ZGROUP_FILE);
-
-		if (cacheMeta()) {
-			// cache dataset and add as child to parent if necessary
-			final String normalPath = dataset.normalPath();
-			getCache().initializeNonemptyCache(normalPath, ZARRAY_FILE);
-			getCache().updateCacheInfo(normalPath, ZARRAY_FILE, attributes);
-			if (getCache().isDataset(normalPath, ZARRAY_FILE) && wasGroup) {
-				getCache().updateCacheInfo(normalPath, ZGROUP_FILE, N5JsonCache.emptyJson);
-			}
-
-			if (parent != null) {
-				final String[] pathParts = dataset.components();
-				getCache().addChildIfPresent(parent.normalPath(), pathParts[pathParts.length - 1]);
-			}
-		}
+		if (zarray != null)
+			writeZArray(dataset, gson.toJsonTree(zarray));
 		return zarrDatasetAttributes;
 	}
 
+	// TODO [~]
 	@Override
 	public void setAttributes(
 			final String path,
 			final Map<String, ?> attributes) throws N5Exception {
 
 		if (!exists(path))
-			throw new N5Exception.N5IOException(path + " is not a group or dataset.");
+			throw new N5IOException("\"" + path + "\" is not a group or dataset.");
 
 		// cache here or in writeAttributes?
 		// I think in writeAttributes is better - let it delegate to
@@ -281,7 +227,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 		final N5GroupPath group = N5GroupPath.of(path);
 		if (newAttributes.isJsonObject()) {
-			final ZarrJsonElements zje = build(newAttributes.getAsJsonObject(), getGson());
+			final ZarrJsonElements zje = build(newAttributes.getAsJsonObject(), gson);
 			// the three methods below handle caching
 			writeZArray(group, zje.zarray);
 			writeZAttrs(group, zje.zattrs);
@@ -291,57 +237,46 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		}
 	}
 
+	// TODO [+]
 	@Override
-	public boolean removeAttribute(final String pathName, final String key) throws N5Exception {
+	public boolean removeAttribute(final String pathName, final String attributePath) throws N5Exception {
 
+		final String normalKey = N5URI.normalizeAttributePath(attributePath);
 		final N5GroupPath group = N5GroupPath.of(pathName);
-		final String normalKey = N5URI.normalizeAttributePath(key);
-		if (!keyValueAccess.exists(group.resolve(ZATTRS_FILE)))
-			return false;
-
-		if (key.equals("/")) {
-			writeJson(group, ZATTRS_FILE, JsonNull.INSTANCE);
-			if (cacheMeta())
-				cache.updateCacheInfo(group.normalPath(), ZATTRS_FILE, JsonNull.INSTANCE);
-
-			return true;
-		}
-
-		final JsonElement attributes = getZAttributes(group.normalPath()); // uses cache
-		if (GsonUtils.removeAttribute(attributes, normalKey) != null) {
-
-			if (cacheMeta())
-				cache.updateCacheInfo(group.normalPath(), ZATTRS_FILE, attributes);
-
-			writeJson(group, ZATTRS_FILE, attributes);
-			return true;
+		final JsonElement attributes = readZattrs(group);
+		if (attributes != null) {
+			if (attributePath.equals("/")) {
+				writeZAttrs(group, JsonNull.INSTANCE);
+				return true;
+			}
+			if (GsonUtils.removeAttribute(attributes, normalKey) != null) {
+				writeZAttrs(group, attributes);
+				return true;
+			}
 		}
 		return false;
 	}
 
+	// TODO [+]
 	@Override
 	public <T> T removeAttribute(final String pathName, final String key, final Class<T> cls) throws N5Exception {
 
 		final String normalKey = N5URI.normalizeAttributePath(key);
-
-		final JsonElement attributes = getZAttributes(pathName); // uses cache
+		final N5GroupPath group = N5GroupPath.of(pathName);
+		final JsonElement attributes = readZattrs(group);
 		final T obj;
 		try {
-			obj = GsonUtils.removeAttribute(attributes, normalKey, cls, gson);
+			obj = GsonUtils.removeAttribute(attributes, normalKey, cls, getGson());
 		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
 			throw new N5Exception.N5ClassCastException(e);
 		}
 		if (obj != null) {
-			final N5GroupPath group = N5GroupPath.of(pathName);
-			if (cacheMeta()) {
-				cache.updateCacheInfo(group.normalPath(), ZATTRS_FILE, attributes);
-			}
-
-			writeJson(group, ZATTRS_FILE, attributes);
+			writeZAttrs(group, attributes);
 		}
 		return obj;
 	}
 
+	// TODO [+]
 	@Override
 	public void setDatasetAttributes(
 			final String pathName,
@@ -360,80 +295,76 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 	 * @param attributes ZArray attributes
 	 * @throws N5Exception the exception
 	 */
+	// TODO: inline & remove?
 	public void setZArrayAttributes(final String pathName, final ZArrayAttributes attributes) throws N5Exception {
 
 		writeZArray(N5GroupPath.of(pathName), gson.toJsonTree(attributes.asMap()));
 	}
 
-	protected void setZGroup(final String pathName, final Version version) throws IOException {
+	// TODO: remove
+//	protected void setZGroup(final String pathName, final Version version) throws IOException {
+//
+//		// used in testVersion
+//		writeZGroup(N5GroupPath.of(pathName), gson.toJsonTree(version));
+//	}
 
-		// used in testVersion
-		writeZGroup(N5GroupPath.of(pathName), gson.toJsonTree(version));
-	}
+	// TODO remove
+//	private void deleteJsonResource(
+//			final N5GroupPath path,
+//			final String jsonName) throws N5Exception {
+//
+//		keyValueAccess.delete(path.resolve(jsonName));
+//	}
 
-	private void deleteJsonResource(
-			final N5GroupPath path,
-			final String jsonName) throws N5Exception {
+	// TODO remove?
+//	private void writeJson(
+//			final N5GroupPath path,
+//			final String jsonName,
+//			final JsonElement attributes) throws N5Exception {
+//
+//		if (attributes == null)
+//			return;
+//
+//		keyValueAccess.write(path.resolve(jsonName).asFile(), ReadData.from(attributes.toString().getBytes()));
+//	}
 
-		keyValueAccess.delete(path.resolve(jsonName));
-	}
+	// TODO remove?
+//	private void writeJsonResource(
+//			final N5GroupPath path,
+//			final String jsonName,
+//			final Object attributes) throws N5Exception {
+//
+//		if (attributes == null)
+//			return;
+//
+//		writeJson(path, jsonName, gson.toJsonTree(attributes));
+//	}
 
-	private void writeJson(
-			final N5GroupPath path,
-			final String jsonName,
-			final JsonElement attributes) throws N5Exception {
-
-		if (attributes == null)
-			return;
-
-		keyValueAccess.write(path.resolve(jsonName).asFile(), ReadData.from(attributes.toString().getBytes()));
-	}
-
-	private void writeJsonResource(
-			final N5GroupPath path,
-			final String jsonName,
-			final Object attributes) throws N5Exception {
-
-		if (attributes == null)
-			return;
-
-		writeJson(path, jsonName, gson.toJsonTree(attributes));
-	}
-
+	// TODO [+]
 	private void writeZArray(
 			final N5GroupPath groupPath,
 			final JsonElement attributes) throws N5Exception {
 
-		if (attributes == null)
-			return;
-
-		writeJsonResource(groupPath, ZARRAY_FILE, gson.fromJson(attributes, ZArrayAttributes.class));
-		if (cacheMeta())
-			cache.updateCacheInfo(groupPath.normalPath(), ZARRAY_FILE, attributes);
+		if (attributes != null)
+			metaStore.store_writeAttributesJson(groupPath, ZARRAY_FILE, attributes, gson);
 	}
 
+	// TODO [+]
 	protected void writeZGroup(
 			final N5GroupPath groupPath,
 			final JsonElement attributes) throws N5Exception {
 
-		if (attributes == null)
-			return;
-
-		writeJson(groupPath, ZGROUP_FILE, attributes);
-		if (cacheMeta())
-			cache.updateCacheInfo(groupPath.normalPath(), ZGROUP_FILE, attributes);
+		if (attributes != null)
+			metaStore.store_writeAttributesJson(groupPath, ZGROUP_FILE, attributes, gson);
 	}
 
+	// TODO [+]
 	private void writeZAttrs(
 			final N5GroupPath groupPath,
 			final JsonElement attributes) throws N5Exception {
 
-		if (attributes == null)
-			return;
-
-		writeJson(groupPath, ZATTRS_FILE, attributes);
-		if (cacheMeta())
-			cache.updateCacheInfo(groupPath.normalPath(), ZATTRS_FILE, attributes);
+		if (attributes != null)
+			metaStore.store_writeAttributesJson(groupPath, ZATTRS_FILE, attributes, gson);
 	}
 
 	public static byte[] padCrop(
