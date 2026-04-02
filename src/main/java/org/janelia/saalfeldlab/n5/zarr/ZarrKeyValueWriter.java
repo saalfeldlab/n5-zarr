@@ -27,6 +27,7 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
@@ -54,6 +55,7 @@ import org.janelia.saalfeldlab.n5.N5Path.N5GroupPath;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
+import org.janelia.saalfeldlab.n5.serialization.JsonArrayUtils;
 
 /**
  * Zarr {@link KeyValueAccess} implementation.
@@ -417,19 +419,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		}
 	}
 
-	protected static void redirectDatasetAttribute(
-			final JsonObject src,
-			final String srcKey,
-			final JsonObject dest,
-			final String destKey) {
-
-		if (src.has(srcKey)) {
-			final JsonElement e = src.get(srcKey);
-			dest.add(destKey, e);
-			src.remove(srcKey);
-		}
-	}
-
 	protected static void redirectDataType(final JsonObject src, final JsonObject dest) {
 
 		if (src.has(DatasetAttributes.DATA_TYPE_KEY)) {
@@ -472,8 +461,26 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 		// first map n5 attributes
 		if (mapN5Attributes) {
-			redirectDatasetAttribute(obj, DatasetAttributes.DIMENSIONS_KEY, obj, ZArrayAttributes.shapeKey);
-			redirectDatasetAttribute(obj, DatasetAttributes.BLOCK_SIZE_KEY, obj, ZArrayAttributes.chunksKey);
+
+			JsonElement element = obj.get(ZArrayAttributes.orderKey);
+			final String order = element == null ? null : element.getAsString();
+
+			element = obj.remove(DatasetAttributes.DIMENSIONS_KEY);
+			final JsonArray shape = element == null ? null : element.getAsJsonArray();
+			if (shape != null) {
+				if ("C".equals(order))
+					JsonArrayUtils.reverse(shape);
+				obj.add(ZArrayAttributes.shapeKey, shape);
+			}
+
+			element = obj.remove(DatasetAttributes.BLOCK_SIZE_KEY);
+			final JsonArray chunkSize = element == null ? null : element.getAsJsonArray();
+			if (chunkSize != null) {
+				if ("C".equals(order))
+					JsonArrayUtils.reverse(chunkSize);
+				obj.add(ZArrayAttributes.chunksKey, chunkSize);
+			}
+
 			redirectDataType( obj, obj );
 			redirectCompression(obj, gson, obj);
 		}
@@ -482,11 +489,10 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		final ZarrJsonElements zje = new ZarrJsonElements();
 		// make the zarray
 		if (hasRequiredArrayKeys(obj)) {
-			move(obj, () -> zje.getOrMakeZarray(), ZArrayAttributes.allKeys);
-			reverseAttrsWhenCOrder( zje.zarray );
+			move(obj, zje::getOrMakeZarray, ZArrayAttributes.allKeys);
 		} else if (obj.has(ZArrayAttributes.zarrFormatKey)) {
 			// put format key in zgroup
-			move(obj, () -> zje.getOrMakeZgroup(), ZArrayAttributes.zarrFormatKey);
+			move(obj, zje::getOrMakeZgroup, ZArrayAttributes.zarrFormatKey);
 		}
 
 		// whatever remains goes into zattrs

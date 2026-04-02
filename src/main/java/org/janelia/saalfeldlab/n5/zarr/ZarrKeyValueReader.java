@@ -511,8 +511,20 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 		if (zattrs == null)
 			return elem;
 
-		attrs.add(DatasetAttributes.DIMENSIONS_KEY, attrs.get(ZArrayAttributes.shapeKey));
-		attrs.add(DatasetAttributes.BLOCK_SIZE_KEY, attrs.get(ZArrayAttributes.chunksKey));
+		// NB: The returned JsonElement will have both "shape" and "dimensions"
+		//  arrays. This is a bit different than the reverse direction:
+		//  ZarrKeyValueWriter.build(...), removes "dimensions" and just puts
+		//  the equivalent "shape".
+		//  Similar for "chunks" and "blockSize".
+		final JsonArray dimensions = attrs.get(ZArrayAttributes.shapeKey).getAsJsonArray().deepCopy();
+		final JsonArray blockSize = attrs.get(ZArrayAttributes.chunksKey).getAsJsonArray().deepCopy();
+		final String order = attrs.get(ZArrayAttributes.orderKey).getAsString();
+		if ("C".equals(order)) {
+			JsonArrayUtils.reverse(dimensions);
+			JsonArrayUtils.reverse(blockSize);
+		}
+		attrs.add(DatasetAttributes.DIMENSIONS_KEY, dimensions);
+		attrs.add(DatasetAttributes.BLOCK_SIZE_KEY, blockSize);
 		attrs.addProperty(DatasetAttributes.DATA_TYPE_KEY, zattrs.getDType().getDataType().toString());
 
 		final JsonElement e = attrs.get(ZArrayAttributes.compressorKey);
@@ -567,7 +579,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 		if (mergeAttributes) {
 			final JsonElement zgroup = metaStore.store_readAttributesJson(group, ZGROUP_FILE, gson);
 			final JsonElement zarray = metaStore.store_readAttributesJson(group, ZARRAY_FILE, gson);
-			return combineAll(zgroup, zattrs, zarrToN5DatasetAttributes(reverseAttrsWhenCOrder(zarray)));
+			return combineAll(zgroup, zattrs, zarrToN5DatasetAttributes(zarray));
 		} else {
 			return zattrs;
 		}
@@ -582,7 +594,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 		if (mergeAttributes) {
 			final JsonElement zgroup = metaStore.store_readAttributesJson(group, ZGROUP_FILE, gson);
 			final JsonElement zarray = metaStore.store_readAttributesJson(group, ZARRAY_FILE, gson);
-			return combineAll(zgroup, zattrs, reverseAttrsWhenCOrder(zarray));
+			return combineAll(zgroup, zattrs, zarray);
 		} else {
 			return zattrs;
 		}

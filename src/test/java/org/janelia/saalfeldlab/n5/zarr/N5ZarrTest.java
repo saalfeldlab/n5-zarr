@@ -28,6 +28,7 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import static org.apache.commons.lang3.ArrayUtils.reverse;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -856,11 +857,16 @@ public class N5ZarrTest extends AbstractN5Test {
 
 			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 
+			final String order = n5.getAttribute(datasetName, ZArrayAttributes.orderKey, String.class);
 			long[] dimsZarr = n5.getAttribute(datasetName, ZArrayAttributes.shapeKey, long[].class);
+			if( "C".equals(order))
+				reverse(dimsZarr);
 			long[] dimsN5 = n5.getAttribute(datasetName, DatasetAttributes.DIMENSIONS_KEY, long[].class);
 			assertArrayEquals(dimsZarr, dimsN5);
 
 			int[] blkZarr = n5.getAttribute(datasetName, ZArrayAttributes.chunksKey, int[].class);
+			if( "C".equals(order))
+				reverse(blkZarr);
 			int[] blkN5 = n5.getAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, int[].class);
 			assertArrayEquals(blkZarr, blkN5);
 
@@ -882,12 +888,16 @@ public class N5ZarrTest extends AbstractN5Test {
 			// ensure variables can be set through the n5 variables as well
 			n5.setAttribute(datasetName, DatasetAttributes.DIMENSIONS_KEY, newDims);
 			dimsZarr = n5.getAttribute(datasetName, ZArrayAttributes.shapeKey, long[].class);
+			if( "C".equals(order))
+				reverse(dimsZarr);
 			dimsN5 = n5.getAttribute(datasetName, DatasetAttributes.DIMENSIONS_KEY, long[].class);
 			assertArrayEquals(newDims, dimsZarr);
 			assertArrayEquals(newDims, dimsN5);
 
 			n5.setAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, newBlk);
 			blkZarr = n5.getAttribute(datasetName, ZArrayAttributes.shapeKey, int[].class);
+			if( "C".equals(order))
+				reverse(blkZarr);
 			blkN5 = n5.getAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, int[].class);
 			assertArrayEquals(newBlk, blkZarr);
 			assertArrayEquals(newBlk, blkN5);

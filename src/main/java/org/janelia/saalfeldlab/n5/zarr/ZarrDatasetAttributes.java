@@ -190,10 +190,15 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		}
 
 		final long[] shape = datasetAttributes.getDimensions().clone();
-		ArrayUtils.reverse(shape);
 		final int[] chunks = datasetAttributes.getBlockSize().clone();
-		ArrayUtils.reverse(chunks);
 		final DType dType = new DType(datasetAttributes.getDataType());
+
+		// datasetAttributes has shape and chunks in F-order.
+		// If we want ZArrayAttributes with C-order, reverse
+		if (order == 'C') {
+			ArrayUtils.reverse(shape);
+			ArrayUtils.reverse(chunks);
+		}
 
 		final ZArrayAttributes zArrayAttributes = new ZArrayAttributes(
 				N5ZarrReader.VERSION.getMajor(),
