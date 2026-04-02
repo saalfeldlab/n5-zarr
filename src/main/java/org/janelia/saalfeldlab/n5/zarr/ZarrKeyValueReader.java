@@ -506,7 +506,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 		if (!mapN5DatasetAttributes || elem == null || !elem.isJsonObject())
 			return elem;
 
-		final JsonObject attrs = elem.getAsJsonObject();
+		final JsonObject attrs = new JsonObject();
+		attrs.asMap().putAll(elem.getAsJsonObject().asMap()); // shallow copy
 		final ZArrayAttributes zattrs = getZArrayAttributes(attrs);
 		if (zattrs == null)
 			return elem;
