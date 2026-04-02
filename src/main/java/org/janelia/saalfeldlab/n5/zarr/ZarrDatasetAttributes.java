@@ -73,7 +73,7 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 				new PaddedRawBlockCodecInfo(dType.getOrder(), dType.createFillBytes(fill_value)),
 				null, compression);
 
-		this.zarray = createZArrayAttributes(dimensionSeparator, isRowMajor ? 'C' : 'F', this);
+		this.zarray = createZArrayAttributes(dType, dimensionSeparator, isRowMajor ? 'C' : 'F', this);
 		this.fillBytes = dType.createFillBytes(fill_value);
 	}
 
@@ -177,11 +177,11 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 	}
 
 	public static ZArrayAttributes createZArrayAttributes(final String dimensionSeparator, final DatasetAttributes datasetAttributes) {
-		return createZArrayAttributes(dimensionSeparator, 'C', datasetAttributes);
 
+		return createZArrayAttributes(new DType(datasetAttributes.getDataType()), dimensionSeparator, 'C', datasetAttributes);
 	}
 
-	public static ZArrayAttributes createZArrayAttributes(final String dimensionSeparator, char order, final DatasetAttributes datasetAttributes) {
+	public static ZArrayAttributes createZArrayAttributes(final DType dType, final String dimensionSeparator, char order, final DatasetAttributes datasetAttributes) {
 
 		if (datasetAttributes instanceof ZarrDatasetAttributes) {
 			final ZArrayAttributes zarray = ((ZarrDatasetAttributes)datasetAttributes).getZArrayAttributes();
@@ -193,7 +193,6 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		ArrayUtils.reverse(shape);
 		final int[] chunks = datasetAttributes.getChunkSize().clone();
 		ArrayUtils.reverse(chunks);
-		final DType dType = new DType(datasetAttributes.getDataType());
 
 		final ZArrayAttributes zArrayAttributes = new ZArrayAttributes(
 				N5ZarrReader.VERSION.getMajor(),

@@ -42,7 +42,11 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -58,6 +62,7 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.GsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.IntArrayDataBlock;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
@@ -68,9 +73,11 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
+import org.janelia.saalfeldlab.n5.codec.RawBlockCodecInfo;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.saalfeldlab.n5.readdata.VolatileReadData;
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -480,6 +487,49 @@ public class N5ZarrTest extends AbstractN5Test {
 				assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());
 				assertTrue(n5.remove("/test/group/dataset"));
 			}
+		}
+	}
+
+	@Test
+	public void testEndianness() throws IOException {
+
+		final long[] dims = new long[]{4};
+		final int[] blockSize = new int[]{4};
+
+		DType be = new DType(">u4", null);
+		DType le = new DType("<u4", null);
+
+		final int[] data = new int[]{
+				3,
+				256 + 3,
+				2 * 256 + 3,
+				3 * 256 + 3};
+
+		IntArrayDataBlock blk = new IntArrayDataBlock(blockSize, new long[]{0}, data);
+
+		try (final N5Writer n5 = createTempN5Writer()) {
+
+			// big endian
+			ZarrDatasetAttributes attrsBE = new ZarrDatasetAttributes(dims, blockSize, be, new RawCompression(), true, "0");
+			n5.createDataset("be", attrsBE);
+			n5.writeBlock("be", attrsBE, blk);
+			assertArrayEquals(data, (int[])n5.readBlock("be", n5.getDatasetAttributes("be"), 0).getData());
+
+			final ByteBuffer beBuf = ByteBuffer.wrap(Files.readAllBytes(Paths.get(n5.getURI().getPath(), "be", "0")));
+			beBuf.order(ByteOrder.BIG_ENDIAN);
+			for (int i = 0; i < data.length; i++)
+				assertEquals(data[i], beBuf.getInt());
+
+			// little endian
+			ZarrDatasetAttributes attrsLE = new ZarrDatasetAttributes(dims, blockSize, le, new RawCompression(), true, "0");
+			n5.createDataset("le", attrsLE);
+			n5.writeBlock("le", attrsLE, blk);
+			assertArrayEquals(data, (int[])n5.readBlock("le", n5.getDatasetAttributes("le"), 0).getData());
+
+			ByteBuffer leBuf = ByteBuffer.wrap(Files.readAllBytes(Paths.get(n5.getURI().getPath(), "le", "0")));
+			leBuf.order(ByteOrder.LITTLE_ENDIAN);
+			for (int i = 0; i < data.length; i++)
+				assertEquals(data[i], leBuf.getInt());
 		}
 	}
 
