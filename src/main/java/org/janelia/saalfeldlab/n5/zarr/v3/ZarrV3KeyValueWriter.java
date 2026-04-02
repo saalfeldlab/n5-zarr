@@ -204,27 +204,12 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			final String attributePath,
 			final T attribute) throws N5Exception {
 
-		final String normalizedAttributePath = N5URI.normalizeAttributePath(attributePath);
-		setRawAttribute(groupPath, mapAttributeKey(normalizedAttributePath), attribute);
-	}
-
-	/**
-	 * Converts an attribute path
-	 *
-	 * @param attributePath
-	 * @return
-	 */
-	protected String mapAttributeKey(final String attributePath) {
-
-		return isAttributes(attributePath) ? attributePath : ZarrV3Node.ATTRIBUTES_KEY + "/" + attributePath;
-	}
-
-	protected boolean isAttributes(final String attributePath) {
-
-		if (!Arrays.stream(ZarrV3DatasetAttributes.REQUIRED_KEYS).anyMatch(attributePath::equals))
-			return false;
-
-		return true;
+		String key = N5URI.normalizeAttributePath(attributePath);
+		final boolean isRequiredKey = Arrays.asList(ZarrV3DatasetAttributes.REQUIRED_KEYS).contains(key);
+		if (!isRequiredKey) {
+			key = ZarrV3Node.ATTRIBUTES_KEY + "/" + key;
+		}
+		setRawAttribute(groupPath, key, attribute);
 	}
 
 	// TODO [+]
