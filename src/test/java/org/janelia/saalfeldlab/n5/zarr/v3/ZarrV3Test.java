@@ -45,7 +45,6 @@ import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -56,6 +55,7 @@ import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.GsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.IntArrayDataBlock;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
@@ -70,9 +70,8 @@ import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.codec.RawBlockCodecInfo;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.n5.zarr.DType;
+import org.janelia.saalfeldlab.n5.readdata.VolatileReadData;
 import org.janelia.saalfeldlab.n5.zarr.Filter;
-import org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
@@ -463,12 +462,14 @@ public class ZarrV3Test extends AbstractN5Test {
 
 		try (final N5Writer n5 = createTempN5Writer()) {
 
+			final KeyValueAccess kva = ((GsonKeyValueN5Writer)n5).getKeyValueAccess();
+
 			// big endian
 			n5.createDataset("be", attrsBE);
 			n5.writeBlock("be", attrsBE, blk);
 			assertArrayEquals(data, (int[])n5.readBlock("be", n5.getDatasetAttributes("be"), 0).getData());
 
-			final ByteBuffer beBuf = ByteBuffer.wrap(Files.readAllBytes(Paths.get(n5.getURI().getPath(), "be", "c", "0")));
+			final ByteBuffer beBuf = getBuffer(kva, kva.compose(n5.getURI(), "be", "c", "0"));
 			beBuf.order(ByteOrder.BIG_ENDIAN);
 			for (int i = 0; i < data.length; i++)
 				assertEquals(data[i], beBuf.getInt());
@@ -478,10 +479,18 @@ public class ZarrV3Test extends AbstractN5Test {
 			n5.writeBlock("le", attrsLE, blk);
 			assertArrayEquals(data, (int[])n5.readBlock("le", n5.getDatasetAttributes("le"), 0).getData());
 
-			ByteBuffer leBuf = ByteBuffer.wrap(Files.readAllBytes(Paths.get(n5.getURI().getPath(), "le", "c", "0")));
+			final ByteBuffer leBuf = getBuffer(kva, kva.compose(n5.getURI(), "le", "c", "0"));
 			leBuf.order(ByteOrder.LITTLE_ENDIAN);
 			for (int i = 0; i < data.length; i++)
 				assertEquals(data[i], leBuf.getInt());
+		}
+	}
+
+	private ByteBuffer getBuffer(KeyValueAccess kva, String key) {
+
+		try (final VolatileReadData rd = kva.createReadData(key)) {
+			final ByteBuffer buf = rd.materialize().toByteBuffer();
+			return buf;
 		}
 	}
 
