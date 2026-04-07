@@ -381,7 +381,17 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 		final ZarrDatasetAttributes zarrDatasetAttributes = getConvertedDatasetAttributes(datasetAttributes);
 		final ZArrayAttributes zArray = zarrDatasetAttributes.getZArrayAttributes();
-		setZArrayAttributes(pathName, zArray);
+		final JsonElement json = getGson().toJsonTree(zArray);
+		writeZArray(pathName, json);
+
+		if (cacheMeta()) {
+			// cache dataset and add as child to parent if necessary
+			getCache().initializeNonemptyCache(pathName, ZARRAY_FILE);
+			getCache().updateCacheInfo(pathName, ZARRAY_FILE, json);
+			if (getCache().isDataset(pathName, ZARRAY_FILE)) {
+				getCache().updateCacheInfo(pathName, ZGROUP_FILE, N5JsonCache.emptyJson);
+			}
+		}
 	}
 
 	/**

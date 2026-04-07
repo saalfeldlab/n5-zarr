@@ -37,6 +37,7 @@ import org.janelia.saalfeldlab.n5.codec.BlockCodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.codec.PaddedRawBlockCodecInfo;
 
 import java.nio.ByteOrder;
+import java.util.HashMap;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -139,6 +140,11 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		}
 
 		return pathStringBuilder.toString();
+	}
+
+	@Override
+	public HashMap<String, Object> asMap() {
+		return zarray.asMap();
 	}
 
 	private static boolean isRowMajor(final ZArrayAttributes zarray) {
