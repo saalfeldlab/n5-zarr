@@ -36,7 +36,7 @@ import org.janelia.saalfeldlab.n5.RootedFileSystemKeyValueAccess;
 /**
  * @author Stephan Saalfeld
  */
-public class N5ZarrWriter extends ZarrKeyValueWriter implements N5Writer {
+public class N5ZarrWriter extends ZarrKeyValueWriter {
 
 	/**
 	 * Opens an {@link N5ZarrWriter} at a given base path with a custom

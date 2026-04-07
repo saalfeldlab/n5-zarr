@@ -176,22 +176,6 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		return zarrAttrs;
 	}
 
-	@Override
-	public ZarrV3DatasetAttributes getConvertedDatasetAttributes(DatasetAttributes datasetAttributes) {
-		final ZarrV3DatasetAttributes zarrAttrs;
-		if (datasetAttributes instanceof ZarrV3DatasetAttributes)
-			zarrAttrs = ((ZarrV3DatasetAttributes)datasetAttributes);
-		else if (datasetAttributesMap.containsKey(datasetAttributes)) {
-			zarrAttrs = datasetAttributesMap.get(datasetAttributes);
-			datasetAttributesMap.put(datasetAttributes, zarrAttrs);
-		}
-		else {
-			zarrAttrs = ZarrV3DatasetAttributes.from(datasetAttributes, dimensionSeparator, "0");
-			datasetAttributesMap.put(datasetAttributes, zarrAttrs);
-		}
-		return zarrAttrs;
-	}
-
 	public <T> void setRawAttribute(final String groupPath, final String attributePath, final T attribute)
 			throws N5Exception {
 
