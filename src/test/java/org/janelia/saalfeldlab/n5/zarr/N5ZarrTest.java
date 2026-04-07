@@ -40,8 +40,9 @@ import static org.junit.Assert.assertTrue;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collection;
@@ -58,8 +59,8 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.GsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.IntArrayDataBlock;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
-import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -69,7 +70,6 @@ import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.n5.readdata.ReadData;
 import org.janelia.saalfeldlab.n5.readdata.VolatileReadData;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 import org.json.simple.JSONObject;
@@ -301,14 +301,14 @@ public class N5ZarrTest extends AbstractN5Test {
 		try (final N5Writer n5 = createTempN5Writer()) {
 
 			n5.createDataset(dsetPath, attributes);
-			n5.writeBlock(dsetPath, attributes, blk10);
+			n5.writeChunk(dsetPath, attributes, blk10);
 
 			final KeyValueAccess kva = ((GsonKeyValueN5Writer)n5).getKeyValueAccess();
 			try (VolatileReadData rd = kva.createReadData(kva.compose(n5.getURI(), "1.0"))) {
 				assertArrayEquals(expectedPaddedData, rd.allBytes());
 			}
 
-			DataBlock<byte[]> readBlock = n5.readBlock(dsetPath, attributes, pos);
+			DataBlock<byte[]> readBlock = n5.readChunk(dsetPath, attributes, pos);
 			assertArrayEquals(expectedPaddedData, readBlock.getData());
 		}
 	}
@@ -475,11 +475,64 @@ public class N5ZarrTest extends AbstractN5Test {
 				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
 				final DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
 				final StringDataBlock dataBlock = new StringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
-				n5.writeBlock("/test/group/dataset", attributes, dataBlock);
-				final DataBlock<?> loadedDataBlock = n5.readBlock("/test/group/dataset", attributes, 0L, 0L, 0L);
+				n5.writeChunk("/test/group/dataset", attributes, dataBlock);
+				final DataBlock<?> loadedDataBlock = n5.readChunk("/test/group/dataset", attributes, 0L, 0L, 0L);
 				assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());
 				assertTrue(n5.remove("/test/group/dataset"));
 			}
+		}
+	}
+
+	@Test
+	public void testEndianness() throws IOException {
+
+		final long[] dims = new long[]{4};
+		final int[] blockSize = new int[]{4};
+
+		DType be = new DType(">u4", null);
+		DType le = new DType("<u4", null);
+
+		final int[] data = new int[]{
+				3,
+				256 + 3,
+				2 * 256 + 3,
+				3 * 256 + 3};
+
+		IntArrayDataBlock blk = new IntArrayDataBlock(blockSize, new long[]{0}, data);
+
+		try (final N5Writer n5 = createTempN5Writer()) {
+
+			final KeyValueAccess kva = ((GsonKeyValueN5Writer)n5).getKeyValueAccess();
+
+			// big endian
+			ZarrDatasetAttributes attrsBE = new ZarrDatasetAttributes(dims, blockSize, be, new RawCompression(), true, "0");
+			n5.createDataset("be", attrsBE);
+			n5.writeBlock("be", attrsBE, blk);
+			assertArrayEquals(data, (int[])n5.readBlock("be", n5.getDatasetAttributes("be"), 0).getData());
+
+			final ByteBuffer beBuf = getBuffer(kva, kva.compose(n5.getURI(), "be", "0"));
+			beBuf.order(ByteOrder.BIG_ENDIAN);
+			for (int i = 0; i < data.length; i++)
+				assertEquals(data[i], beBuf.getInt());
+
+			// little endian
+			ZarrDatasetAttributes attrsLE = new ZarrDatasetAttributes(dims, blockSize, le, new RawCompression(), true, "0");
+			n5.createDataset("le", attrsLE);
+			n5.writeBlock("le", attrsLE, blk);
+			assertArrayEquals(data, (int[])n5.readBlock("le", n5.getDatasetAttributes("le"), 0).getData());
+
+			final ByteBuffer leBuf = getBuffer(kva, kva.compose(n5.getURI(), "le", "0"));
+			leBuf.order(ByteOrder.LITTLE_ENDIAN);
+			for (int i = 0; i < data.length; i++)
+				assertEquals(data[i], leBuf.getInt());
+		}
+	}
+
+	private ByteBuffer getBuffer(KeyValueAccess kva, String key) {
+
+		try (final VolatileReadData rd = kva.createReadData(key)) {
+			final ByteBuffer buf = rd.materialize().toByteBuffer();
+			return buf;
 		}
 	}
 
@@ -713,19 +766,19 @@ public class N5ZarrTest extends AbstractN5Test {
 		String[] expected = {"", "a", "bc", "de", "fgh", ":-þ"}; // C-order
 		datasetName = testZarrDatasetName + "/3x2_c_str";
 		DatasetAttributes strAttributes = n5Zarr.getDatasetAttributes(datasetName);
-		DataBlock<?> loadedDataBlock = n5Zarr.readBlock(datasetName, strAttributes, 0L, 0L);
+		DataBlock<?> loadedDataBlock = n5Zarr.readChunk(datasetName, strAttributes, 0L, 0L);
 		assertArrayEquals(expected, ((String[])loadedDataBlock.getData()));
 
 		expected = new String[] {"", "de", "a", "fgh", "bc", ":-þ"}; // F-order
 		datasetName = testZarrDatasetName + "/3x2_f_str";
 		strAttributes = n5Zarr.getDatasetAttributes(datasetName);
-		loadedDataBlock = n5Zarr.readBlock(datasetName, strAttributes, 0L, 0L);
+		loadedDataBlock = n5Zarr.readChunk(datasetName, strAttributes, 0L, 0L);
 		assertArrayEquals(expected, ((String[])loadedDataBlock.getData()));
 
 		expected = new String[] {"bc", "", ":-þ", ""}; // chunked and compressed (second chunk)
 		datasetName = testZarrDatasetName + "/3x2_c_str_bz2";
 		strAttributes = n5Zarr.getDatasetAttributes(datasetName);
-		loadedDataBlock = n5Zarr.readBlock(datasetName, strAttributes, 1L, 0L);
+		loadedDataBlock = n5Zarr.readChunk(datasetName, strAttributes, 1L, 0L);
 		assertArrayEquals(expected, ((String[])loadedDataBlock.getData()));
 	}
 

@@ -46,7 +46,7 @@ public class PaddedRawBlockCodecInfo implements BlockCodecInfo {
 		RawBlockCodecInfo.ensureValidByteOrder(dataType, getByteOrder());
 		byte[] fillBytes = attributes.getFillBytes();
 		return PaddedRawBlockCodecs.create(dataType, getByteOrder(),
-				attributes.getBlockSize(), DataCodec.concatenate(codecs), fillBytes);
+				attributes.getChunkSize(), DataCodec.concatenate(codecs), fillBytes);
 	}
 
 	public ByteOrder getByteOrder() {

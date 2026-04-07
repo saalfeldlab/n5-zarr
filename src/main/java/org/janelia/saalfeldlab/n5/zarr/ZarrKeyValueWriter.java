@@ -26,7 +26,6 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,12 +34,10 @@ import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.Compression;
-import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
-import org.janelia.saalfeldlab.n5.LockedChannel;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5URI;
@@ -66,7 +63,6 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.n5.serialization.JsonArrayUtils;
 
-import static org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes.createZArrayAttributes;
 
 /**
  * Zarr {@link KeyValueAccess} implementation.
@@ -242,23 +238,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 	private HashMap<DatasetAttributes, ZarrDatasetAttributes> datasetAttributesMap = new HashMap<>();
 
-	public ZarrDatasetAttributes getConvertedDatasetAttributes(final DatasetAttributes datasetAttributes) {
-
-		final ZarrDatasetAttributes zarrAttrs;
-		if (datasetAttributes instanceof ZarrDatasetAttributes)
-			zarrAttrs = ((ZarrDatasetAttributes)datasetAttributes);
-		else if (datasetAttributesMap.containsKey(datasetAttributes)) {
-			zarrAttrs = datasetAttributesMap.get(datasetAttributes);
-			datasetAttributesMap.put(datasetAttributes, zarrAttrs);
-		}
-		else {
-			final ZArrayAttributes zArrayAttrs = createZArrayAttributes(dimensionSeparator, datasetAttributes);
-			zarrAttrs = new ZarrDatasetAttributes(zArrayAttrs);
-			datasetAttributesMap.put(datasetAttributes, zarrAttrs);
-		}
-		return zarrAttrs;
-	}
-
 	@Override
 	public ZarrDatasetAttributes createDataset(
 			final String path,
@@ -402,7 +381,17 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 		final ZarrDatasetAttributes zarrDatasetAttributes = getConvertedDatasetAttributes(datasetAttributes);
 		final ZArrayAttributes zArray = zarrDatasetAttributes.getZArrayAttributes();
-		setZArrayAttributes(pathName, zArray);
+		final JsonElement json = getGson().toJsonTree(zArray);
+		writeZArray(pathName, json);
+
+		if (cacheMeta()) {
+			// cache dataset and add as child to parent if necessary
+			getCache().initializeNonemptyCache(pathName, ZARRAY_FILE);
+			getCache().updateCacheInfo(pathName, ZARRAY_FILE, json);
+			if (getCache().isDataset(pathName, ZARRAY_FILE)) {
+				getCache().updateCacheInfo(pathName, ZGROUP_FILE, N5JsonCache.emptyJson);
+			}
+		}
 	}
 
 	/**

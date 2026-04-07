@@ -30,27 +30,24 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.lang.reflect.Type;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.codec.BlockCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.CodecInfo;
+import org.janelia.saalfeldlab.n5.codec.CodecParser;
 import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.DatasetCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.N5BlockCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodec;
 import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodecInfo;
-import org.janelia.saalfeldlab.n5.shard.DatasetAccess;
 import org.janelia.saalfeldlab.n5.shard.DefaultShardCodecInfo;
 import org.janelia.saalfeldlab.n5.shard.ShardCodecInfo;
 import org.janelia.saalfeldlab.n5.shard.ShardIndex.IndexLocation;
@@ -92,20 +89,12 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			FILL_VALUE_KEY, CODECS_KEY,
 	};
 
-	// number of samples per block per dimension
-	// at this time, needs to be separated from the final field in DatasetAttributes
-	// because it is inferred from codecs and used in the constructor
-	// this class can not set the final field, therefore has its own
-	private final int[] zarrBlockSize;
-
 	protected final ChunkAttributes chunkAttributes; // only support regular chunk grids for now
 	protected final ZarrV3DataType zarrDataType;
 	protected final JsonElement fillValue;
 	protected final String[] dimensionNames;
 
 	protected transient final byte[] fillBytes;
-
-	private transient final DatasetAccess<?> zarrAccess;
 
 	public ZarrV3DatasetAttributes(
 			final long[] shape,
@@ -117,7 +106,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			shape,
 			defaultChunkAttributes(blockSize),
 			ZarrV3DataType.fromDataType(dataType),
-			"0", // default fill value 
+			"0", // default fill value
 			defaultDimensionNames(shape.length),
 			null,
 			null,
@@ -219,9 +208,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		this.fillValue = parseFillValue(fillValue, zarrDataType.getDataType());
 		this.dimensionNames = dimensionNames;
 		this.fillBytes = zarrDataType.createFillBytes(fillValue);
-
-		zarrAccess = createDatasetAccess();
-		zarrBlockSize = zarrAccess.getGrid().getBlockSize(0);
 	}
 
 	public ZarrV3DatasetAttributes(
@@ -235,7 +221,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final DatasetCodecInfo[] datasetCodecInfos,
 			final DataCodecInfo... dataCodecInfos) {
 
-		this(shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dataType, fillValue, 
+		this(shape, new ChunkAttributes(new RegularChunkGrid(chunkShape), chunkKeyEncoding), dataType, fillValue,
 				dimensionNames, blockCodecInfo, datasetCodecInfos, dataCodecInfos );
 	}
 
@@ -261,16 +247,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	protected BlockCodecInfo defaultBlockCodecInfo() {
 
 		return new PaddedRawBlockCodecInfo(ByteOrder.nativeOrder(), getFillBytes());
-	}
-
-	/**
-	 * Get the {@link DatasetAccess} for this dataset.
-	 *
-	 * @return the {@code DatasetAccess} for this dataset
-	 */
-	<T> DatasetAccess<T> getDatasetAccess() {
-
-		return (DatasetAccess<T>)zarrAccess;
 	}
 
 	protected static BlockCodecInfo defaultShardCodecInfo(int[] blockSize, DataCodecInfo[] dataCodecInfos,
@@ -351,18 +327,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return blockSize;
 	}
 
-	protected static int[] inferChunkShape(final BlockCodecInfo blockCodecInfo, Supplier<int[]> defaultSize) {
-
-		return Optional.ofNullable(deepestChunkShape(blockCodecInfo))
-				.orElseGet(defaultSize);
-	}
-
-	protected static int[] inferChunkShape(final ChunkAttributes chunkAttributes, final BlockCodecInfo blockCodecInfo) {
-
-		return Optional.ofNullable(deepestChunkShape(blockCodecInfo))
-				.orElse(chunkAttributes.getGrid().getShape());
-	}
-
 	public static ZarrV3DatasetAttributes from(final DatasetAttributes datasetAttributes,
 			final String dimensionSeparator,
 			final String fillValue) {
@@ -371,9 +335,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			return (ZarrV3DatasetAttributes)datasetAttributes;
 
 		final long[] shape = datasetAttributes.getDimensions().clone();
-
-		final int[] chunkShape = inferChunkShape(datasetAttributes.getBlockCodecInfo(),
-				() -> datasetAttributes.getBlockSize().clone());
+		final int[] chunkShape = datasetAttributes.getChunkSize().clone();
 
 		// TODO this may not be correct when sharding?
 		final ChunkAttributes chunkAttrs = new ChunkAttributes(
@@ -397,12 +359,6 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			return new PaddedRawBlockCodecInfo(ByteOrder.nativeOrder(), dType.createFillBytes(fillValue));
 		else
 			return codecInfo;
-	}
-
-	@Override
-	public int[] getBlockSize() {
-
-		return zarrBlockSize;
 	}
 
 	public String relativeBlockPath(long... gridPosition) {
@@ -487,7 +443,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	}
 
 	public static JsonAdapter jsonAdapter = new JsonAdapter();
-	
+
 	static NameConfigAdapter<CodecInfo> codecAdapter = NameConfigAdapter.getJsonAdapter(CodecInfo.class);
 
 	public static class JsonAdapter implements JsonDeserializer<ZarrV3DatasetAttributes>, JsonSerializer<ZarrV3DatasetAttributes> {
@@ -557,9 +513,9 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			jsonObject.add(CODECS_KEY, serializeCodecs(concatenateCodecs(src), CodecInfo[].class, context));
 			return jsonObject;
 		}
-		
+
 		private JsonArray serializeCodecs( CodecInfo[] codecs, Type typeOfSrc, JsonSerializationContext context ) {
-			
+
 			JsonArray array = new JsonArray(codecs.length);
 			for( CodecInfo c : codecs)
 				array.add(codecAdapter.serialize(c, typeOfSrc, context));
@@ -583,7 +539,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		 * 	<li>Combines any adjacent {@link TransposeCodecInfo}s.</li>
 		 * 	<li>Removes the resulting TransposeCodec if it is the identity.</li>
 		 * </ol>
-		 * 
+		 *
 		 * @param datasetCodecs
 		 *            the input codecs
 		 * @return the simplified codecs
@@ -639,95 +595,11 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		}
 	}
 
-	private static BlockCodecInfo getBlockCodecInfo(CodecInfo[] codecs) {
-
-		if (!(codecs[0] instanceof BlockCodecInfo))
-			throw new N5Exception("First codec must be a BlockCodec, but was: " + codecs[0].getClass());
-
-		return convertShardCodec((BlockCodecInfo)codecs[0]);
-	}
-
-	private static DataCodecInfo[] getDataCodecInfos(CodecInfo[] codecs) {
-
-		final DataCodecInfo[] dataCodecs = new DataCodecInfo[codecs.length - 1];
-		for (int i = 1; i < codecs.length; i++) {
-			if (!(codecs[i] instanceof DataCodecInfo))
-				throw new N5Exception("Codec at position " + i + " must be a DataCodec, but was: " + codecs[i].getClass());
-
-			dataCodecs[i - 1] = (DataCodecInfo)codecs[i];
-		}
-		return dataCodecs;
-	}
-
-	private static class CodecParser {
-
-		private DatasetCodecInfo[] datasetCodecInfos;
-		private BlockCodecInfo blockCodecInfo;
-		private DataCodecInfo[] dataCodecInfos;
-
-		public CodecParser(CodecInfo[] codecs) {
-
-			parse(codecs);
-		}
-
-		public void parse(CodecInfo[] codecs) {
-
-			final ArrayList<DataCodecInfo> dataCodecList = new ArrayList<>();
-			final ArrayList<DatasetCodecInfo> datasetCodecList = new ArrayList<>();
-
-			boolean foundBlockCodec = false;
-
-			int i = 0;
-			int blockCodecIndex = -1;
-			for (CodecInfo codec : codecs) {
-				if (!foundBlockCodec) {
-
-					if (codec instanceof BlockCodecInfo) {
-						blockCodecInfo = (BlockCodecInfo)codec;
-						foundBlockCodec = true;
-						blockCodecIndex = i;
-					} else if (codec instanceof DatasetCodecInfo)
-						datasetCodecList.add((DatasetCodecInfo)codec);
-					else
-						throw new N5Exception("Codec at index " + i + " is a DataCodec, but came before a BlockCodec.");
-
-				} else if (codec instanceof BlockCodecInfo)
-					throw new N5Exception("Codec at index " + i + " is a BlockCodec, but came after a BlockCodec at position " + blockCodecIndex);
-				else if (codec instanceof DatasetCodecInfo)
-					throw new N5Exception("Codec at index " + i + " is a DatasetCodec, but came after a BlockCodec at position " + blockCodecIndex);
-				else
-					dataCodecList.add((DataCodecInfo)codec);
-
-				i++;
-			}
-
-			datasetCodecInfos = datasetCodecList.stream().toArray(n -> new DatasetCodecInfo[n]);
-			dataCodecInfos = dataCodecList.stream().toArray(n -> new DataCodecInfo[n]);
-		}
-
-	}
-
 	private static CodecInfo[] concatenateCodecs( ZarrV3DatasetAttributes attributes) {
 		final CodecInfo[] codecs = new CodecInfo[ attributes.getDataCodecInfos().length + 1 ];
 		codecs[0] = attributes.getBlockCodecInfo();
 		System.arraycopy(attributes.getDataCodecInfos(), 0, codecs, 1, attributes.getDataCodecInfos().length);
 		return codecs;
-	}
-
-	private static BlockCodecInfo convertShardCodec(BlockCodecInfo info) {
-
-		if (info instanceof DefaultShardCodecInfo) {
-			DefaultShardCodecInfo shardInfoParsed = (DefaultShardCodecInfo)info;
-			return new DefaultShardCodecInfo(
-					shardInfoParsed.getInnerBlockSize(),
-					getBlockCodecInfo(shardInfoParsed.getCodecs()),
-					getDataCodecInfos(shardInfoParsed.getCodecs()),
-					getBlockCodecInfo(shardInfoParsed.getIndexCodecs()),
-					getDataCodecInfos(shardInfoParsed.getIndexCodecs()),
-					shardInfoParsed.getIndexLocation());
-
-		}
-		return info;
 	}
 
 	public static Builder builder(final long[] shape, final DataType dataType) {
@@ -923,7 +795,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		/**
 		 * Sets the data codec infos for the shard index;
 		 *
-		 * @param dataCodecInfos the data codecs
+		 * @param shardIndexDataCodecInfos the data codecs
 		 * @return this builder
 		 */
 		public Builder shardIndexDataCodecInfos(final DataCodecInfo... shardIndexDataCodecInfos) {
@@ -948,7 +820,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			final DefaultChunkKeyEncoding resolvedChunkKeyEncoding = chunkKeyEncoding != null
 					? chunkKeyEncoding
 					: new DefaultChunkKeyEncoding(dimensionSeparator);
-			
+
 			final int[] resolvedBlockSize = blockSize != null
 					? blockSize
 					: defaultChunkShape(shape);

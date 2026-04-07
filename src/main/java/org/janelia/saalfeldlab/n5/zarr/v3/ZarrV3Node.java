@@ -2,11 +2,11 @@ package org.janelia.saalfeldlab.n5.zarr.v3;
 
 public interface ZarrV3Node {
 
-	public static final String NODE_TYPE_KEY = "node_type";
-	public static final String ZARR_FORMAT_KEY = "zarr_format";
-	public static final String ATTRIBUTES_KEY = "attributes";
+	String NODE_TYPE_KEY = "node_type";
+	String ZARR_FORMAT_KEY = "zarr_format";
+	String ATTRIBUTES_KEY = "attributes";
 
-	public static enum NodeType {
+	enum NodeType {
 
 		GROUP, ARRAY;
 
@@ -39,6 +39,6 @@ public interface ZarrV3Node {
 
 	};
 
-	public NodeType getType();
+	NodeType getType();
 
 }

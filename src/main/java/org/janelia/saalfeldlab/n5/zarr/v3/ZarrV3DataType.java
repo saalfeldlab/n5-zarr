@@ -10,7 +10,7 @@ public enum ZarrV3DataType {
 
 	private final int nBytes;
 
-	private ZarrV3DataType(final int nBytes) {
+	ZarrV3DataType(final int nBytes) {
 		this.nBytes = nBytes;
 	}
 
@@ -105,5 +105,5 @@ public enum ZarrV3DataType {
 		}
 		return fillBytes;
 	}
-	
+
 }

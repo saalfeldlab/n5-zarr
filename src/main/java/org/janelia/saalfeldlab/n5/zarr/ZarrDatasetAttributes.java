@@ -37,6 +37,7 @@ import org.janelia.saalfeldlab.n5.codec.BlockCodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.codec.PaddedRawBlockCodecInfo;
 
 import java.nio.ByteOrder;
+import java.util.HashMap;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -73,7 +74,7 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 				new PaddedRawBlockCodecInfo(dType.getOrder(), dType.createFillBytes(fill_value)),
 				null, compression);
 
-		this.zarray = createZArrayAttributes(dimensionSeparator, isRowMajor ? 'C' : 'F', this);
+		this.zarray = createZArrayAttributes(dType, dimensionSeparator, isRowMajor ? 'C' : 'F', this);
 		this.fillBytes = dType.createFillBytes(fill_value);
 	}
 
@@ -141,6 +142,11 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		return pathStringBuilder.toString();
 	}
 
+	@Override
+	public HashMap<String, Object> asMap() {
+		return zarray.asMap();
+	}
+
 	private static boolean isRowMajor(final ZArrayAttributes zarray) {
 		return zarray.order == 'C';
 	}
@@ -177,11 +183,11 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 	}
 
 	public static ZArrayAttributes createZArrayAttributes(final String dimensionSeparator, final DatasetAttributes datasetAttributes) {
-		return createZArrayAttributes(dimensionSeparator, 'C', datasetAttributes);
 
+		return createZArrayAttributes(new DType(datasetAttributes.getDataType()), dimensionSeparator, 'C', datasetAttributes);
 	}
 
-	public static ZArrayAttributes createZArrayAttributes(final String dimensionSeparator, char order, final DatasetAttributes datasetAttributes) {
+	public static ZArrayAttributes createZArrayAttributes(final DType dType, final String dimensionSeparator, char order, final DatasetAttributes datasetAttributes) {
 
 		if (datasetAttributes instanceof ZarrDatasetAttributes) {
 			final ZArrayAttributes zarray = ((ZarrDatasetAttributes)datasetAttributes).getZArrayAttributes();
@@ -191,9 +197,8 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 
 		final long[] shape = datasetAttributes.getDimensions().clone();
 		ArrayUtils.reverse(shape);
-		final int[] chunks = datasetAttributes.getBlockSize().clone();
+		final int[] chunks = datasetAttributes.getChunkSize().clone();
 		ArrayUtils.reverse(chunks);
-		final DType dType = new DType(datasetAttributes.getDataType());
 
 		final ZArrayAttributes zArrayAttributes = new ZArrayAttributes(
 				N5ZarrReader.VERSION.getMajor(),

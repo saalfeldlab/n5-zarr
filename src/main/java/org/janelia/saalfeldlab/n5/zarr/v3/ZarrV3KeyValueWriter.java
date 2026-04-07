@@ -30,7 +30,6 @@ import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.Compression;
-import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonUtils;
@@ -168,7 +167,23 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 		}
 	}
 
+	@Override
+	public void setDatasetAttributes(
+			final String datasetPath,
+			final DatasetAttributes datasetAttributes) throws N5Exception {
 
+		final ZarrV3DatasetAttributes zarrAttrs = getConvertedDatasetAttributes(datasetAttributes);
+		final JsonObject json = getGson().toJsonTree(zarrAttrs).getAsJsonObject();
+		json.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
+		json.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.ARRAY.toString());
+
+		// preserve any existing user attributes
+		final JsonElement existingJson = getAttributes(datasetPath);
+		if (existingJson != null)
+			json.add(ZarrV3Node.ATTRIBUTES_KEY, existingJson);
+
+		writeAttributes(datasetPath, json);
+	}
 
 	/**
 	 * Creates a dataset at the given path only without the associated checks or recursion.
@@ -180,14 +195,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 	private void createDatasetNonrecursive(final String normalPath, final ZarrV3DatasetAttributes datasetAttributes) {
 
 		getKeyValueAccess().createDirectories(absoluteGroupPath(normalPath));
-
-		// These three lines are preferable to setDatasetAttributes because they
-		// are more efficient wrt caching
-		final JsonElement attributes = getGson().toJsonTree(datasetAttributes);
-		final JsonObject zarrJson = attributes.getAsJsonObject();
-		zarrJson.addProperty(ZarrV3DatasetAttributes.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.VERSION.getMajor());
-		zarrJson.addProperty(ZarrV3Node.NODE_TYPE_KEY, NodeType.ARRAY.toString());
-		writeAttributes(normalPath, zarrJson);
+		setDatasetAttributes(normalPath, datasetAttributes);
 	}
 
 	@Override
@@ -342,11 +350,6 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 			root = GsonUtils.insertAttributes(root, attributes, getGson());
 			writeAttributes(normalGroupPath, root);
 		}
-	}
-
-	protected static String userAttributePath( final String key ) {
-
-		return ZarrV3Node.ATTRIBUTES_KEY + "/" + key;
 	}
 
 }
