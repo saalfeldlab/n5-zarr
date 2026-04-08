@@ -52,6 +52,9 @@ import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.Za
 import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrderAdapter;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType;
 
+import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType.ARRAY;
+import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType.GROUP;
+
 public class ZarrV3KeyValueReader extends N5KeyValueReader {
 
 	protected final Map<DatasetAttributes, ZarrV3DatasetAttributes> datasetAttributesMap = new ConcurrentHashMap<>();
@@ -193,24 +196,29 @@ public class ZarrV3KeyValueReader extends N5KeyValueReader {
 	}
 
 	// TODO: make this nicer
-	//   [ ] static	NodeType.of(String) --> null if unknown
-	//   [ ] NodeType nodeType(final JsonElement attributes) --> null if attributes == null
-	//   [ ] groupExists -> nodeType(...) == GROUP
-	//   [ ] datasetExists -> nodeType(...) == ARRAY
+	//   [+] static	NodeType.of(String) --> null if unknown
+	//   [+] NodeType nodeType(final JsonElement attributes) --> null if attributes == null
+	//   [+] groupExists -> nodeType(...) == GROUP
+	//   [+] datasetExists -> nodeType(...) == ARRAY
 	//   [ ] exists -> nodeType(...) != null
 
 	private boolean isGroupFromAttributes(final JsonElement attributes) {
 
-		if (attributes != null && attributes.isJsonObject() && NodeType.isGroup(attributes.getAsJsonObject().getAsJsonPrimitive(ZarrV3Node.NODE_TYPE_KEY).getAsString())) {
-			return true;
-		} else {
-			return false;
-		}
+		return GROUP == getNodeType(attributes);
+	}
+
+	private static NodeType getNodeType(final JsonElement attributes) {
+		if (attributes == null || !attributes.isJsonObject())
+			return null;
+		final JsonElement type = attributes.getAsJsonObject().get(ZarrV3Node.NODE_TYPE_KEY);
+		if (type == null || !type.isJsonPrimitive())
+			return null;
+		return NodeType.of(type.getAsString());
 	}
 
 	private boolean isDatasetFromAttributes(final JsonElement attributes) {
 
-		if (attributes != null && attributes.isJsonObject() && NodeType.isArray(attributes.getAsJsonObject().getAsJsonPrimitive(ZarrV3Node.NODE_TYPE_KEY).getAsString())) {
+		if (ARRAY == getNodeType(attributes)) {
 			return createDatasetAttributes(attributes) != null;
 		} else {
 			return false;

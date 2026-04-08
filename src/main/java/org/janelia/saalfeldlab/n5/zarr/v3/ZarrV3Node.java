@@ -8,35 +8,28 @@ public interface ZarrV3Node {
 
 	enum NodeType {
 
-		GROUP, ARRAY;
+		GROUP("group"),
+		ARRAY("array");
+
+		static NodeType of(String json) {
+			if ("group".equals(json))
+				return GROUP;
+			else if ("array".equals(json))
+				return ARRAY;
+			else
+				return null;
+		}
+
+		private final String label;
+
+		NodeType(final String label) {
+			this.label = label;
+		}
 
 		@Override
 		public String toString() {
-
-			switch (this) {
-			case GROUP:
-				return "group";
-			case ARRAY:
-				return "array";
-			}
-			return "";
+			return label;
 		}
-
-		public static boolean isGroup(final String type) {
-
-			return type != null && type.equals(GROUP.toString());
-		}
-
-		public static boolean isArray(final String type) {
-
-			return type != null && type.equals(ARRAY.toString());
-		}
-
-		public static String key() {
-
-			return NODE_TYPE_KEY;
-		}
-
 	};
 
 	NodeType getType();
