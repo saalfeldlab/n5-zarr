@@ -32,9 +32,12 @@ import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.ZGROUP_FILE;
 // TODO: Rename something like that: N5Store -> FormatStore / ZarrFormatStore ???
 public final class ZarrN5Store implements N5Store {
 
+	private static final boolean mapN5Attributes = true;
+
 	private final DelegateStore store;
 	private final Gson gson;
 	private final boolean mergeAttributes;
+	private final JsonObject groupAttr;
 
 	public ZarrN5Store(
 			final DelegateStore store,
@@ -44,6 +47,9 @@ public final class ZarrN5Store implements N5Store {
 		this.store = store;
 		this.gson = gson;
 		this.mergeAttributes = mergeAttributes;
+
+		groupAttr = new JsonObject();
+		groupAttr.add(ZarrKeyValueReader.ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
 	}
 
 	private <T> T getAttribute(
@@ -137,8 +143,6 @@ public final class ZarrN5Store implements N5Store {
 		setAttributes(path, Collections.singletonMap(attributePath, attribute));
 	}
 
-	private static final boolean mapN5Attributes = true;
-
 	private enum Order {
 		C,
 		F
@@ -170,7 +174,7 @@ public final class ZarrN5Store implements N5Store {
 	}
 
 	private static void redirectDataType(final JsonObject obj) {
-		final JsonElement element = obj.remove(DatasetAttributes.DIMENSIONS_KEY);
+		final JsonElement element = obj.remove(DatasetAttributes.DATA_TYPE_KEY);
 		if (element != null) {
 			obj.addProperty(ZArrayAttributes.dTypeKey, new DType(DataType.fromString(element.getAsString())).toString());
 		}
@@ -346,14 +350,15 @@ public final class ZarrN5Store implements N5Store {
 			throw new N5Exception("Can't make a group on existing dataset.");
 		}
 
+		if (path.parent() != null)
+			createGroup(path.parent());
+
 		// TODO: this shouldn't be necessary:
 		if (!store.store_isDirectory(path)) {
 			store.store_createDirectories(path);
 		}
 
-		final JsonObject json = new JsonObject();
-		json.add(ZarrKeyValueReader.ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor()));
-		store.store_writeAttributesJson(path, ZGROUP_FILE, json, gson);
+		store.store_writeAttributesJson(path, ZGROUP_FILE, groupAttr, gson);
 	}
 
 	@Override
