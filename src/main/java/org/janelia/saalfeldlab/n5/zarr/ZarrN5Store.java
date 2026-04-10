@@ -62,6 +62,9 @@ public final class ZarrN5Store implements N5Store {
 		try {
 			return GsonUtils.readAttribute(root, normalizedAttributePath, type, gson);
 		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
+			if (normalizedAttributePath.equals("filters") && root.getAsJsonObject().get("filters").isJsonNull()) {
+				return (T) Collections.EMPTY_LIST;
+			}
 			throw new N5ClassCastException(e);
 		}
 	}
@@ -119,7 +122,6 @@ public final class ZarrN5Store implements N5Store {
 	}
 
 	// NB: does not do any attribute mapping
-	@Deprecated
 	@Override
 	public JsonElement getAttributes(final N5GroupPath path) throws N5IOException {
 
@@ -127,12 +129,54 @@ public final class ZarrN5Store implements N5Store {
 		if (mergeAttributes) {
 			final JsonElement zgroup = store.store_readAttributesJson(path, ZGROUP_FILE, gson);
 			final JsonElement zarray = store.store_readAttributesJson(path, ZARRAY_FILE, gson);
-			return ZarrKeyValueReader.combineAll(zgroup, zattrs, zarray);
+			return combineAll(zgroup, zattrs, zarray);
 		} else {
 			return zattrs;
 		}
 	}
 
+	/**
+	 * Returns one {@link JsonElement} that (attempts to) combine all passed
+	 * json elements. The returned instance is a deep copy, and the arguments
+	 * are not modified.
+	 * <p>
+	 * If all {@code elements} are {@code null}, {@code null} is returned.
+	 * Otherwise, the base element is a deep copy of the first non-null element.
+	 * The remaining {@code elements} are combined into the base element one by
+	 * one:
+	 * <p>
+	 * The base element is returned if two arguments can not be combined. The
+	 * two arguments may be combined if they are both {@link JsonObject}s or
+	 * both {@link JsonArray}s.
+	 * <p>
+	 * If both arguments are {@link JsonObject}s, every key-value pair in the
+	 * add argument is added to the base argument, overwriting any duplicate
+	 * keys. If both arguments are {@link JsonArray}s, the add argument is
+	 * concatenated to the base argument.
+	 *
+	 * @param elements
+	 *            an array of json elements
+	 * @return a new, combined element
+	 */
+	private static JsonElement combineAll(final JsonElement... elements) {
+
+		JsonElement base = null;
+		for (final JsonElement element : elements) {
+			if (element != null) {
+				final JsonElement add = element.deepCopy();
+				if (base == null) {
+					base = add;
+				} else if (base.isJsonObject() && add.isJsonObject()) {
+					final JsonObject baseObj = base.getAsJsonObject();
+					add.getAsJsonObject().asMap().forEach(baseObj::add);
+				} else if (base.isJsonArray() && add.isJsonArray()) {
+					final JsonArray baseArr = base.getAsJsonArray();
+					baseArr.addAll(add.getAsJsonArray());
+				} // else: trying to combine incompatible JsonElements
+			}
+		}
+		return base;
+	}
 
 	@Override
 	public <T> void setAttribute(
