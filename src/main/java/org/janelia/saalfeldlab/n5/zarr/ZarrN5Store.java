@@ -9,6 +9,7 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSyntaxException;
 import java.lang.reflect.Type;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
@@ -25,6 +26,7 @@ import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.DelegateStore;
 import org.janelia.saalfeldlab.n5.serialization.JsonArrayUtils;
 
+import static org.janelia.saalfeldlab.n5.GsonUtils.parseAttributeElement;
 import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.ZARRAY_FILE;
 import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.ZATTRS_FILE;
 import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.ZGROUP_FILE;
@@ -32,20 +34,21 @@ import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.ZGROUP_FILE;
 // TODO: Rename something like that: N5Store -> FormatStore / ZarrFormatStore ???
 public final class ZarrN5Store implements N5Store {
 
-	private static final boolean mapN5Attributes = true;
-
 	private final DelegateStore store;
 	private final Gson gson;
+	private final boolean mapN5Attributes;
 	private final boolean mergeAttributes;
 	private final JsonObject groupAttr;
 
 	public ZarrN5Store(
 			final DelegateStore store,
 			final Gson gson,
+			final boolean mapN5DatasetAttributes,
 			final boolean mergeAttributes) {
 
 		this.store = store;
 		this.gson = gson;
+		this.mapN5Attributes = mapN5DatasetAttributes;
 		this.mergeAttributes = mergeAttributes;
 
 		groupAttr = new JsonObject();
@@ -59,6 +62,7 @@ public final class ZarrN5Store implements N5Store {
 			final Type type) throws N5IOException, N5ClassCastException {
 
 		final JsonElement root = store.store_readAttributesJson(path, filename, gson);
+
 		try {
 			return GsonUtils.readAttribute(root, normalizedAttributePath, type, gson);
 		} catch (JsonSyntaxException | NumberFormatException | ClassCastException e) {
@@ -69,6 +73,12 @@ public final class ZarrN5Store implements N5Store {
 		}
 	}
 
+	private static final List<String> mappedN5Attributes = List.of(
+			DatasetAttributes.DIMENSIONS_KEY,
+			DatasetAttributes.BLOCK_SIZE_KEY,
+			DatasetAttributes.DATA_TYPE_KEY,
+			DatasetAttributes.COMPRESSION_KEY);
+
 	@Override
 	public <T> T getAttribute(
 			final N5GroupPath path,
@@ -76,6 +86,23 @@ public final class ZarrN5Store implements N5Store {
 			final Type type) throws N5IOException, N5ClassCastException {
 
 		final String normalizedAttributePath = N5URI.normalizeAttributePath(attributePath);
+
+		if (mapN5Attributes && mappedN5Attributes.contains(normalizedAttributePath)) {
+			final DatasetAttributes attr = getDatasetAttributes(path);
+			if (attr != null) {
+				switch (normalizedAttributePath) {
+				case DatasetAttributes.DIMENSIONS_KEY:
+					return parseAttributeElement(gson.toJsonTree(attr.getDimensions()), gson, type);
+				case DatasetAttributes.BLOCK_SIZE_KEY:
+					return parseAttributeElement(gson.toJsonTree(attr.getBlockSize()), gson, type);
+				case DatasetAttributes.DATA_TYPE_KEY:
+					return parseAttributeElement(gson.toJsonTree(attr.getDataType()), gson, type);
+				case DatasetAttributes.COMPRESSION_KEY:
+					return parseAttributeElement(gson.toJsonTree(attr.getCompression()), gson, type);
+				}
+			}
+		}
+
 		T obj = getAttribute(path, ZATTRS_FILE, normalizedAttributePath, type);
 		if (obj == null)
 			obj = getAttribute(path, ZARRAY_FILE, normalizedAttributePath, type);
@@ -155,7 +182,8 @@ public final class ZarrN5Store implements N5Store {
 	 * concatenated to the base argument.
 	 *
 	 * @param elements
-	 *            an array of json elements
+	 * 		an array of json elements
+	 *
 	 * @return a new, combined element
 	 */
 	private static JsonElement combineAll(final JsonElement... elements) {
@@ -228,7 +256,7 @@ public final class ZarrN5Store implements N5Store {
 		final JsonElement element = obj.remove(DatasetAttributes.COMPRESSION_KEY);
 		if (element != null) {
 			final Compression c = gson.fromJson(element, Compression.class);
-			if( c.getClass() == RawCompression.class)
+			if (c.getClass() == RawCompression.class)
 				obj.add(ZArrayAttributes.compressorKey, JsonNull.INSTANCE);
 			else
 				obj.add(ZArrayAttributes.compressorKey, gson.toJsonTree(ZarrCompressor.fromCompression(c)));
@@ -239,7 +267,7 @@ public final class ZarrN5Store implements N5Store {
 		final JsonObject dest = new JsonObject();
 		for (final String key : keys) {
 			final JsonElement value = src.remove(key);
-			if( value != null ) {
+			if (value != null) {
 				dest.add(key, value);
 			}
 		}

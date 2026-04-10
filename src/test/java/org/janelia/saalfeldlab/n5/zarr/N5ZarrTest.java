@@ -29,6 +29,8 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
 import static org.apache.commons.lang3.ArrayUtils.reverse;
+import static org.janelia.saalfeldlab.n5.zarr.ZArrayAttributes.dimensionSeparatorKey;
+import static org.janelia.saalfeldlab.n5.zarr.ZArrayAttributes.fillValueKey;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -685,7 +687,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		final RandomAccessibleInterval<UnsignedIntType> a3x2_c_bu4_f1_after = N5Utils.open(n5Zarr, datasetName);
 		assertIsSequence(Views.interval(a3x2_c_bu4_f1_after, a3x2_c_bu4_f1), refUnsignedInt);
 		final RandomAccess<UnsignedIntType> ra = a3x2_c_bu4_f1_after.randomAccess();
-		final int fill_value = Integer.parseInt(n5Zarr.getZArrayAttributes(datasetName).getFillValue());
+		final int fill_value = Integer.parseInt(n5Zarr.getAttribute(datasetName, fillValueKey, String.class));
 		ra.setPosition(shape[0] - 5, 0);
 		assertEquals(fill_value, ra.get().getInteger());
 		ra.setPosition(shape[1] - 5, 1);
@@ -751,7 +753,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		assertArrayEquals(datasetAttributesC.getDimensions(), new long[]{3, 2});
 		assertArrayEquals(datasetAttributesC.getBlockSize(), new int[]{3, 2});
 		assertEquals(datasetAttributesC.getDataType(), DataType.UINT8);
-		assertEquals(n5Zarr.getZArrayAttributes(testZarrDatasetName + "/3x2_c_u1").getDimensionSeparator(), "/");
+		assertEquals(n5Zarr.getAttribute(testZarrDatasetName + "/3x2_c_u1", dimensionSeparatorKey, String.class), "/");
 
 		final UnsignedByteType refUnsignedByte = new UnsignedByteType();
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_u1"), refUnsignedByte);

@@ -141,7 +141,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 		this.gson = registerGson(gsonBuilder);
 		this.cacheMeta = cacheMeta;
 		this.metaStore = createMetaStore(keyValueAccess, cacheMeta);
-		this.store = new ZarrN5Store(metaStore, gson, mergeAttributes);
+		this.store = new ZarrN5Store(metaStore, gson, mapN5DatasetAttributes, mergeAttributes);
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
 		this.mergeAttributes = mergeAttributes;
 
