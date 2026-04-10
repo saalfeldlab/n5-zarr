@@ -42,7 +42,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -54,7 +53,6 @@ import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
-import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -67,6 +65,8 @@ import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.zarr.Filter;
+import org.janelia.saalfeldlab.n5.zarr.N5ZarrReader;
+import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
@@ -80,8 +80,6 @@ import org.junit.Test;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 import com.google.gson.reflect.TypeToken;
 
 import net.imglib2.RandomAccess;
@@ -264,14 +262,12 @@ public class ZarrV3Test extends AbstractN5Test {
 		try (final N5Writer writer = createTempN5Writer()) {
 
 			final Version n5Version = writer.getVersion();
-			assertEquals(n5Version, ZarrV3KeyValueReader.VERSION);
+			assertEquals(n5Version, ZarrV3KeyValueReader.ZARR_VERSION);
 
-			((ZarrV3KeyValueWriter)writer).setRawAttribute("/",
-					ZarrV3DatasetAttributes.ZARR_FORMAT_KEY,
-					ZarrV3KeyValueReader.VERSION.getMajor() + 1);
+			writer.setAttribute("", N5ZarrReader.ZARR_FORMAT_KEY,  ZarrV3KeyValueReader.ZARR_VERSION.getMajor() + 1);
 
 			final Version version = writer.getVersion();
-			assertFalse(ZarrV3KeyValueReader.VERSION.isCompatible(version));
+			assertFalse(ZarrV3KeyValueReader.ZARR_VERSION.isCompatible(version));
 
 			// check that writer creation fails for incompatible version
 			assertThrows(N5Exception.N5IOException.class, () -> createTempN5Writer(writer.getURI().toString()));
