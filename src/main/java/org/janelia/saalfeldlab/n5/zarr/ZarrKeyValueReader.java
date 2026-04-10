@@ -293,19 +293,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, getURI().getPath());
 	}
 
-	protected static Version getVersion(final JsonElement json) {
-
-		if (json == null || !json.isJsonObject()) {
-			return VERSION_ZERO;
-		}
-
-		final JsonElement fmt = json.getAsJsonObject().get(ZARR_FORMAT_KEY);
-		if (fmt.isJsonPrimitive())
-			return new Version(fmt.getAsInt(), 0, 0);
-
-		return null;
-	}
-
 	static Gson registerGson(final GsonBuilder gsonBuilder) {
 
 		return addTypeAdapters(gsonBuilder).serializeNulls().create();

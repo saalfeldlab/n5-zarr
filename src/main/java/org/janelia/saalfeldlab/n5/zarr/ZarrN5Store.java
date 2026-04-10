@@ -261,11 +261,16 @@ public final class ZarrN5Store implements N5Store {
 
 		JsonObject obj = new JsonObject();
 
+		final JsonElement zattrs = store.store_readAttributesJson(path, ZATTRS_FILE, gson);
+		if (zattrs != null) {
+			zattrs.getAsJsonObject().asMap().forEach(obj::add);
+		}
+
 		if (zarray != null) { // path is an array
 
 			// merge existing zarray and new attributes
 			zarray.getAsJsonObject().asMap().forEach(obj::add);
-			GsonUtils.insertAttributes(obj, attributes, gson).getAsJsonObject();
+			obj = GsonUtils.insertAttributes(obj, attributes, gson).getAsJsonObject();
 
 			// map n5 attributes
 			if (mapN5Attributes) {
@@ -286,7 +291,7 @@ public final class ZarrN5Store implements N5Store {
 
 			// merge existing zgroup and new attributes
 			zgroup.getAsJsonObject().asMap().forEach(obj::add);
-			GsonUtils.insertAttributes(obj, attributes, gson).getAsJsonObject();
+			obj = GsonUtils.insertAttributes(obj, attributes, gson).getAsJsonObject();
 
 			// extract and write zgroup attributes
 			store.store_writeAttributesJson(path,
@@ -296,10 +301,6 @@ public final class ZarrN5Store implements N5Store {
 		}
 
 		// whatever remains goes into .zattrs
-		final JsonElement zattrs = store.store_readAttributesJson(path, ZATTRS_FILE, gson);
-		if (zattrs != null) {
-			zattrs.getAsJsonObject().asMap().forEach(obj::add);
-		}
 		store.store_writeAttributesJson(path, ZATTRS_FILE, obj, gson);
 	}
 
@@ -376,6 +377,24 @@ public final class ZarrN5Store implements N5Store {
 		if (!store.store_isDirectory(path)) {
 			store.store_createDirectories(path);
 		}
+
+		final ZArrayAttributes zarray = ((ZarrDatasetAttributes) attributes).getZArrayAttributes();
+		final JsonElement json = gson.toJsonTree(zarray);
+		store.store_writeAttributesJson(path, ZARRAY_FILE, json, gson);
+	}
+
+	@Override
+	public void createDataset(
+			final N5GroupPath path,
+			final DatasetAttributes attributes) throws N5IOException {
+
+		// TODO: this shouldn't be necessary:
+		if (!store.store_isDirectory(path)) {
+			store.store_createDirectories(path);
+		}
+
+		if (path.parent() != null)
+			createGroup(path.parent());
 
 		final ZArrayAttributes zarray = ((ZarrDatasetAttributes) attributes).getZArrayAttributes();
 		final JsonElement json = gson.toJsonTree(zarray);

@@ -42,6 +42,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.lang.reflect.Type;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.util.Arrays;
@@ -57,6 +58,7 @@ import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.GsonKeyValueN5Reader;
 import org.janelia.saalfeldlab.n5.GsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
@@ -213,14 +215,15 @@ public class N5ZarrTest extends AbstractN5Test {
 	public void testCreateNestedDataset() throws IOException {
 
 		final String datasetName = "/test/nested/data";
+		final String[] parents = {"/test/nested", "/test", "/"};
 
 		final String testDirPath = tempN5Location();
-		final ZarrKeyValueWriter n5Nested = (ZarrKeyValueWriter) createTempN5Writer(testDirPath, "/");
-
-		n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-		assertEquals("/", n5Nested.getZArrayAttributes(datasetName).getDimensionSeparator());
-
-		// TODO test that parents of nested dataset are groups
+		try (GsonKeyValueN5Writer n5Nested = (GsonKeyValueN5Writer) createTempN5Writer(testDirPath, "/")) {
+			n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			assertTrue("Dataset does not exist", n5Nested.datasetExists(datasetName));
+			for (String parent : parents)
+				assertTrue("Parent group does not exist: " + parent, n5Nested.groupExists(parent));
+		}
 	}
 
 	@Test
@@ -320,13 +323,10 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		try (final N5Writer writer = createTempN5Writer()) {
 
-			final ZarrKeyValueWriter zarr = (ZarrKeyValueWriter)writer;
 			final Version n5Version = writer.getVersion();
 			assertEquals(n5Version, N5ZarrReader.VERSION);
 
-			final JsonObject bumpVersion = new JsonObject();
-			bumpVersion.add(N5ZarrReader.ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor() + 1));
-			zarr.writeZGroup(N5GroupPath.of(""), bumpVersion);
+			writer.setAttribute("",N5ZarrReader.ZARR_FORMAT_KEY,  N5ZarrReader.VERSION.getMajor() + 1);
 
 			final Version version = writer.getVersion();
 			assertFalse(N5ZarrReader.VERSION.isCompatible(version));
@@ -792,9 +792,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			/* class interface */
 			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
 			/* type interface */
-			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {
-
-			}.getType()));
+			final Type typeString = new TypeToken<String>() {}.getType();
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", typeString));
 
 			final Map<String, String> newAttributes = new HashMap<>();
 			newAttributes.put("key2", "value2");
@@ -807,40 +806,23 @@ public class N5ZarrTest extends AbstractN5Test {
 			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", String.class));
 			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", String.class));
 			/* type interface */
-			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {
-
-			}.getType()));
-			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", new TypeToken<String>() {
-
-			}.getType()));
-			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {
-
-			}.getType()));
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", typeString));
+			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", typeString));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", typeString));
 
 			n5.setAttribute(groupName, "key1", 1);
 			n5.setAttribute(groupName, "key2", 2);
 
 			Assert.assertEquals(4, n5.listAttributes(groupName).size());
 			/* class interface */
-			Assert.assertEquals(new Integer(1), n5.getAttribute(groupName, "key1", Integer.class));
-			Assert.assertEquals(new Integer(2), n5.getAttribute(groupName, "key2", Integer.class));
+			Assert.assertEquals(Integer.valueOf(1), n5.getAttribute(groupName, "key1", Integer.class));
+			Assert.assertEquals(Integer.valueOf(2), n5.getAttribute(groupName, "key2", Integer.class));
 			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", String.class));
 			/* type interface */
-			Assert
-					.assertEquals(
-							new Integer(1),
-							n5.getAttribute(groupName, "key1", new TypeToken<Integer>() {
-
-							}.getType()));
-			Assert
-					.assertEquals(
-							new Integer(2),
-							n5.getAttribute(groupName, "key2", new TypeToken<Integer>() {
-
-							}.getType()));
-			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {
-
-			}.getType()));
+			final Type typeInteger = new TypeToken<Integer>() {}.getType();
+			Assert.assertEquals(Integer.valueOf(1), n5.getAttribute(groupName, "key1", typeInteger));
+			Assert.assertEquals(Integer.valueOf(2), n5.getAttribute(groupName, "key2", typeInteger));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", typeString));
 
 			n5.removeAttribute(groupName, "key1");
 			n5.removeAttribute(groupName, "key2");
