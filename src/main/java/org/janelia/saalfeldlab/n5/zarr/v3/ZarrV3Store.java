@@ -24,7 +24,6 @@ import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes.CODECS_
 import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes.DATA_TYPE_KEY;
 import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes.DIMENSION_NAMES_KEY;
 import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes.FILL_VALUE_KEY;
-import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes.FORMAT;
 import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes.SHAPE_KEY;
 import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueReader.ZARR_KEY;
 import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.ATTRIBUTES_KEY;
@@ -57,7 +56,7 @@ public final class ZarrV3Store implements N5Store {
 		this.gson = gson;
 
 		groupAttr = new JsonObject();
-		groupAttr.addProperty(ZarrV3Node.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.ZARR_VERSION.getMajor());
+		groupAttr.addProperty(ZarrV3Node.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.ZARR_3_VERSION.getMajor());
 		groupAttr.addProperty(NODE_TYPE_KEY, ZarrV3Node.NodeType.GROUP.toString());
 	}
 
@@ -98,7 +97,7 @@ public final class ZarrV3Store implements N5Store {
 		final JsonObject obj = attributes.getAsJsonObject();
 
 		final JsonElement format = obj.get(ZARR_FORMAT_KEY);
-		if (format == null || !format.isJsonPrimitive() || format.getAsInt() != FORMAT)
+		if (format == null || !format.isJsonPrimitive())
 			return null;
 
 		final JsonElement type = obj.get(NODE_TYPE_KEY);
@@ -142,7 +141,7 @@ public final class ZarrV3Store implements N5Store {
 		if (!flattenAttributes)
 			return obj.get(ATTRIBUTES_KEY);
 
-		if (!obj.has(ATTRIBUTES_KEY)) {
+		if (obj.has(ATTRIBUTES_KEY)) {
 			obj = obj.deepCopy();
 			final JsonElement attr = obj.remove(ATTRIBUTES_KEY);
 			if (attr != null && attr.isJsonObject())
@@ -203,7 +202,10 @@ public final class ZarrV3Store implements N5Store {
 		return GsonUtils.insertAttribute(root, insertionPath(key), attribute, gson);
 	}
 
-	private static String insertionPath(final String key) {
+	private static String insertionPath(String key) {
+
+		if (key.startsWith("/"))
+			key = key.substring(1);
 
 		final String k = key + "/";
 		for (final String prefix : prefixes)

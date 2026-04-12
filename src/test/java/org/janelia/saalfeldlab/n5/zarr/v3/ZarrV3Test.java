@@ -41,6 +41,7 @@ import static org.junit.Assert.fail;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.reflect.Type;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.util.Arrays;
@@ -66,7 +67,6 @@ import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.zarr.Filter;
 import org.janelia.saalfeldlab.n5.zarr.N5ZarrReader;
-import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
@@ -262,12 +262,12 @@ public class ZarrV3Test extends AbstractN5Test {
 		try (final N5Writer writer = createTempN5Writer()) {
 
 			final Version n5Version = writer.getVersion();
-			assertEquals(n5Version, ZarrV3KeyValueReader.ZARR_VERSION);
+			assertEquals(n5Version, ZarrV3KeyValueReader.ZARR_3_VERSION);
 
-			writer.setAttribute("", N5ZarrReader.ZARR_FORMAT_KEY,  ZarrV3KeyValueReader.ZARR_VERSION.getMajor() + 1);
+			writer.setAttribute("", N5ZarrReader.ZARR_FORMAT_KEY,  ZarrV3KeyValueReader.ZARR_3_VERSION.getMajor() + 1);
 
 			final Version version = writer.getVersion();
-			assertFalse(ZarrV3KeyValueReader.ZARR_VERSION.isCompatible(version));
+			assertFalse(ZarrV3KeyValueReader.ZARR_3_VERSION.isCompatible(version));
 
 			// check that writer creation fails for incompatible version
 			assertThrows(N5Exception.N5IOException.class, () -> createTempN5Writer(writer.getURI().toString()));
@@ -706,65 +706,50 @@ public class ZarrV3Test extends AbstractN5Test {
 			n5.createGroup(groupName);
 
 			n5.setAttribute(groupName, "key1", "value1");
-			// length 1 because it does not include "zarr_version"
-			Assert.assertEquals(1, n5.listAttributes(groupName).size());
+			// length 3 because it includes "zarr_format" and "node_type"
+			Assert.assertEquals(3, n5.listAttributes(groupName).size());
 			/* class interface */
 			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
 			/* type interface */
-			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {
-
-			}.getType()));
+			final Type typeString = new TypeToken<String>() {}.getType();
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", typeString));
 
 			final Map<String, String> newAttributes = new HashMap<>();
 			newAttributes.put("key2", "value2");
 			newAttributes.put("key3", "value3");
 			n5.setAttributes(groupName, newAttributes);
 
-			Assert.assertEquals(3, n5.listAttributes(groupName).size());
+			// length 5 because it includes "zarr_format" and "node_type"
+			Assert.assertEquals(5, n5.listAttributes(groupName).size());
 			/* class interface */
 			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
 			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", String.class));
 			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", String.class));
 			/* type interface */
-			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {
-
-			}.getType()));
-			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", new TypeToken<String>() {
-
-			}.getType()));
-			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {
-
-			}.getType()));
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", typeString));
+			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", typeString));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", typeString));
 
 			n5.setAttribute(groupName, "key1", 1);
 			n5.setAttribute(groupName, "key2", 2);
 
-			Assert.assertEquals(3, n5.listAttributes(groupName).size());
+			// length 5 because it includes "zarr_format" and "node_type"
+			Assert.assertEquals(5, n5.listAttributes(groupName).size());
 			/* class interface */
 			Assert.assertEquals(Integer.valueOf(1), n5.getAttribute(groupName, "key1", Integer.class));
 			Assert.assertEquals(Integer.valueOf(2), n5.getAttribute(groupName, "key2", Integer.class));
 			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", String.class));
 			/* type interface */
-			Assert
-					.assertEquals(
-							Integer.valueOf(1),
-							n5.getAttribute(groupName, "key1", new TypeToken<Integer>() {
-
-							}.getType()));
-			Assert
-					.assertEquals(
-							Integer.valueOf(2),
-							n5.getAttribute(groupName, "key2", new TypeToken<Integer>() {
-
-							}.getType()));
-			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {
-
-			}.getType()));
+			final Type typeInteger = new TypeToken<Integer>() {}.getType();
+			Assert.assertEquals(Integer.valueOf(1), n5.getAttribute(groupName, "key1", typeInteger));
+			Assert.assertEquals(Integer.valueOf(2), n5.getAttribute(groupName, "key2", typeInteger));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", typeString));
 
 			n5.removeAttribute(groupName, "key1");
 			n5.removeAttribute(groupName, "key2");
 			n5.removeAttribute(groupName, "key3");
-			Assert.assertEquals(0, n5.listAttributes(groupName).size());
+			// length 2 because it includes "zarr_format" and "node_type"
+			Assert.assertEquals(2, n5.listAttributes(groupName).size());
 		}
 	}
 

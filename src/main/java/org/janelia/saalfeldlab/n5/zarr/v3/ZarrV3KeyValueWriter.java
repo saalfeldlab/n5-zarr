@@ -1,7 +1,9 @@
-/**
- * Copyright (c) 2017--2021, Stephan Saalfeld
- * All rights reserved.
- *
+/*-
+ * #%L
+ * Not HDF5
+ * %%
+ * Copyright (C) 2017 - 2025 Stephan Saalfeld
+ * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -14,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -22,6 +24,7 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ * #L%
  */
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
@@ -66,28 +69,23 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 				cacheAttributes, false);
 
 		Version version = null;
-		try {
+		if (exists("/")) {
 			version = getVersion();
-			if (!ZARR_VERSION.isCompatible(version))
+			if (!ZARR_3_VERSION.isCompatible(version))
 				throw new N5IOException(
-						"Incompatible version " + version + " (this is " + ZARR_VERSION + ").");
-		} catch (final NullPointerException e) {}
+						"Incompatible version " + version + " (this is " + ZARR_3_VERSION + ").");
+		}
 
-		if (version == null || version.equals(new Version(0, 0, 0, ""))) {
-			createGroup("/"); // sets the version
+		if (version == null || version.equals(NO_VERSION)) {
+			createGroup("/");
+			setVersion();
 		}
 	}
 
 	@Override
-	public void setVersion(final String path) throws N5Exception {
+	public void setVersion() throws N5Exception {
 
-		final Version version = getVersion(path);
-		if (!ZARR_VERSION.isCompatible(version))
-			throw new N5IOException(
-					"Incompatible version " + version + " (this is " + ZARR_VERSION + ").");
-
-		// This writer may only write zarr v3
-		if (!ZARR_VERSION.equals(version))
-			setAttribute("/", ZARR_FORMAT_KEY, ZARR_VERSION.getMajor());;
+		if (!ZARR_3_VERSION.equals(getVersion()))
+			setAttribute("/", ZARR_FORMAT_KEY, ZARR_3_VERSION.getMajor());;
 	}
 }

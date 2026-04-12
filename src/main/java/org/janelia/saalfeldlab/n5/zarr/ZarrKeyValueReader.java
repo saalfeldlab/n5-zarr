@@ -1,7 +1,9 @@
-/**
- * Copyright (c) 2017--2021, Stephan Saalfeld
- * All rights reserved.
- *
+/*-
+ * #%L
+ * Not HDF5
+ * %%
+ * Copyright (C) 2017 - 2025 Stephan Saalfeld
+ * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -14,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -22,19 +24,13 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ * #L%
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
-import java.lang.reflect.Type;
-import java.net.URI;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Reader;
@@ -42,7 +38,6 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.GsonUtils;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
@@ -50,11 +45,8 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Path.N5GroupPath;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Store;
-import org.janelia.saalfeldlab.n5.N5URI;
-import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
 import org.janelia.saalfeldlab.n5.cache.DelegateStore;
-import org.janelia.saalfeldlab.n5.serialization.JsonArrayUtils;
 
 import static org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes.createZArrayAttributes;
 
@@ -66,8 +58,30 @@ import static org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes.createZArray
  */
 public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 
-	public static final Version VERSION_ZERO = new Version(0, 0, 0);
-	public static final Version VERSION = new Version(2, 0, 0);
+	public static class ZarrVersion extends Version {
+
+		public ZarrVersion(final int major) {
+			super(major, 0, 0);
+		}
+
+		@Override
+		public boolean isCompatible(final Version version) {
+
+			// NB: Override Version.isCompatible because
+			// Zarr v2 is only compatible with v2, and
+			// Zarr v3 is only compatible with v3.
+
+			// We are always compatible with NO_VERSION (uninitialized container)
+			if (NO_VERSION.equals(version))
+				return true;
+
+			// TODO should we also check (version instanceof ZarrVersion)?
+			return version.getMajor() == this.getMajor();
+		}
+	}
+
+
+	public static final ZarrVersion ZARR_2_VERSION = new ZarrVersion(2);
 	public static final String ZARR_FORMAT_KEY = "zarr_format";
 
 	public static final String ZARRAY_FILE = ".zarray";
@@ -145,9 +159,20 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
 		this.mergeAttributes = mergeAttributes;
 
-		if (checkRootExists && !exists("/"))
-			throw new N5IOException("No container exists at " + getURI());
+		boolean versionFound = false;
+		if (checkVersion) {
+			/* Existence checks, if any, go in subclasses */
+			/* Check that version (if there is one) is compatible. */
+			final Version version = getVersion();
+			versionFound = !version.equals(NO_VERSION);
+			if (!ZARR_2_VERSION.isCompatible(version))
+				throw new N5Exception.N5IOException(
+						"Incompatible version " + version + " (this is " + ZARR_2_VERSION + ").");
+		}
 
+		// if a version was found, the container exists - don't need to check again
+		if (checkRootExists && (!versionFound && !exists("/")))
+			throw new N5Exception.N5IOException("No container exists at " + keyValueAccess.root());
 	}
 
 	/**
@@ -226,18 +251,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	public Version getVersion() throws N5Exception {
 
 		final N5GroupPath root = N5GroupPath.of("");
-		if (store.groupExists(root) || store.datasetExists(root)) {
-			try {
-				final Integer v = store.getAttribute(root, ZARR_FORMAT_KEY, Integer.class);
-				if (v == null) {
-					return VERSION_ZERO;
-				}
-				return new Version(v, 0, 0);
-			} catch (N5ClassCastException e) {
-				return null;
-			}
-		}
-		return VERSION;
+		final Integer v = store.getAttribute(root, ZARR_FORMAT_KEY, Integer.class);
+		return v == null ? NO_VERSION : new ZarrVersion(v);
 	}
 
 	/**

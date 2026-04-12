@@ -26,7 +26,6 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonPrimitive;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.img.array.ArrayImg;
@@ -39,7 +38,6 @@ import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
-import org.janelia.saalfeldlab.n5.N5Path.N5GroupPath;
 import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
 
 /**
@@ -97,16 +95,16 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		this.dimensionSeparator = dimensionSeparator;
 
 		Version version = null;
-		if (exists("/")) {
+		try {
 			version = getVersion();
-			if (!isCompatible(version))
+			if (!ZARR_2_VERSION.isCompatible(version))
 				throw new N5IOException(
-						"Incompatible version " + version + " (this is " + ZarrKeyValueReader.VERSION + ").");
-		}
+						"Incompatible version " + version + " (this is " + ZARR_2_VERSION + ").");
+		} catch (final NullPointerException e) {}
 
-		if (version == null || version == VERSION_ZERO) {
+		if (version == null || version.equals(NO_VERSION)) {
 			createGroup("/");
-			setVersion("/");
+			setVersion();
 		}
 	}
 
@@ -119,18 +117,11 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		}
 	}
 
-	public boolean isCompatible(Version version) {
-
-		return ZarrKeyValueReader.VERSION.isCompatible(version);
-	}
-
 	@Override
-	public void setVersion(final String path) throws N5Exception {
+	public void setVersion() throws N5Exception {
 
-		if (exists(path)) {
-			final JsonPrimitive version = new JsonPrimitive(N5ZarrReader.VERSION.getMajor());
-			store.setAttribute(N5GroupPath.of(path), ZARR_FORMAT_KEY, version);
-		}
+		if (!ZARR_2_VERSION.equals(getVersion()))
+			setAttribute("/", ZARR_FORMAT_KEY, ZARR_2_VERSION.getMajor());;
 	}
 
 	public static byte[] padCrop(

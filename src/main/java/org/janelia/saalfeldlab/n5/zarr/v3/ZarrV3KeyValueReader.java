@@ -1,7 +1,9 @@
-/**
- * Copyright (c) 2017--2021, Stephan Saalfeld
- * All rights reserved.
- *
+/*-
+ * #%L
+ * Not HDF5
+ * %%
+ * Copyright (C) 2017 - 2025 Stephan Saalfeld
+ * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -14,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -22,6 +24,7 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ * #L%
  */
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
@@ -42,22 +45,20 @@ import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
 import org.janelia.saalfeldlab.n5.cache.DelegateStore;
 import org.janelia.saalfeldlab.n5.codec.CodecInfo;
+import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.ZarrVersion;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrder;
 import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrderAdapter;
 
-import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.VERSION_ZERO;
 import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.ZARR_FORMAT_KEY;
 
 public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 
 	protected final Map<DatasetAttributes, ZarrV3DatasetAttributes> datasetAttributesMap = new ConcurrentHashMap<>();
 
-	// Override this constant
-	// if we try supporting v2 and v3 in parallel
-	public static final Version ZARR_VERSION = new Version(3, 0, 0);
+	public static final ZarrVersion ZARR_3_VERSION = new ZarrVersion(3);
 
 	public static final String ZARR_KEY = "zarr.json";
 
@@ -151,9 +152,9 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 			/* Check that version (if there is one) is compatible. */
 			final Version version = getVersion();
 			versionFound = !version.equals(NO_VERSION);
-			if (!ZARR_VERSION.isCompatible(version))
+			if (!ZARR_3_VERSION.isCompatible(version))
 				throw new N5Exception.N5IOException(
-						"Incompatible version " + version + " (this is " + ZARR_VERSION + ").");
+						"Incompatible version " + version + " (this is " + ZARR_3_VERSION + ").");
 		}
 
 		// if a version was found, the container exists - don't need to check again
@@ -218,18 +219,8 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 	protected Version getVersion(final String path) throws N5Exception {
 
 		final N5GroupPath root = N5GroupPath.of(path);
-		if (store.groupExists(root) || store.datasetExists(root)) {
-			try {
-				final Integer v = store.getAttribute(root, ZARR_FORMAT_KEY, Integer.class);
-				if (v == null) {
-					return VERSION_ZERO;
-				}
-				return new Version(v, 0, 0);
-			} catch (N5Exception.N5ClassCastException e) {
-				return null;
-			}
-		}
-		return ZARR_VERSION;
+		final Integer v = store.getAttribute(root, ZARR_FORMAT_KEY, Integer.class);
+		return v == null ? NO_VERSION : new ZarrVersion(v);
 	}
 
 	@Override
