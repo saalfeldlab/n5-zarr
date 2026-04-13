@@ -285,11 +285,12 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		n5.getAttributes(nonExistentGroup);
 		assertEqualCounters(expected, n5.counters());
 
-		// Listing on a non-existent group is pointless, so don't call the backend storage
 		assertThrows(N5Exception.class, () -> n5.list(nonExistentGroup));
-//		TODO CACHE: This should be improved:
-//		  if non-existence of a group is cached, we shouldn't attempt to list it
-		expected.incList(); // TODO: shouldn't be necessary
+		// NB: in principle, if non-existence of a group is cached, we don't
+		// need to attempt to list it. However we want to be robust to not-quite
+		// correct Zarr hierarchies (not all parent directories of a group need
+		// to have .zgroup). Therefore, we try to list (the directory) anyway.
+		expected.incList();
 		assertEqualCounters(expected, n5.counters());
 
 		final String a = "a";

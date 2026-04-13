@@ -257,8 +257,10 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 		assertEqualCounters(expected, n5.counters());
 
 		assertThrows(N5Exception.class, () -> n5.list(nonExistentGroup));
-		// TODO CACHE: We still try to list the directory from the backend.
-		//   if non-existence of a group is cached, we shouldn't attempt to list it.
+		// NB: in principle, if non-existence of a group is cached, we don't
+		// need to attempt to list it. However we want to be robust to not-quite
+		// correct Zarr hierarchies (not all parent directories of a group need
+		// to have .zgroup). Therefore, we try to list (the directory) anyway.
 		expected.incList();
 		assertEqualCounters(expected, n5.counters());
 
