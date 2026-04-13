@@ -257,15 +257,13 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 
 		n5.setAttribute(cachedGroup, "one", 1);
 		expected.incReadAttr(); // reads zattrs. zgroup and (non-existence of) zarray are cached
-		expected.incWriteAttr(2); // writes attributes (zattrs and zgroup)
-//		TODO CACHE: This should be improved:
-//		  written zgroup should be the same as existing zgroup? don't override!?
+		expected.incWriteAttr(); // writes zattrs
+		// zgroup is also written but equals the cached zgroup, so not written to backend again
 		assertEqualCounters(expected, n5.counters());
 
 		n5.setAttribute(cachedGroup, "two", 2);
-		expected.incWriteAttr(2); // writes attributes (zattrs and zgroup)
-//		TODO CACHE: This should be improved:
-//		  written zgroup should be the same as existing zgroup? don't override!?
+		expected.incWriteAttr(); // writes zattrs
+		// zgroup is also written but equals the cached zgroup, so not written to backend again
 		assertEqualCounters(expected, n5.counters());
 
 		n5.list("");
