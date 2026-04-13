@@ -142,7 +142,6 @@ public final class ZarrV3Store implements N5Store {
 			return obj.get(ATTRIBUTES_KEY);
 
 		if (obj.has(ATTRIBUTES_KEY)) {
-			obj = obj.deepCopy();
 			final JsonElement attr = obj.remove(ATTRIBUTES_KEY);
 			if (attr != null && attr.isJsonObject())
 				attr.getAsJsonObject().asMap().forEach(obj::add);
@@ -239,7 +238,6 @@ public final class ZarrV3Store implements N5Store {
 		if (attributes == null || attributes.isEmpty())
 			return;
 
-		root = root.deepCopy(); // TODO: DelegateStore should always return deep copies to prevent accidental modification of the cached JsonElement
 		for (final Map.Entry<String, ?> attribute : attributes.entrySet())
 			root = insertAttribute(root, N5URI.normalizeAttributePath(attribute.getKey()), attribute.getValue());
 

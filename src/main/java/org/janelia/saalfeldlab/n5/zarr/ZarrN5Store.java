@@ -164,8 +164,8 @@ public final class ZarrN5Store implements N5Store {
 
 	/**
 	 * Returns one {@link JsonElement} that (attempts to) combine all passed
-	 * json elements. The returned instance is a deep copy, and the arguments
-	 * are not modified.
+	 * json elements. The returned instance is not a deep copy. The arguments
+	 * may be modified!
 	 * <p>
 	 * If all {@code elements} are {@code null}, {@code null} is returned.
 	 * Otherwise, the base element is a deep copy of the first non-null element.
@@ -191,7 +191,7 @@ public final class ZarrN5Store implements N5Store {
 		JsonElement base = null;
 		for (final JsonElement element : elements) {
 			if (element != null) {
-				final JsonElement add = element.deepCopy();
+				final JsonElement add = element;
 				if (base == null) {
 					base = add;
 				} else if (base.isJsonObject() && add.isJsonObject()) {
