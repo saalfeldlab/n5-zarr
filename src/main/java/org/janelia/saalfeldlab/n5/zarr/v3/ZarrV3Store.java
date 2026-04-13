@@ -328,11 +328,6 @@ public final class ZarrV3Store implements N5Store {
 			final N5GroupPath path,
 			final DatasetAttributes attributes) throws N5IOException {
 
-		// TODO: this shouldn't be necessary:
-		if (!store.store_isDirectory(path)) {
-			store.store_createDirectories(path);
-		}
-
 		// TODO: revise createDataset / setDatasetAttributes / setAttributes
 		//       implemenetation and javadoc
 		//       to make it clear when something is created and when non-existence is an error.

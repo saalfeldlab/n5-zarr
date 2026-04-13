@@ -26,7 +26,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import static org.janelia.saalfeldlab.n5.MetaStoreCounters.assertEqualCounters;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
@@ -258,7 +257,8 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 		assertEqualCounters(expected, n5.counters());
 
 		assertThrows(N5Exception.class, () -> n5.list(nonExistentGroup));
-		// TODO: We still try to list the directory from the backend. Decide what we actually need to do here ...
+		// TODO CACHE: We still try to list the directory from the backend.
+		//   if non-existence of a group is cached, we shouldn't attempt to list it.
 		expected.incList();
 		assertEqualCounters(expected, n5.counters());
 

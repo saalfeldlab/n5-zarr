@@ -401,11 +401,6 @@ public final class ZarrN5Store implements N5Store {
 			final N5GroupPath path,
 			final DatasetAttributes attributes) throws N5IOException {
 
-		// TODO: this shouldn't be necessary:
-		if (!store.store_isDirectory(path)) {
-			store.store_createDirectories(path);
-		}
-
 		final ZArrayAttributes zarray = ((ZarrDatasetAttributes) attributes).getZArrayAttributes();
 		final JsonElement json = gson.toJsonTree(zarray);
 		store.store_writeAttributesJson(path, ZARRAY_FILE, json, gson);
@@ -415,11 +410,6 @@ public final class ZarrN5Store implements N5Store {
 	public void createDataset(
 			final N5GroupPath path,
 			final DatasetAttributes attributes) throws N5IOException {
-
-		// TODO: this shouldn't be necessary:
-		if (!store.store_isDirectory(path)) {
-			store.store_createDirectories(path);
-		}
 
 		if (path.parent() != null)
 			createGroup(path.parent());
@@ -443,11 +433,6 @@ public final class ZarrN5Store implements N5Store {
 
 		if (path.parent() != null)
 			createGroup(path.parent());
-
-		// TODO: this shouldn't be necessary:
-		if (!store.store_isDirectory(path)) {
-			store.store_createDirectories(path);
-		}
 
 		store.store_writeAttributesJson(path, ZGROUP_FILE, groupAttr, gson);
 	}
