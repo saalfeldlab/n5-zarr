@@ -179,8 +179,10 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 		assertEqualCounters(expected, n5.counters());
 
 		n5.createGroup(groupA);
-		expected.incMkDir(); // attributes (zarr.json) are written by createGroup() and cached
-		expected.incWriteAttr(); // directory is created by createGroup() and existence is cached
+		// Needs attributes (zarr.json) are already cached to check for
+		// existence (to make sure there is not already a dataset at this path.
+		// No read, because attributes (zarr.json) are already cached.
+		expected.incWriteAttr(); // attributes (zarr.json) are written (implies directory existence)
 		assertEqualCounters(expected, n5.counters());
 
 		// group B
@@ -204,11 +206,10 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 
 		final String cachedGroup = "cachedGroup";
 		n5.createGroup(cachedGroup);
-		// checks for existence to make sure there is not already a dataset at this path
+		// Needs attributes (zarr.json) are already cached to check for
+		// existence (to make sure there is not already a dataset at this path.
 		expected.incReadAttr();
-		// create directory and zarr.json
-		expected.incMkDir();
-		expected.incWriteAttr();
+		expected.incWriteAttr(); // attributes (zarr.json) are written (implies directory existence)
 		assertEqualCounters(expected, n5.counters());
 		n5.createGroup(cachedGroup); // be annoying
 		assertEqualCounters(expected, n5.counters());
@@ -268,7 +269,6 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 		n5.createGroup(abc);
 		expected.incReadAttr(3);
 		expected.incWriteAttr(3);
-		expected.incMkDir(3);
 		assertEqualCounters(expected, n5.counters());
 		assertTrue(n5.exists(abc));
 		assertTrue(n5.groupExists(abc));
@@ -302,24 +302,20 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 		assertEqualCounters(expected, n5.counters());
 
 		n5.createGroup("a");
-		expected.incMkDir();
 		expected.incWriteAttr();
 		assertEqualCounters(expected, n5.counters());
 		n5.createGroup("a/a");
 		expected.incReadAttr();
 		expected.incWriteAttr();
-		expected.incMkDir();
 //		expectedExistCount++;
 //		expectedAttributeCount++;
 		assertEqualCounters(expected, n5.counters());
 		n5.createGroup("a/b");
 		expected.incWriteAttr();
-		expected.incMkDir();
 		assertEqualCounters(expected, n5.counters());
 		n5.createGroup("a/c");
 		expected.incReadAttr();
 		expected.incWriteAttr();
-		expected.incMkDir();
 		assertEqualCounters(expected, n5.counters());
 
 		final Set<String> abcListSet = Arrays.stream(n5.list("a")).collect(Collectors.toSet());

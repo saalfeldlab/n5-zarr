@@ -320,11 +320,6 @@ public final class ZarrV3Store implements N5Store {
 		if (path.parent() != null)
 			createGroup(path.parent());
 
-		// TODO: this shouldn't be necessary:
-		if (!store.store_isDirectory(path)) {
-			store.store_createDirectories(path);
-		}
-
 		store.store_writeAttributesJson(path, ZARR_KEY, groupAttr, gson);
 	}
 
