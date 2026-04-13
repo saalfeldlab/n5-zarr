@@ -293,15 +293,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 		throw new N5IOException("TODO: Not implemented yet");
 	}
 
-	// TODO [+] ???
-	@Deprecated
-	@Override
-	public ZarrDatasetAttributes createDatasetAttributes(final JsonElement attributes) {
-
-		final ZArrayAttributes zarray = gson.fromJson(attributes, ZArrayAttributes.class);
-		return zarray != null ? new ZarrDatasetAttributes(zarray) : null;
-	}
-
 	@Override
 	public String toString() {
 
