@@ -283,10 +283,6 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		n5.groupExists(nonExistentGroup);
 		n5.datasetExists(nonExistentGroup);
 		n5.getAttributes(nonExistentGroup);
-//		TODO CACHE: This should be improved:
-//		  if neither zgroup nor zarray exist, don't attempt to read zattrs
-		expected.incReadAttr(); // read zattrs
-
 		assertEqualCounters(expected, n5.counters());
 
 		// Listing on a non-existent group is pointless, so don't call the backend storage

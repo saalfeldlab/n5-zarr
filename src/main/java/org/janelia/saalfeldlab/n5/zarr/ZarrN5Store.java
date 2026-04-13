@@ -152,13 +152,16 @@ public final class ZarrN5Store implements N5Store {
 	@Override
 	public JsonElement getAttributes(final N5GroupPath path) throws N5IOException {
 
-		final JsonElement zattrs = store.store_readAttributesJson(path, ZATTRS_FILE, gson);
 		if (mergeAttributes) {
 			final JsonElement zgroup = store.store_readAttributesJson(path, ZGROUP_FILE, gson);
 			final JsonElement zarray = store.store_readAttributesJson(path, ZARRAY_FILE, gson);
-			return combineAll(zgroup, zattrs, zarray);
+			if (zgroup == null && zarray == null) {
+				return null;
+			}
+			final JsonElement zattrs = store.store_readAttributesJson(path, ZATTRS_FILE, gson);
+			return combineAll(zgroup, zarray, zattrs);
 		} else {
-			return zattrs;
+			return store.store_readAttributesJson(path, ZATTRS_FILE, gson);
 		}
 	}
 
