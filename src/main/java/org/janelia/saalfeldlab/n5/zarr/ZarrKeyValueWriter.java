@@ -26,19 +26,13 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
 import com.google.gson.GsonBuilder;
-import net.imglib2.Cursor;
-import net.imglib2.FinalInterval;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.basictypeaccess.array.ByteArray;
-import net.imglib2.type.numeric.integer.ByteType;
-import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
+import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
+import org.janelia.saalfeldlab.n5.util.SubArrayCopy;
 
 /**
  * Zarr {@link KeyValueAccess} implementation.
@@ -138,34 +132,31 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 		if (nBytes != 0) {
 
-			/* this is getting hairy, ImgLib2 alternative */
-			/* byte images with 0-dimension d[0] * nBytes */
-			final long[] srcIntervalDimensions = new long[n];
-			final long[] dstIntervalDimensions = new long[n];
-			srcIntervalDimensions[0] = srcBlockSize[0] * nBytes;
-			dstIntervalDimensions[0] = dstBlockSize[0] * nBytes;
+			final int[] srcSize = new int[n];
+			final int[] dstSize = new int[n];
+
+			srcSize[0] = srcBlockSize[0] * nBytes;
+			dstSize[0] = dstBlockSize[0] * nBytes;
 			for (int d = 1; d < n; ++d) {
-				srcIntervalDimensions[d] = srcBlockSize[d];
-				dstIntervalDimensions[d] = dstBlockSize[d];
+				srcSize[d] = srcBlockSize[d];
+				dstSize[d] = dstBlockSize[d];
 			}
 
-			final int numTargetBytes = (int) Intervals.numElements(dstIntervalDimensions);
-			final byte[] dst = new byte[numTargetBytes];
+			final int numDstBytes = DataBlock.getNumElements(dstSize);
+			final byte[] dst = new byte[numDstBytes];
+
 			/* fill dst */
-			for (int i = 0, j = 0; i < numTargetBytes; ++i) {
+			for (int i = 0, j = 0; i < numDstBytes; ++i) {
 				dst[i] = fill_value[j];
 				if (++j == fill_value.length)
 					j = 0;
 			}
 
-			final ArrayImg<ByteType, ByteArray> srcImg = ArrayImgs.bytes(src, srcIntervalDimensions);
-			final ArrayImg<ByteType, ByteArray> dstImg = ArrayImgs.bytes(dst, dstIntervalDimensions);
-
-			final FinalInterval intersection = Intervals.intersect(srcImg, dstImg);
-			final Cursor<ByteType> srcCursor = Views.interval(srcImg, intersection).cursor();
-			final Cursor<ByteType> dstCursor = Views.interval(dstImg, intersection).cursor();
-			while (srcCursor.hasNext())
-				dstCursor.next().set(srcCursor.next());
+			final int[] size = new int[n];
+			for (int d = 0; d < n; ++d)
+				size[d] = Math.min(srcSize[d], dstSize[d]);
+			final int[] zero = new int[n]; // start of block to copy in both src and dst is (0,0,...,0)
+			SubArrayCopy.copy(src, srcSize, zero, dst, dstSize, zero, size);
 
 			return dst;
 		} else {
