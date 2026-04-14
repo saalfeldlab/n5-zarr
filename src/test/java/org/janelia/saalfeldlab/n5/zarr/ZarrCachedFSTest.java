@@ -237,17 +237,32 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		final String cachedGroup = "cachedGroup";
 		n5.createGroup(cachedGroup);
 		expected.incReadAttr(); // reads attributes (.zgroup) to check whether there is already a group at this path
-//		TODO CACHE: This could be improved by caching:
-//		  the Cached.createGroup could
-//		  - check whether group existence is cached
-//        - if existence is cached, do nothing
-//        - if existence is not cached: call non-cached createGroup
-//		    !!! which should not check for existence of group, instead just write .zgroup
-//		  - cache that now the group exists
 		expected.incReadAttr(); // reads attributes (.zarray) to make sure there is not already a dataset at this path
 		expected.incWriteAttr(); // attributes (zarr.json) are written (implies directory existence)
 		n5.createGroup(cachedGroup); // be annoying
 		assertEqualCounters(expected, n5.counters());
+		// NB: createGroup currently does two reads (.zgroup, .zarray) and one
+		// write (.zgroup). This could be improved:
+		//
+		// (1) The .zgroup read is unnecessary if we write unconditionally: writing
+		//     .zgroup is always correct as long as no .zarray exists — it either
+		//     creates the group or overwrites an identical .zgroup. So the .zgroup
+		//     read can be dropped, saving one attribute read for non-cached calls.
+		//
+		// (2) However, if .zgroup existence is cached, we can skip the write
+		//     entirely (still need the .zarray read). So the .zgroup read is
+		//     actually useful when cached — it lets us avoid the write.
+		//
+		// These two optimizations are in tension and would require the cached
+		// and non-cached createGroup paths to behave differently. (We would
+		// need to know whether the backend store is cached or not and add
+		// additional "readIfCached" API ). Or we would need to add a separate
+		// cache layer that explicitly for group existence.
+		//
+		// We accept the current small inefficiency rather than introduce that
+		// complexity. (This trade-off is specific to Zarr V2; in Zarr V3, group
+		// and dataset metadata share zarr.json, so the read cannot be avoided
+		// anyway.)
 
 		// should not check existence when this instance created a group
 		n5.exists(cachedGroup);
