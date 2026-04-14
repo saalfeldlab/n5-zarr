@@ -31,6 +31,7 @@ package org.janelia.saalfeldlab.n5.zarr;
 import static org.janelia.saalfeldlab.n5.MetaStoreCounters.assertEqualCounters;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -308,6 +309,19 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		expected.incList();
 		assertEqualCounters(expected, n5.counters());
 
+		// After trying to list nonExistentGroup we know that the prefix does
+		// not exist. Existence checks need for anything underneath don't need
+		// to call the backend.
+		//
+		// NB: groupExists() and datasetExists() above are not enough to achieve
+		// this because they just try to read .zgroup and .zarray and don't
+		// check for the existence of the prefix. However, list() does
+		// (implicitly).
+		assertFalse(n5.groupExists(nonExistentGroup + "/a") );
+		assertFalse( n5.datasetExists(nonExistentGroup + "/a") );
+		assertNull(n5.getAttributes(nonExistentGroup + "/a"));
+		assertEqualCounters(expected, n5.counters());
+
 		final String a = "a";
 		final String ab = "a/b";
 		final String abc = "a/b/c";
@@ -347,12 +361,10 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 		assertFalse(n5.datasetExists(abc));
 		assertEqualCounters(expected, n5.counters());
 
-		// TODO CACHE: potential improvement
-		//             When we remove a directory (/prefix) this implies non-existence of everything nested below
-		//             (not only the things whose existence we checked before, and which therefore have a cache entry)
-		//             --> This could be implemented on the DelegateStore level. Maybe additional "removed" flag?
-		//             Add a test for this here:
-		//             Test that exists("a/b/d") doesn't need to do any tests.
+		// We know that prefix "a/" does not exist because we removed it.
+		// Existence checks need for anything underneath don't need to call the backend.
+		assertFalse(n5.exists("a/b/e"));
+		assertEqualCounters(expected, n5.counters());
 
 		n5.createGroup("a");
 		expected.incWriteAttr(); // writes zgroup, doesn't need to read zarray or zgroup because non-existence is cached
