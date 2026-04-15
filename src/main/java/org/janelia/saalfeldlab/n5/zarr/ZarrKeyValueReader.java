@@ -223,7 +223,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	}
 
 	@Override
-	public RootedKeyValueAccess getRootedKeyValueAccess() {
+	public RootedKeyValueAccess getKeyValueRoot() {
 
 		return keyValueAccess;
 	}

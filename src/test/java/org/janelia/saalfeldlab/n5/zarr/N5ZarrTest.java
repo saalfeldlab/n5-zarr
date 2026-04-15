@@ -60,14 +60,16 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.GzipCompression;
-import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
+import org.janelia.saalfeldlab.n5.N5Path;
+import org.janelia.saalfeldlab.n5.N5Path.N5FilePath;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.RootedFileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
@@ -300,8 +302,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.createDataset(dsetPath, attributes);
 			n5.writeBlock(dsetPath, attributes, blk10);
 
-			final KeyValueAccess kva = ((GsonKeyValueN5Writer)n5).getKeyValueAccess();
-			try (VolatileReadData rd = kva.createReadData(kva.compose(n5.getURI(), "1.0"))) {
+			final RootedKeyValueAccess kva = ((GsonKeyValueN5Writer)n5).getKeyValueRoot();
+			try (VolatileReadData rd = kva.createReadData("1.0")) {
 				assertArrayEquals(expectedPaddedData, rd.allBytes());
 			}
 
@@ -761,8 +763,8 @@ public class N5ZarrTest extends AbstractN5Test {
 				DataType.UINT16,
 				new RawCompression());
 
-		final String zarrayLocation = n5.getKeyValueAccess().compose(n5.getURI(), testZarrDatasetName, ".zarray");
-		final KeyValueAccess kva = n5.getKeyValueAccess();
+		final N5FilePath zarrayLocation = N5Path.N5DirectoryPath.of(testZarrDatasetName).resolve(".zarray").asFile();
+		final RootedKeyValueAccess kva = n5.getKeyValueRoot();
 		final JSONParser jsonParser = new JSONParser();
 		try ( VolatileReadData rd = kva.createReadData(zarrayLocation) ) {
 			String json = new String(rd.allBytes());
