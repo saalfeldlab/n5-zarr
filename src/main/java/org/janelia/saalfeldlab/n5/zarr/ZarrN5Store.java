@@ -19,7 +19,7 @@ import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Exception.N5JsonParseException;
-import org.janelia.saalfeldlab.n5.N5Path.N5GroupPath;
+import org.janelia.saalfeldlab.n5.N5Path.N5DirectoryPath;
 import org.janelia.saalfeldlab.n5.N5Store;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
@@ -56,7 +56,7 @@ public final class ZarrN5Store implements N5Store {
 	}
 
 	private <T> T getAttribute(
-			final N5GroupPath path,
+			final N5DirectoryPath path,
 			final String filename,
 			final String normalizedAttributePath,
 			final Type type) throws N5IOException, N5ClassCastException {
@@ -81,7 +81,7 @@ public final class ZarrN5Store implements N5Store {
 
 	@Override
 	public <T> T getAttribute(
-			final N5GroupPath path,
+			final N5DirectoryPath path,
 			final String attributePath,
 			final Type type) throws N5IOException, N5ClassCastException {
 
@@ -113,7 +113,7 @@ public final class ZarrN5Store implements N5Store {
 
 	@Override
 	public DatasetAttributes getDatasetAttributes(
-			final N5GroupPath path) throws N5IOException {
+			final N5DirectoryPath path) throws N5IOException {
 
 		final JsonElement json = store.store_readAttributesJson(path, ZARRAY_FILE, gson);
 		final ZArrayAttributes zarray = gson.fromJson(json, ZArrayAttributes.class);
@@ -122,35 +122,35 @@ public final class ZarrN5Store implements N5Store {
 
 	@Override
 	public boolean datasetExists(
-			final N5GroupPath path) throws N5IOException {
+			final N5DirectoryPath path) throws N5IOException {
 
 		return getDatasetAttributes(path) != null;
 	}
 
 	@Override
 	public boolean groupExists(
-			final N5GroupPath path) throws N5IOException {
+			final N5DirectoryPath path) throws N5IOException {
 
 		return store.store_readAttributesJson(path, ZGROUP_FILE, gson) != null;
 	}
 
 	@Override
 	public String[] list(
-			final N5GroupPath group) throws N5IOException {
+			final N5DirectoryPath group) throws N5IOException {
 
 		return store.store_listDirectories(group);
 	}
 
 	@Override
 	public Map<String, Class<?>> listAttributes(
-			final N5GroupPath path) throws N5IOException, N5JsonParseException {
+			final N5DirectoryPath path) throws N5IOException, N5JsonParseException {
 
 		return GsonUtils.listAttributes(getAttributes(path));
 	}
 
 	// NB: does not do any attribute mapping
 	@Override
-	public JsonElement getAttributes(final N5GroupPath path) throws N5IOException {
+	public JsonElement getAttributes(final N5DirectoryPath path) throws N5IOException {
 
 		if (mergeAttributes) {
 			final JsonElement zgroup = store.store_readAttributesJson(path, ZGROUP_FILE, gson);
@@ -211,7 +211,7 @@ public final class ZarrN5Store implements N5Store {
 
 	@Override
 	public <T> void setAttribute(
-			final N5GroupPath path,
+			final N5DirectoryPath path,
 			final String attributePath,
 			final T attribute) throws N5IOException {
 
@@ -279,7 +279,7 @@ public final class ZarrN5Store implements N5Store {
 
 	@Override
 	public void setAttributes(
-			final N5GroupPath path,
+			final N5DirectoryPath path,
 			final Map<String, ?> attributes) throws N5IOException {
 
 		final JsonElement zarray = store.store_readAttributesJson(path, ZARRAY_FILE, gson);
@@ -336,7 +336,7 @@ public final class ZarrN5Store implements N5Store {
 	}
 
 	private boolean removeAttribute(
-			final N5GroupPath path,
+			final N5DirectoryPath path,
 			final String filename,
 			final String normalizedAttributePath) throws N5IOException {
 
@@ -352,7 +352,7 @@ public final class ZarrN5Store implements N5Store {
 
 	@Override
 	public boolean removeAttribute(
-			final N5GroupPath path,
+			final N5DirectoryPath path,
 			final String attributePath) throws N5IOException {
 
 		final String normalizedAttributePath = N5URI.normalizeAttributePath(attributePath);
@@ -362,7 +362,7 @@ public final class ZarrN5Store implements N5Store {
 	}
 
 	private <T> T removeAttribute(
-			final N5GroupPath path,
+			final N5DirectoryPath path,
 			final String filename,
 			final String normalizedAttributePath,
 			final Class<T> clazz) throws N5IOException, N5ClassCastException {
@@ -386,7 +386,7 @@ public final class ZarrN5Store implements N5Store {
 
 	@Override
 	public <T> T removeAttribute(
-			final N5GroupPath path,
+			final N5DirectoryPath path,
 			final String attributePath,
 			final Class<T> clazz) throws N5IOException, N5ClassCastException {
 
@@ -401,7 +401,7 @@ public final class ZarrN5Store implements N5Store {
 
 	@Override
 	public void setDatasetAttributes(
-			final N5GroupPath path,
+			final N5DirectoryPath path,
 			final DatasetAttributes attributes) throws N5IOException {
 
 		final ZArrayAttributes zarray = ((ZarrDatasetAttributes) attributes).getZArrayAttributes();
@@ -411,7 +411,7 @@ public final class ZarrN5Store implements N5Store {
 
 	@Override
 	public void createDataset(
-			final N5GroupPath path,
+			final N5DirectoryPath path,
 			final DatasetAttributes attributes) throws N5IOException {
 
 		if (path.parent() != null)
@@ -424,7 +424,7 @@ public final class ZarrN5Store implements N5Store {
 
 	@Override
 	public void createGroup(
-			final N5GroupPath path) throws N5IOException {
+			final N5DirectoryPath path) throws N5IOException {
 
 		// Avoid hitting the backend if this path is already a group according to the cache.
 		// If path is a dataset then throw an exception to avoid overwriting / invalidating existing data.
@@ -442,7 +442,7 @@ public final class ZarrN5Store implements N5Store {
 
 	@Override
 	public boolean remove(
-			final N5GroupPath path) throws N5IOException {
+			final N5DirectoryPath path) throws N5IOException {
 
 		if (store.store_isDirectory(path))
 			store.store_removeDirectory(path);

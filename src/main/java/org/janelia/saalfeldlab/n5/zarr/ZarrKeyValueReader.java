@@ -30,7 +30,6 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Reader;
@@ -40,9 +39,8 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
-import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
-import org.janelia.saalfeldlab.n5.N5Path.N5GroupPath;
+import org.janelia.saalfeldlab.n5.N5Path.N5DirectoryPath;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Store;
 import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
@@ -250,7 +248,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	@Override
 	public Version getVersion() throws N5Exception {
 
-		final N5GroupPath root = N5GroupPath.of("");
+		final N5DirectoryPath root = N5DirectoryPath.of("");
 		final Integer v = store.getAttribute(root, ZARR_FORMAT_KEY, Integer.class);
 		return v == null ? NO_VERSION : new ZarrVersion(v);
 	}
@@ -266,7 +264,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	 */
 	@Override
 	public ZarrDatasetAttributes getDatasetAttributes(final String pathName) throws N5Exception {
-		return (ZarrDatasetAttributes) store.getDatasetAttributes(N5GroupPath.of(pathName));
+		return (ZarrDatasetAttributes) store.getDatasetAttributes(N5DirectoryPath.of(pathName));
 	}
 
 	@Override

@@ -39,7 +39,7 @@ import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Exception;
-import org.janelia.saalfeldlab.n5.N5Path.N5GroupPath;
+import org.janelia.saalfeldlab.n5.N5Path.N5DirectoryPath;
 import org.janelia.saalfeldlab.n5.N5Store;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
@@ -218,7 +218,7 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 
 	protected Version getVersion(final String path) throws N5Exception {
 
-		final N5GroupPath root = N5GroupPath.of(path);
+		final N5DirectoryPath root = N5DirectoryPath.of(path);
 		final Integer v = store.getAttribute(root, ZARR_FORMAT_KEY, Integer.class);
 		return v == null ? NO_VERSION : new ZarrVersion(v);
 	}
