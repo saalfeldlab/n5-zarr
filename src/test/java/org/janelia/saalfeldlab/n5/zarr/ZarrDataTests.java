@@ -5,9 +5,8 @@ import static org.junit.Assert.assertTrue;
 
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.RootedFileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.FileSystemKeyValueRoot;
 import org.junit.Test;
 
 import com.google.gson.GsonBuilder;
@@ -18,7 +17,7 @@ public class ZarrDataTests {
 	public void dimensionTests() {
 
 		String path = "src/test/resources/examples/dimensionOrder.zarr";
-		ZarrKeyValueReader n5 = new ZarrKeyValueReader(new RootedFileSystemKeyValueAccess(path), new GsonBuilder(), false, false, true);
+		ZarrKeyValueReader n5 = new ZarrKeyValueReader(new FileSystemKeyValueRoot(path), new GsonBuilder(), false, false, true);
 
 		final int N = 3 * 4 * 5; // data size
 		final byte[] cExpectedData = new byte[N];

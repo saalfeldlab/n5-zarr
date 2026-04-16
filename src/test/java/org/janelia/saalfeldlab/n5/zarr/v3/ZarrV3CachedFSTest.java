@@ -17,8 +17,8 @@ import org.janelia.saalfeldlab.n5.N5CachedFSTest.TrackingStorage;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.RootedFileSystemKeyValueAccess;
-import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
+import org.janelia.saalfeldlab.n5.FileSystemKeyValueRoot;
+import org.janelia.saalfeldlab.n5.KeyValueRoot;
 import org.janelia.saalfeldlab.n5.TrackingMetaStore;
 import org.janelia.saalfeldlab.n5.cache.DelegateStore;
 import org.janelia.saalfeldlab.n5.cache.MyJsonCache;
@@ -47,7 +47,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 	protected N5Writer createN5Writer() {
 
 		final String testDirPath = tempN5Location();
-		return new ZarrV3KeyValueWriter(new RootedFileSystemKeyValueAccess(testDirPath), new GsonBuilder(), true);
+		return new ZarrV3KeyValueWriter(new FileSystemKeyValueRoot(testDirPath), new GsonBuilder(), true);
 	}
 
 	protected N5Writer createTempN5Writer(final boolean cacheAttributes) {
@@ -70,7 +70,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 	@Override
 	protected N5Reader createN5Reader(final String location, final GsonBuilder gson) throws IOException {
 
-		return new ZarrV3KeyValueReader(new RootedFileSystemKeyValueAccess(location), gson, true);
+		return new ZarrV3KeyValueReader(new FileSystemKeyValueRoot(location), gson, true);
 	}
 
 	protected N5Writer createTempN5Writer(
@@ -78,7 +78,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 			final GsonBuilder gsonBuilder,
 			final String dimensionSeparator) throws IOException {
 
-		return new ZarrV3KeyValueWriter(new RootedFileSystemKeyValueAccess(location), gsonBuilder, true);
+		return new ZarrV3KeyValueWriter(new FileSystemKeyValueRoot(location), gsonBuilder, true);
 	}
 
 	protected static String tempN5PathName() {
@@ -152,7 +152,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 
 		final String loc = tempN5Location();
 		// make an uncached n5 writer
-		try (final ZarrV3TrackingStorage n5 = new ZarrV3TrackingStorage(new RootedFileSystemKeyValueAccess(loc), new GsonBuilder(), true)) {
+		try (final ZarrV3TrackingStorage n5 = new ZarrV3TrackingStorage(new FileSystemKeyValueRoot(loc), new GsonBuilder(), true)) {
 			zarrCacheBehaviorHelper(n5);
 			n5.remove();
 		}
@@ -340,18 +340,18 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 
 		private TrackingMetaStore trackingStore;
 
-		public ZarrV3TrackingStorage(final RootedKeyValueAccess keyValueAccess,
+		public ZarrV3TrackingStorage(final KeyValueRoot keyValueRoot,
 				final GsonBuilder gsonBuilder, final boolean cacheAttributes) {
 
-			super(keyValueAccess, gsonBuilder, cacheAttributes);
+			super(keyValueRoot, gsonBuilder, cacheAttributes);
 		}
 
 		@Override
 		public DelegateStore createMetaStore(
-				final RootedKeyValueAccess keyValueAccess,
+				final KeyValueRoot keyValueRoot,
 				final boolean cacheMeta) {
 
-			trackingStore = new TrackingMetaStore(new KeyValueAccessMetaStore(keyValueAccess));
+			trackingStore = new TrackingMetaStore(new KeyValueAccessMetaStore(keyValueRoot));
 			return cacheMeta ? new MyJsonCache(trackingStore) : trackingStore;
 		}
 

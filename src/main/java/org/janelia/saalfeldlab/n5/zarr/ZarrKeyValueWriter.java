@@ -25,17 +25,19 @@
  */
 package org.janelia.saalfeldlab.n5.zarr;
 
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.DataBlock;
-import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
-import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
+import org.janelia.saalfeldlab.n5.KeyValueRoot;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.util.SubArrayCopy;
 
 /**
- * Zarr {@link KeyValueAccess} implementation.
+ * Zarr V2 {@link N5Writer} implementation through {@link KeyValueRoot} with
+ * JSON attributes parsed with {@link Gson}.
  *
  * @author Stephan Saalfeld
  * @author John Bogovic
@@ -52,7 +54,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 	 * compatible with this implementation, the N5 version of this container
 	 * will be set to the current N5 version of this implementation.
 	 *
-	 * @param keyValueAccess
+	 * @param keyValueRoot
 	 * @param gsonBuilder
 	 * @param cacheAttributes
 	 *            cache attributes
@@ -68,7 +70,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 	 *             if the base path cannot be written to or cannot be created.
 	 */
 	public ZarrKeyValueWriter(
-			final RootedKeyValueAccess keyValueAccess,
+			final KeyValueRoot keyValueRoot,
 			final GsonBuilder gsonBuilder,
 			final boolean mapN5DatasetAttributes,
 			final boolean mergeAttributes,
@@ -78,7 +80,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 
 		super(
 				false,
-				keyValueAccess,
+				keyValueRoot,
 				gsonBuilder,
 				mapN5DatasetAttributes,
 				mergeAttributes,

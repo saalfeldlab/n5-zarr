@@ -42,7 +42,7 @@ import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Path.N5DirectoryPath;
 import org.janelia.saalfeldlab.n5.N5Store;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
-import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
+import org.janelia.saalfeldlab.n5.KeyValueRoot;
 import org.janelia.saalfeldlab.n5.cache.DelegateStore;
 import org.janelia.saalfeldlab.n5.codec.CodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.ZarrVersion;
@@ -66,7 +66,7 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 
 	protected String dimensionSeparator = DEFAULT_DIMENSION_SEPARATOR;
 
-	protected final RootedKeyValueAccess keyValueAccess;
+	protected final KeyValueRoot keyValueRoot;
 	protected final DelegateStore metaStore;
 	protected final N5Store store;
 	protected final Gson gson;
@@ -78,7 +78,7 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
      * {@link GsonBuilder} to support custom attributes.
      *
      * @param checkVersion   perform version check
-     * @param keyValueAccess
+     * @param keyValueRoot
      * @param gsonBuilder    the gson builder
      * @param cacheMeta      cache attributes and meta data
      *                       Setting this to true avoids frequent reading and parsing of
@@ -97,19 +97,19 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
      */
 	public ZarrV3KeyValueReader(
 			final boolean checkVersion,
-			final RootedKeyValueAccess keyValueAccess,
+			final KeyValueRoot keyValueRoot,
 			final GsonBuilder gsonBuilder,
             final boolean cacheMeta)
 			throws N5Exception {
 
-		this(checkVersion, keyValueAccess, gsonBuilder, cacheMeta, true);
+		this(checkVersion, keyValueRoot, gsonBuilder, cacheMeta, true);
 	}
 
 	/**
 	 * Opens an {@link ZarrV3KeyValueReader} at a given base path with a custom
 	 * {@link GsonBuilder} to support custom attributes.
 	 *
-	 * @param keyValueAccess
+	 * @param keyValueRoot
 	 * @param gsonBuilder
 	 * 			GSON builder
 	 * @param cacheMeta
@@ -125,25 +125,25 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 	 *             implementation.
 	 */
 	public ZarrV3KeyValueReader(
-			final RootedKeyValueAccess keyValueAccess,
+			final KeyValueRoot keyValueRoot,
 			final GsonBuilder gsonBuilder,
             final boolean cacheMeta)
 			throws N5Exception {
 
-		this(true, keyValueAccess, gsonBuilder, cacheMeta);
+		this(true, keyValueRoot, gsonBuilder, cacheMeta);
 	}
 
 	protected ZarrV3KeyValueReader(
 			final boolean checkVersion,
-			final RootedKeyValueAccess keyValueAccess,
+			final KeyValueRoot keyValueRoot,
 			final GsonBuilder gsonBuilder,
 			final boolean cacheMeta,
 			final boolean checkRootExists) {
 
-		this.keyValueAccess = keyValueAccess;
+		this.keyValueRoot = keyValueRoot;
 		this.gson = addTypeAdapters(gsonBuilder).create();
 		this.cacheMeta = cacheMeta;
-		this.metaStore = createMetaStore(keyValueAccess, cacheMeta);
+		this.metaStore = createMetaStore(keyValueRoot, cacheMeta);
 		this.store = new ZarrV3Store(metaStore, gson);
 
 		boolean versionFound = false;
@@ -159,7 +159,7 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 
 		// if a version was found, the container exists - don't need to check again
 		if (checkRootExists && (!versionFound && !exists("/")))
-			throw new N5Exception.N5IOException("No container exists at " + keyValueAccess.root());
+			throw new N5Exception.N5IOException("No container exists at " + keyValueRoot.uri());
 	}
 
 	public String getDimensionSeparator() {
@@ -183,9 +183,9 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 	}
 
 	@Override
-	public RootedKeyValueAccess getKeyValueRoot() {
+	public KeyValueRoot getKeyValueRoot() {
 
-		return keyValueAccess;
+		return keyValueRoot;
 	}
 
 	@Override
@@ -226,7 +226,7 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 	@Override
 	public String toString() {
 
-		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, getURI().getPath());
+		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueRoot, getURI().getPath());
 	}
 
 	protected static GsonBuilder addTypeAdapters(final GsonBuilder gsonBuilder) {

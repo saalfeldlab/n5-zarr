@@ -68,8 +68,8 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.RootedFileSystemKeyValueAccess;
-import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
+import org.janelia.saalfeldlab.n5.FileSystemKeyValueRoot;
+import org.janelia.saalfeldlab.n5.KeyValueRoot;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
@@ -120,7 +120,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	protected N5Writer createN5Writer()  {
 
 		final String testDirPath = tempN5Location();
-		return new ZarrKeyValueWriter(new RootedFileSystemKeyValueAccess(testDirPath), new GsonBuilder(), true, true, ".", false);
+		return new ZarrKeyValueWriter(new FileSystemKeyValueRoot(testDirPath), new GsonBuilder(), true, true, ".", false);
 	}
 
 	@Override
@@ -155,7 +155,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			final boolean mapN5DatasetAttributes,
 			final boolean cacheAttributes) {
 
-		final ZarrKeyValueWriter tempWriter = new ZarrKeyValueWriter(new RootedFileSystemKeyValueAccess(location),
+		final ZarrKeyValueWriter tempWriter = new ZarrKeyValueWriter(new FileSystemKeyValueRoot(location),
 				gsonBuilder, mapN5DatasetAttributes, true, dimensionSeparator, cacheAttributes);
 		tempWriters.add(tempWriter);
 		return tempWriter;
@@ -164,7 +164,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Override
 	protected N5Reader createN5Reader(final String location, final GsonBuilder gson) throws IOException {
 
-		return new ZarrKeyValueReader(new RootedFileSystemKeyValueAccess(location), gson, true, true, false);
+		return new ZarrKeyValueReader(new FileSystemKeyValueRoot(location), gson, true, true, false);
 	}
 
 	@Override
@@ -302,7 +302,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.createDataset(dsetPath, attributes);
 			n5.writeBlock(dsetPath, attributes, blk10);
 
-			final RootedKeyValueAccess kva = ((GsonKeyValueN5Writer)n5).getKeyValueRoot();
+			final KeyValueRoot kva = ((GsonKeyValueN5Writer)n5).getKeyValueRoot();
 			try (VolatileReadData rd = kva.createReadData("1.0")) {
 				assertArrayEquals(expectedPaddedData, rd.allBytes());
 			}
@@ -764,7 +764,7 @@ public class N5ZarrTest extends AbstractN5Test {
 				new RawCompression());
 
 		final N5FilePath zarrayLocation = N5Path.N5DirectoryPath.of(testZarrDatasetName).resolve(".zarray").asFile();
-		final RootedKeyValueAccess kva = n5.getKeyValueRoot();
+		final KeyValueRoot kva = n5.getKeyValueRoot();
 		final JSONParser jsonParser = new JSONParser();
 		try ( VolatileReadData rd = kva.createReadData(zarrayLocation) ) {
 			String json = new String(rd.allBytes());

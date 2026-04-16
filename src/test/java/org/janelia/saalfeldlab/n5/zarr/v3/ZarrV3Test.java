@@ -61,7 +61,7 @@ import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.RootedFileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.FileSystemKeyValueRoot;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
@@ -112,7 +112,7 @@ public class ZarrV3Test extends AbstractN5Test {
 	protected N5Writer createN5Writer()  {
 
 		final String testDirPath = tempN5Location();
-		return new ZarrV3KeyValueWriter(new RootedFileSystemKeyValueAccess(testDirPath), new GsonBuilder(), true);
+		return new ZarrV3KeyValueWriter(new FileSystemKeyValueRoot(testDirPath), new GsonBuilder(), true);
 		// TODO: shouldn't this set cacheAttributes==false?
 	}
 
@@ -139,7 +139,7 @@ public class ZarrV3Test extends AbstractN5Test {
 			final String dimensionSeparator,
 			final boolean cacheAttributes) {
 
-		final ZarrV3KeyValueWriter tempWriter = new ZarrV3KeyValueWriter(new RootedFileSystemKeyValueAccess(location), gsonBuilder, cacheAttributes);
+		final ZarrV3KeyValueWriter tempWriter = new ZarrV3KeyValueWriter(new FileSystemKeyValueRoot(location), gsonBuilder, cacheAttributes);
 		tempWriters.add(tempWriter);
 		return tempWriter;
 	}
@@ -147,7 +147,7 @@ public class ZarrV3Test extends AbstractN5Test {
 	@Override
 	protected N5Reader createN5Reader(final String location, final GsonBuilder gson) throws IOException {
 
-		return new ZarrV3KeyValueReader(new RootedFileSystemKeyValueAccess(location), gson, false);
+		return new ZarrV3KeyValueReader(new FileSystemKeyValueRoot(location), gson, false);
 	}
 
 	@Override
@@ -190,7 +190,7 @@ public class ZarrV3Test extends AbstractN5Test {
 
 		final String path = "src/test/resources/shardExamples/test.zarr/mid_sharded";
 		try (ZarrV3KeyValueReader n5 = new ZarrV3KeyValueReader(
-				new RootedFileSystemKeyValueAccess(path), addZarrAdapters(new GsonBuilder()), true)) {
+				new FileSystemKeyValueRoot(path), addZarrAdapters(new GsonBuilder()), true)) {
 
 			final ChunkGrid chunkGrid = n5.getAttribute("/", "chunk_grid", ChunkGrid.class);
 			final ChunkKeyEncoding chunkKeyEncoding = n5.getAttribute("/", "chunk_key_encoding", ChunkKeyEncoding.class);

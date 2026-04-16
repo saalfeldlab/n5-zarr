@@ -25,7 +25,7 @@ import org.apache.commons.io.FileUtils;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.RootedFileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.FileSystemKeyValueRoot;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -252,7 +252,7 @@ public class TensorstoreTest {
 
 		final String basePath = tempN5Location();
 		try (final ZarrV3KeyValueWriter n5Zarr = new ZarrV3KeyValueWriter(
-				new RootedFileSystemKeyValueAccess(basePath), new GsonBuilder(), false)) {
+				new FileSystemKeyValueRoot(basePath), new GsonBuilder(), false)) {
 
 			final String testZarrDatasetName = String.join("/", testZarrBaseName, "3");
 			n5Zarr.createDataset(
@@ -332,10 +332,10 @@ public class TensorstoreTest {
 		switch (version) {
 		case zarr3:
 			n5Zarr = new ZarrV3KeyValueWriter(
-					new RootedFileSystemKeyValueAccess(testZarrDirPath), new GsonBuilder(), false);
+					new FileSystemKeyValueRoot(testZarrDirPath), new GsonBuilder(), false);
 			break;
 		default:
-			n5Zarr = new ZarrKeyValueWriter(new RootedFileSystemKeyValueAccess(testZarrDirPath),
+			n5Zarr = new ZarrKeyValueWriter(new FileSystemKeyValueRoot(testZarrDirPath),
 					new GsonBuilder(), true, true, "/", false);
 			break;
 		}
@@ -507,10 +507,10 @@ public class TensorstoreTest {
 		switch (version) {
 		case zarr3:
 			n5Zarr = new ZarrV3KeyValueWriter(
-					new RootedFileSystemKeyValueAccess(testZarrDirPath), new GsonBuilder(), false);
+					new FileSystemKeyValueRoot(testZarrDirPath), new GsonBuilder(), false);
 			break;
 		default:
-			n5Zarr = new ZarrKeyValueWriter(new RootedFileSystemKeyValueAccess(testZarrDirPath),
+			n5Zarr = new ZarrKeyValueWriter(new FileSystemKeyValueRoot(testZarrDirPath),
 					new GsonBuilder(), true, true, "/", false);
 			break;
 		}

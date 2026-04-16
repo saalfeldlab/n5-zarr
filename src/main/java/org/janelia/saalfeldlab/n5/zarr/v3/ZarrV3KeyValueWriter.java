@@ -33,7 +33,7 @@ import org.janelia.saalfeldlab.n5.CachedGsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
+import org.janelia.saalfeldlab.n5.KeyValueRoot;
 
 import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.ZARR_FORMAT_KEY;
 
@@ -46,7 +46,7 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 	 * Opens an {@link ZarrV3KeyValueWriter} at a given base path with a custom
 	 * {@link GsonBuilder} to support custom attributes.
 	 *
-	 * @param keyValueAccess
+	 * @param keyValueRoot
 	 * @param gsonBuilder
 	 * @param cacheAttributes
 	 * 		cache attributes and meta data Setting this to true avoids frequent
@@ -60,12 +60,12 @@ public class ZarrV3KeyValueWriter extends ZarrV3KeyValueReader implements Cached
 	 * 		the container is not compatible with this implementation.
 	 */
 	public ZarrV3KeyValueWriter(
-			final RootedKeyValueAccess keyValueAccess,
+			final KeyValueRoot keyValueRoot,
 			final GsonBuilder gsonBuilder,
             final boolean cacheAttributes)
 			throws N5Exception {
 
-		super(false, keyValueAccess, gsonBuilder,
+		super(false, keyValueRoot, gsonBuilder,
 				cacheAttributes, false);
 
 		Version version = null;

@@ -37,19 +37,19 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Path.N5DirectoryPath;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Store;
-import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
+import org.janelia.saalfeldlab.n5.KeyValueRoot;
 import org.janelia.saalfeldlab.n5.cache.DelegateStore;
 
 import static org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes.createZArrayAttributes;
 
 /**
- * {@link N5Reader} implementation through {@link KeyValueAccess} with JSON attributes parsed with {@link Gson}.
+ * Zarr V2 {@link N5Reader} implementation through {@link KeyValueRoot} with
+ * JSON attributes parsed with {@link Gson}.
  *
  * @author Stephan Saalfeld
  * @author John Bogovic
@@ -86,7 +86,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	public static final String ZATTRS_FILE = ".zattrs";
 	public static final String ZGROUP_FILE = ".zgroup";
 
-	protected final RootedKeyValueAccess keyValueAccess;
+	protected final KeyValueRoot keyValueRoot;
 	protected final DelegateStore metaStore;
 	protected final N5Store store;
 	protected final Gson gson;
@@ -106,7 +106,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	 *
 	 * @param checkVersion
 	 *            perform version check
-	 * @param keyValueAccess
+	 * @param keyValueRoot
 	 *            the backend KeyValueAccess used
 	 * @param gsonBuilder
 	 *            the gson builder
@@ -129,30 +129,30 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	 */
 	public ZarrKeyValueReader(
 			final boolean checkVersion,
-			final RootedKeyValueAccess keyValueAccess,
+			final KeyValueRoot keyValueRoot,
 			final GsonBuilder gsonBuilder,
 			final boolean mapN5DatasetAttributes,
 			final boolean mergeAttributes,
 			final boolean cacheMeta)
 			throws N5Exception {
 
-		this(checkVersion, keyValueAccess, gsonBuilder, mapN5DatasetAttributes, mergeAttributes, cacheMeta,
+		this(checkVersion, keyValueRoot, gsonBuilder, mapN5DatasetAttributes, mergeAttributes, cacheMeta,
 				true);
 	}
 
 	protected ZarrKeyValueReader(
 			final boolean checkVersion,
-			final RootedKeyValueAccess keyValueAccess,
+			final KeyValueRoot keyValueRoot,
 			final GsonBuilder gsonBuilder,
 			final boolean mapN5DatasetAttributes,
 			final boolean mergeAttributes,
 			final boolean cacheMeta,
 			final boolean checkRootExists) {
 
-		this.keyValueAccess = keyValueAccess;
+		this.keyValueRoot = keyValueRoot;
 		this.gson = registerGson(gsonBuilder);
 		this.cacheMeta = cacheMeta;
-		this.metaStore = createMetaStore(keyValueAccess, cacheMeta);
+		this.metaStore = createMetaStore(keyValueRoot, cacheMeta);
 		this.store = new ZarrN5Store(metaStore, gson, mapN5DatasetAttributes, mergeAttributes);
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
 		this.mergeAttributes = mergeAttributes;
@@ -170,14 +170,14 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 
 		// if a version was found, the container exists - don't need to check again
 		if (checkRootExists && (!versionFound && !exists("/")))
-			throw new N5Exception.N5IOException("No container exists at " + keyValueAccess.root());
+			throw new N5Exception.N5IOException("No container exists at " + keyValueRoot.uri());
 	}
 
 	/**
 	 * Opens an {@link ZarrKeyValueReader} at a given base path with a custom {@link GsonBuilder} to support custom
 	 * attributes.
 	 *
-	 * @param keyValueAccess
+	 * @param keyValueRoot
 	 *            the backend KeyValueAccess used
 	 * @param gsonBuilder
 	 *            the gson builder
@@ -199,14 +199,14 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	 *             compatible with this implementation.
 	 */
 	public ZarrKeyValueReader(
-			final RootedKeyValueAccess keyValueAccess,
+			final KeyValueRoot keyValueRoot,
 			final GsonBuilder gsonBuilder,
 			final boolean mapN5DatasetAttributes,
 			final boolean mergeAttributes,
 			final boolean cacheMeta)
 			throws N5Exception {
 
-		this(true, keyValueAccess, gsonBuilder, mapN5DatasetAttributes, mergeAttributes, cacheMeta);
+		this(true, keyValueRoot, gsonBuilder, mapN5DatasetAttributes, mergeAttributes, cacheMeta);
 	}
 
 	@Override
@@ -223,9 +223,9 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	}
 
 	@Override
-	public RootedKeyValueAccess getKeyValueRoot() {
+	public KeyValueRoot getKeyValueRoot() {
 
-		return keyValueAccess;
+		return keyValueRoot;
 	}
 
 	@Override
@@ -294,7 +294,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	@Override
 	public String toString() {
 
-		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueAccess, getURI().getPath());
+		return String.format("%s[access=%s, basePath=%s]", getClass().getSimpleName(), keyValueRoot, getURI().getPath());
 	}
 
 	static Gson registerGson(final GsonBuilder gsonBuilder) {

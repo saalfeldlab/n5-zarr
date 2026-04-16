@@ -53,8 +53,8 @@ import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5CachedFSTest.TrackingStorage;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.RootedFileSystemKeyValueAccess;
-import org.janelia.saalfeldlab.n5.RootedKeyValueAccess;
+import org.janelia.saalfeldlab.n5.FileSystemKeyValueRoot;
+import org.janelia.saalfeldlab.n5.KeyValueRoot;
 import org.janelia.saalfeldlab.n5.TrackingMetaStore;
 import org.janelia.saalfeldlab.n5.cache.DelegateStore;
 import org.janelia.saalfeldlab.n5.cache.MyJsonCache;
@@ -62,7 +62,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
 
 public class ZarrCachedFSTest extends N5ZarrTest {
 
@@ -187,7 +186,7 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 
 		final String loc = tempN5Location();
 		// make an uncached n5 writer
-		try (final ZarrTrackingStorage n5 = new ZarrTrackingStorage(new RootedFileSystemKeyValueAccess(loc), new GsonBuilder(), true)) {
+		try (final ZarrTrackingStorage n5 = new ZarrTrackingStorage(new FileSystemKeyValueRoot(loc), new GsonBuilder(), true)) {
 
 			zarrCacheBehaviorHelper(n5);
 			n5.remove();
@@ -406,18 +405,18 @@ public class ZarrCachedFSTest extends N5ZarrTest {
 
 		private TrackingMetaStore trackingStore;
 
-		public ZarrTrackingStorage(final RootedKeyValueAccess keyValueAccess,
+		public ZarrTrackingStorage(final KeyValueRoot keyValueRoot,
 				final GsonBuilder gsonBuilder, final boolean cacheAttributes) {
 
-			super(keyValueAccess, gsonBuilder, true, true, ".", cacheAttributes);
+			super(keyValueRoot, gsonBuilder, true, true, ".", cacheAttributes);
 		}
 
 		@Override
 		public DelegateStore createMetaStore(
-				final RootedKeyValueAccess keyValueAccess,
+				final KeyValueRoot keyValueRoot,
 				final boolean cacheMeta) {
 
-			trackingStore = new TrackingMetaStore(new KeyValueAccessMetaStore(keyValueAccess));
+			trackingStore = new TrackingMetaStore(new KeyValueAccessMetaStore(keyValueRoot));
 			return cacheMeta ? new MyJsonCache(trackingStore) : trackingStore;
 		}
 
