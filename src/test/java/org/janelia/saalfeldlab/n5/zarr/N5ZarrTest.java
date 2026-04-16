@@ -302,8 +302,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.createDataset(dsetPath, attributes);
 			n5.writeBlock(dsetPath, attributes, blk10);
 
-			final KeyValueRoot kva = ((GsonKeyValueN5Writer)n5).getKeyValueRoot();
-			try (VolatileReadData rd = kva.createReadData("1.0")) {
+			final KeyValueRoot kvr = ((GsonKeyValueN5Writer)n5).getKeyValueRoot();
+			try (VolatileReadData rd = kvr.createReadData("1.0")) {
 				assertArrayEquals(expectedPaddedData, rd.allBytes());
 			}
 
@@ -764,9 +764,9 @@ public class N5ZarrTest extends AbstractN5Test {
 				new RawCompression());
 
 		final N5FilePath zarrayLocation = N5Path.N5DirectoryPath.of(testZarrDatasetName).resolve(".zarray").asFile();
-		final KeyValueRoot kva = n5.getKeyValueRoot();
+		final KeyValueRoot kvr = n5.getKeyValueRoot();
 		final JSONParser jsonParser = new JSONParser();
-		try ( VolatileReadData rd = kva.createReadData(zarrayLocation) ) {
+		try ( VolatileReadData rd = kvr.createReadData(zarrayLocation) ) {
 			String json = new String(rd.allBytes());
 			final JSONObject zarray = (JSONObject)jsonParser.parse(json);
 			final JSONObject compressor = (JSONObject)zarray.get("compressor");
