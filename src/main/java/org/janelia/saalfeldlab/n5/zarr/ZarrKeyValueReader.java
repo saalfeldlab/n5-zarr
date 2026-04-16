@@ -41,7 +41,7 @@ import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Path.N5DirectoryPath;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Store;
+import org.janelia.saalfeldlab.n5.ContainerDialect;
 import org.janelia.saalfeldlab.n5.KeyValueRoot;
 import org.janelia.saalfeldlab.n5.cache.DelegateStore;
 
@@ -88,7 +88,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 
 	protected final KeyValueRoot keyValueRoot;
 	protected final DelegateStore metaStore;
-	protected final N5Store store;
+	protected final ContainerDialect store;
 	protected final Gson gson;
 	protected final boolean cacheMeta;
 
@@ -153,7 +153,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 		this.gson = registerGson(gsonBuilder);
 		this.cacheMeta = cacheMeta;
 		this.metaStore = createMetaStore(keyValueRoot, cacheMeta);
-		this.store = new ZarrN5Store(metaStore, gson, mapN5DatasetAttributes, mergeAttributes);
+		this.store = new ZarrV2Dialect(metaStore, gson, mapN5DatasetAttributes, mergeAttributes);
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
 		this.mergeAttributes = mergeAttributes;
 
@@ -229,7 +229,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	}
 
 	@Override
-	public N5Store getN5Store() {
+	public ContainerDialect getContainerDialect() {
 
 		return store;
 	}

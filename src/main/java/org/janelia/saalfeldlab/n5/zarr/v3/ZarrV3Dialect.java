@@ -14,7 +14,7 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Exception.N5JsonParseException;
 import org.janelia.saalfeldlab.n5.N5Path.N5DirectoryPath;
-import org.janelia.saalfeldlab.n5.N5Store;
+import org.janelia.saalfeldlab.n5.ContainerDialect;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.cache.DelegateStore;
 
@@ -31,8 +31,19 @@ import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NODE_TYPE_KEY;
 import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.NodeType.GROUP;
 import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.ZARR_FORMAT_KEY;
 
-// TODO: Rename something like that: N5Store -> FormatStore / ZarrV3FormatStore ???
-public final class ZarrV3Store implements N5Store {
+/**
+ * {@code ContainerDialect} for Zarr v3.
+ * <ul>
+ * <li>Every directory that has a "zarr.json" file is a group or dataset.</li>
+ * <li>All attributes of a group or dataset are stored in "zarr.json".</li>
+ * <li>The "node_type" attribute declares whether a directory is a group or a dataset.</li>
+ * <li>User-defined attributes are nested under the "attributes/" path in "zarr.json"</li>
+ * </ul>
+ * Group/array attributes will be merged with the "user attributes" (nested
+ * under the "attributes/" path in "zarr.json") for {@link #getAttributes} and
+ * {@link #setAttributes}.
+ */
+public final class ZarrV3Dialect implements ContainerDialect {
 
 	/**
 	 * If {@code flattenAttributes == true} then group/array attributes will be
@@ -49,7 +60,7 @@ public final class ZarrV3Store implements N5Store {
 	private final Gson gson;
 	private final JsonObject groupAttr;
 
-	public ZarrV3Store(
+	public ZarrV3Dialect(
 			final DelegateStore store,
 			final Gson gson) {
 		this.store = store;

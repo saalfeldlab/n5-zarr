@@ -20,7 +20,7 @@ import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
 import org.janelia.saalfeldlab.n5.N5Exception.N5IOException;
 import org.janelia.saalfeldlab.n5.N5Exception.N5JsonParseException;
 import org.janelia.saalfeldlab.n5.N5Path.N5DirectoryPath;
-import org.janelia.saalfeldlab.n5.N5Store;
+import org.janelia.saalfeldlab.n5.ContainerDialect;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.cache.DelegateStore;
@@ -31,8 +31,15 @@ import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.ZARRAY_FILE;
 import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.ZATTRS_FILE;
 import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.ZGROUP_FILE;
 
-// TODO: Rename something like that: N5Store -> FormatStore / ZarrFormatStore ???
-public final class ZarrN5Store implements N5Store {
+/**
+ * {@code ContainerDialect} for Zarr v2.
+ * <ul>
+ * <li>Every directory that has a ".zgroup" file is a group.</li>
+ * <li>Every directory that has a ".zarray" file is a dataset.</li>
+ * <li>User-defined attributes are in an additional ".zattrs" file.</li>
+ * </ul>
+ */
+public final class ZarrV2Dialect implements ContainerDialect {
 
 	private final DelegateStore store;
 	private final Gson gson;
@@ -40,7 +47,16 @@ public final class ZarrN5Store implements N5Store {
 	private final boolean mergeAttributes;
 	private final JsonObject groupAttr;
 
-	public ZarrN5Store(
+	/**
+	 * @param mapN5DatasetAttributes
+	 * 		If true, getAttributes and variants of getAttribute methods will contain keys used by n5 datasets, and
+	 * 		whose values are those for their corresponding zarr fields. For example, if true, the key "dimensions"
+	 * 		(from n5) may be used to obtain the value of the key "shape" (from zarr).
+	 * @param mergeAttributes
+	 * 		If true, fields from .zgroup, .zarray, and .zattrs will be merged when calling getAttributes, and
+	 * 		variants of getAttribute
+	 */
+	public ZarrV2Dialect(
 			final DelegateStore store,
 			final Gson gson,
 			final boolean mapN5DatasetAttributes,
