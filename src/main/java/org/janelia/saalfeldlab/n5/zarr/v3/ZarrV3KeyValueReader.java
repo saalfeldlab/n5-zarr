@@ -43,7 +43,7 @@ import org.janelia.saalfeldlab.n5.N5Path.N5DirectoryPath;
 import org.janelia.saalfeldlab.n5.ContainerDialect;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.KeyValueRoot;
-import org.janelia.saalfeldlab.n5.cache.DelegateStore;
+import org.janelia.saalfeldlab.n5.cache.HierarchyStore;
 import org.janelia.saalfeldlab.n5.codec.CodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.ZarrVersion;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
@@ -67,7 +67,7 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 	protected String dimensionSeparator = DEFAULT_DIMENSION_SEPARATOR;
 
 	protected final KeyValueRoot keyValueRoot;
-	protected final DelegateStore metaStore;
+	protected final HierarchyStore metaStore;
 	protected final ContainerDialect store;
 	protected final Gson gson;
 	protected final boolean cacheMeta;
@@ -143,7 +143,7 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 		this.keyValueRoot = keyValueRoot;
 		this.gson = addTypeAdapters(gsonBuilder).create();
 		this.cacheMeta = cacheMeta;
-		this.metaStore = createMetaStore(keyValueRoot, cacheMeta);
+		this.metaStore = createHierarchyStore(keyValueRoot, cacheMeta);
 		this.store = new ZarrV3Dialect(metaStore, gson);
 
 		boolean versionFound = false;

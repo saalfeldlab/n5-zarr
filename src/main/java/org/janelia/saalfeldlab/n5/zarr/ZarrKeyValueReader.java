@@ -43,7 +43,7 @@ import org.janelia.saalfeldlab.n5.N5Path.N5DirectoryPath;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.ContainerDialect;
 import org.janelia.saalfeldlab.n5.KeyValueRoot;
-import org.janelia.saalfeldlab.n5.cache.DelegateStore;
+import org.janelia.saalfeldlab.n5.cache.HierarchyStore;
 
 import static org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes.createZArrayAttributes;
 
@@ -87,7 +87,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	public static final String ZGROUP_FILE = ".zgroup";
 
 	protected final KeyValueRoot keyValueRoot;
-	protected final DelegateStore metaStore;
+	protected final HierarchyStore metaStore;
 	protected final ContainerDialect store;
 	protected final Gson gson;
 	protected final boolean cacheMeta;
@@ -152,7 +152,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 		this.keyValueRoot = keyValueRoot;
 		this.gson = registerGson(gsonBuilder);
 		this.cacheMeta = cacheMeta;
-		this.metaStore = createMetaStore(keyValueRoot, cacheMeta);
+		this.metaStore = createHierarchyStore(keyValueRoot, cacheMeta);
 		this.store = new ZarrV2Dialect(metaStore, gson, mapN5DatasetAttributes, mergeAttributes);
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
 		this.mergeAttributes = mergeAttributes;

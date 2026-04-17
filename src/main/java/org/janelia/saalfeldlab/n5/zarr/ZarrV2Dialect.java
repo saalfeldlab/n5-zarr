@@ -23,7 +23,7 @@ import org.janelia.saalfeldlab.n5.N5Path.N5DirectoryPath;
 import org.janelia.saalfeldlab.n5.ContainerDialect;
 import org.janelia.saalfeldlab.n5.N5URI;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.n5.cache.DelegateStore;
+import org.janelia.saalfeldlab.n5.cache.HierarchyStore;
 import org.janelia.saalfeldlab.n5.serialization.JsonArrayUtils;
 
 import static org.janelia.saalfeldlab.n5.GsonUtils.parseAttributeElement;
@@ -41,7 +41,7 @@ import static org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.ZGROUP_FILE;
  */
 public final class ZarrV2Dialect implements ContainerDialect {
 
-	private final DelegateStore store;
+	private final HierarchyStore store;
 	private final Gson gson;
 	private final boolean mapN5Attributes;
 	private final boolean mergeAttributes;
@@ -57,7 +57,7 @@ public final class ZarrV2Dialect implements ContainerDialect {
 	 * 		variants of getAttribute
 	 */
 	public ZarrV2Dialect(
-			final DelegateStore store,
+			final HierarchyStore store,
 			final Gson gson,
 			final boolean mapN5DatasetAttributes,
 			final boolean mergeAttributes) {
@@ -77,7 +77,7 @@ public final class ZarrV2Dialect implements ContainerDialect {
 			final String normalizedAttributePath,
 			final Type type) throws N5IOException, N5ClassCastException {
 
-		final JsonElement root = store.store_readAttributesJson(path, filename, gson);
+		final JsonElement root = store.readAttributesJson(path, filename, gson);
 
 		try {
 			return GsonUtils.readAttribute(root, normalizedAttributePath, type, gson);
@@ -131,7 +131,7 @@ public final class ZarrV2Dialect implements ContainerDialect {
 	public DatasetAttributes getDatasetAttributes(
 			final N5DirectoryPath path) throws N5IOException {
 
-		final JsonElement json = store.store_readAttributesJson(path, ZARRAY_FILE, gson);
+		final JsonElement json = store.readAttributesJson(path, ZARRAY_FILE, gson);
 		final ZArrayAttributes zarray = gson.fromJson(json, ZArrayAttributes.class);
 		return zarray != null ? new ZarrDatasetAttributes(zarray) : null;
 	}
@@ -147,14 +147,14 @@ public final class ZarrV2Dialect implements ContainerDialect {
 	public boolean groupExists(
 			final N5DirectoryPath path) throws N5IOException {
 
-		return store.store_readAttributesJson(path, ZGROUP_FILE, gson) != null;
+		return store.readAttributesJson(path, ZGROUP_FILE, gson) != null;
 	}
 
 	@Override
 	public String[] list(
 			final N5DirectoryPath group) throws N5IOException {
 
-		return store.store_listDirectories(group);
+		return store.listDirectories(group);
 	}
 
 	@Override
@@ -169,15 +169,15 @@ public final class ZarrV2Dialect implements ContainerDialect {
 	public JsonElement getAttributes(final N5DirectoryPath path) throws N5IOException {
 
 		if (mergeAttributes) {
-			final JsonElement zgroup = store.store_readAttributesJson(path, ZGROUP_FILE, gson);
-			final JsonElement zarray = store.store_readAttributesJson(path, ZARRAY_FILE, gson);
+			final JsonElement zgroup = store.readAttributesJson(path, ZGROUP_FILE, gson);
+			final JsonElement zarray = store.readAttributesJson(path, ZARRAY_FILE, gson);
 			if (zgroup == null && zarray == null) {
 				return null;
 			}
-			final JsonElement zattrs = store.store_readAttributesJson(path, ZATTRS_FILE, gson);
+			final JsonElement zattrs = store.readAttributesJson(path, ZATTRS_FILE, gson);
 			return combineAll(zgroup, zarray, zattrs);
 		} else {
-			return store.store_readAttributesJson(path, ZATTRS_FILE, gson);
+			return store.readAttributesJson(path, ZATTRS_FILE, gson);
 		}
 	}
 
@@ -298,8 +298,8 @@ public final class ZarrV2Dialect implements ContainerDialect {
 			final N5DirectoryPath path,
 			final Map<String, ?> attributes) throws N5IOException {
 
-		final JsonElement zarray = store.store_readAttributesJson(path, ZARRAY_FILE, gson);
-		final JsonElement zgroup = store.store_readAttributesJson(path, ZGROUP_FILE, gson);
+		final JsonElement zarray = store.readAttributesJson(path, ZARRAY_FILE, gson);
+		final JsonElement zgroup = store.readAttributesJson(path, ZGROUP_FILE, gson);
 		if (zarray == null && zgroup == null)
 			throw new N5IOException(String.format("Directory does not exist: %s", path));
 
@@ -308,7 +308,7 @@ public final class ZarrV2Dialect implements ContainerDialect {
 
 		JsonObject obj = new JsonObject();
 
-		final JsonElement zattrs = store.store_readAttributesJson(path, ZATTRS_FILE, gson);
+		final JsonElement zattrs = store.readAttributesJson(path, ZATTRS_FILE, gson);
 		if (zattrs != null) {
 			zattrs.getAsJsonObject().asMap().forEach(obj::add);
 		}
@@ -329,7 +329,7 @@ public final class ZarrV2Dialect implements ContainerDialect {
 			}
 
 			// extract and write zarray attributes
-			store.store_writeAttributesJson(path,
+			store.writeAttributesJson(path,
 					ZARRAY_FILE,
 					extract(obj, ZArrayAttributes.allKeys),
 					gson);
@@ -341,14 +341,14 @@ public final class ZarrV2Dialect implements ContainerDialect {
 			obj = GsonUtils.insertAttributes(obj, attributes, gson).getAsJsonObject();
 
 			// extract and write zgroup attributes
-			store.store_writeAttributesJson(path,
+			store.writeAttributesJson(path,
 					ZGROUP_FILE,
 					extract(obj, ZArrayAttributes.zarrFormatKey),
 					gson);
 		}
 
 		// whatever remains goes into .zattrs
-		store.store_writeAttributesJson(path, ZATTRS_FILE, obj, gson);
+		store.writeAttributesJson(path, ZATTRS_FILE, obj, gson);
 	}
 
 	private boolean removeAttribute(
@@ -356,10 +356,10 @@ public final class ZarrV2Dialect implements ContainerDialect {
 			final String filename,
 			final String normalizedAttributePath) throws N5IOException {
 
-		final JsonElement root = store.store_readAttributesJson(path, filename, gson);
+		final JsonElement root = store.readAttributesJson(path, filename, gson);
 		if (root != null) {
 			if (null != GsonUtils.removeAttribute(root, normalizedAttributePath)) {
-				store.store_writeAttributesJson(path, filename, root, gson);
+				store.writeAttributesJson(path, filename, root, gson);
 				return true;
 			}
 		}
@@ -383,7 +383,7 @@ public final class ZarrV2Dialect implements ContainerDialect {
 			final String normalizedAttributePath,
 			final Class<T> clazz) throws N5IOException, N5ClassCastException {
 
-		final JsonElement root = store.store_readAttributesJson(path, filename, gson);
+		final JsonElement root = store.readAttributesJson(path, filename, gson);
 		if (root == null)
 			return null;
 
@@ -395,7 +395,7 @@ public final class ZarrV2Dialect implements ContainerDialect {
 		}
 
 		if (obj != null)
-			store.store_writeAttributesJson(path, filename, root, gson);
+			store.writeAttributesJson(path, filename, root, gson);
 
 		return obj;
 	}
@@ -422,7 +422,7 @@ public final class ZarrV2Dialect implements ContainerDialect {
 
 		final ZArrayAttributes zarray = ((ZarrDatasetAttributes) attributes).getZArrayAttributes();
 		final JsonElement json = gson.toJsonTree(zarray);
-		store.store_writeAttributesJson(path, ZARRAY_FILE, json, gson);
+		store.writeAttributesJson(path, ZARRAY_FILE, json, gson);
 	}
 
 	@Override
@@ -435,7 +435,7 @@ public final class ZarrV2Dialect implements ContainerDialect {
 
 		final ZArrayAttributes zarray = ((ZarrDatasetAttributes) attributes).getZArrayAttributes();
 		final JsonElement json = gson.toJsonTree(zarray);
-		store.store_writeAttributesJson(path, ZARRAY_FILE, json, gson);
+		store.writeAttributesJson(path, ZARRAY_FILE, json, gson);
 	}
 
 	@Override
@@ -453,15 +453,15 @@ public final class ZarrV2Dialect implements ContainerDialect {
 		if (path.parent() != null)
 			createGroup(path.parent());
 
-		store.store_writeAttributesJson(path, ZGROUP_FILE, groupAttr, gson);
+		store.writeAttributesJson(path, ZGROUP_FILE, groupAttr, gson);
 	}
 
 	@Override
 	public boolean remove(
 			final N5DirectoryPath path) throws N5IOException {
 
-		if (store.store_isDirectory(path))
-			store.store_removeDirectory(path);
+		if (store.isDirectory(path))
+			store.removeDirectory(path);
 
 		// an IOException should have occurred if anything had failed midway
 		return true;

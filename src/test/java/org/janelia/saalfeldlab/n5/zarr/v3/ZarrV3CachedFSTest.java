@@ -11,21 +11,21 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.janelia.saalfeldlab.n5.DataType;
-import org.janelia.saalfeldlab.n5.KeyValueAccessMetaStore;
-import org.janelia.saalfeldlab.n5.MetaStoreCounters;
+import org.janelia.saalfeldlab.n5.KeyValueRootHierarchyStore;
+import org.janelia.saalfeldlab.n5.HierarchyStoreCounters;
 import org.janelia.saalfeldlab.n5.N5CachedFSTest.TrackingStorage;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueRoot;
 import org.janelia.saalfeldlab.n5.KeyValueRoot;
-import org.janelia.saalfeldlab.n5.TrackingMetaStore;
-import org.janelia.saalfeldlab.n5.cache.DelegateStore;
-import org.janelia.saalfeldlab.n5.cache.MyJsonCache;
+import org.janelia.saalfeldlab.n5.TrackingHierarchyStore;
+import org.janelia.saalfeldlab.n5.cache.HierarchyStore;
+import org.janelia.saalfeldlab.n5.cache.HierarchyCache;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static org.janelia.saalfeldlab.n5.MetaStoreCounters.assertEqualCounters;
+import static org.janelia.saalfeldlab.n5.HierarchyStoreCounters.assertEqualCounters;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
@@ -165,7 +165,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 		final String groupB = "groupB";
 
 		// expected backend method call counts
-		final MetaStoreCounters expected = new MetaStoreCounters();
+		final HierarchyStoreCounters expected = new HierarchyStoreCounters();
 		n5.counters().reset();
 
 		boolean exists = n5.exists(groupA);
@@ -338,7 +338,7 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 
 	public static class ZarrV3TrackingStorage extends ZarrV3KeyValueWriter implements TrackingStorage {
 
-		private TrackingMetaStore trackingStore;
+		private TrackingHierarchyStore trackingStore;
 
 		public ZarrV3TrackingStorage(final KeyValueRoot keyValueRoot,
 				final GsonBuilder gsonBuilder, final boolean cacheAttributes) {
@@ -347,16 +347,16 @@ public class ZarrV3CachedFSTest extends ZarrV3Test {
 		}
 
 		@Override
-		public DelegateStore createMetaStore(
+		public HierarchyStore createHierarchyStore(
 				final KeyValueRoot keyValueRoot,
 				final boolean cacheMeta) {
 
-			trackingStore = new TrackingMetaStore(new KeyValueAccessMetaStore(keyValueRoot));
-			return cacheMeta ? new MyJsonCache(trackingStore) : trackingStore;
+			trackingStore = new TrackingHierarchyStore(new KeyValueRootHierarchyStore(keyValueRoot));
+			return cacheMeta ? new HierarchyCache(trackingStore) : trackingStore;
 		}
 
 		@Override
-		public MetaStoreCounters counters() {
+		public HierarchyStoreCounters counters() {
 			return trackingStore.counters();
 		}
 	}
