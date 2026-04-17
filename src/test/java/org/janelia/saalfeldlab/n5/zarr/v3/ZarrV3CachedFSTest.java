@@ -20,7 +20,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueRoot;
 import org.janelia.saalfeldlab.n5.KeyValueRoot;
 import org.janelia.saalfeldlab.n5.TrackingHierarchyStore;
-import org.janelia.saalfeldlab.n5.cache.HierarchyStore;
+import org.janelia.saalfeldlab.n5.HierarchyStore;
 import org.janelia.saalfeldlab.n5.cache.HierarchyCache;
 import org.junit.Assert;
 import org.junit.Test;
