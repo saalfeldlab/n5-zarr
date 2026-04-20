@@ -157,13 +157,6 @@ public final class ZarrV2Dialect implements ContainerDialect {
 		return store.listDirectories(group);
 	}
 
-	@Override
-	public Map<String, Class<?>> listAttributes(
-			final N5DirectoryPath path) throws N5IOException, N5JsonParseException {
-
-		return GsonUtils.listAttributes(getAttributes(path));
-	}
-
 	// NB: does not do any attribute mapping
 	@Override
 	public JsonElement getAttributes(final N5DirectoryPath path) throws N5IOException {
