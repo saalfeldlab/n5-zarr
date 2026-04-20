@@ -303,7 +303,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.writeBlock(dsetPath, attributes, blk10);
 
 			final KeyValueRoot kvr = ((GsonKeyValueN5Writer)n5).getKeyValueRoot();
-			try (VolatileReadData rd = kvr.createReadData("1.0")) {
+			try (VolatileReadData rd = kvr.createReadData(N5FilePath.of("1.0"))) {
 				assertArrayEquals(expectedPaddedData, rd.allBytes());
 			}
 
