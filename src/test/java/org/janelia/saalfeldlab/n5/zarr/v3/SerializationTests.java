@@ -1,14 +1,12 @@
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-import java.util.Arrays;
-
+import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.codec.CodecInfo;
-import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
-import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
-import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrder;
 import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrderAdapter;
@@ -18,6 +16,7 @@ import org.junit.Test;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 public class SerializationTests {
 
@@ -44,5 +43,19 @@ public class SerializationTests {
 
 		final ZarrTransposeCodecInfo deserializedCodec = (ZarrTransposeCodecInfo)gson.fromJson(json, CodecInfo.class);
 		assertArrayEquals(origOrder, deserializedCodec.getOrder());
+	}
+
+	@Test
+	public void testGzipSerialization() {
+
+		final JsonElement json = gson.toJsonTree(new GzipCompression());
+		assertTrue(json.isJsonObject());
+		final JsonObject obj = json.getAsJsonObject();
+
+		assertTrue(obj.has("configuration"));
+		final JsonObject config = obj.get("configuration").getAsJsonObject();
+
+		assertTrue(config.has("level"));
+		assertEquals(1, config.asMap().entrySet().size());
 	}
 }
