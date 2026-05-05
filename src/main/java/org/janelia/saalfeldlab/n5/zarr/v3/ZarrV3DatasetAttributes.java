@@ -607,6 +607,11 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return new Builder(dimensions, dataType);
 	}
 
+	public static Builder builder(DatasetAttributes attributes) {
+
+		return new Builder(attributes);
+	}
+
 	/**
 	 * Builder for constructing {@link ZarrV3DatasetAttributes} instances.
 	 * <p>
@@ -641,7 +646,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		private DataCodecInfo[] shardIndexDataCodecInfos = new DataCodecInfo[0];
 
 		// For sharding
-		private int[] shardSize;
+		private int[] chunkSize;
 
 		/**
 		 * Creates a new builder with the required parameters.
@@ -655,7 +660,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			super(dimensions, dataType);
 			this.dimensions = dimensions.clone();
 			this.dataType = ZarrV3DataType.fromDataType(dataType);
-			this.blockSize = Arrays.stream(dimensions).mapToInt(x -> (int)x).toArray();
+			this.blockSize = defaultChunkShape(dimensions);
 		}
 
 		/**
@@ -669,7 +674,21 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			super(dimensions, dataType.getDataType());
 			this.dimensions = dimensions.clone();
 			this.dataType = dataType;
-			this.blockSize = Arrays.stream(dimensions).mapToInt(x -> (int)x).toArray();
+			this.blockSize = defaultChunkShape(dimensions);
+		}
+
+		public Builder(final DatasetAttributes attributes) {
+
+			super( attributes.getDimensions(), attributes.getDataType());
+			this.dimensions = attributes.getDimensions();
+			this.dataType = ZarrV3DataType.fromDataType(attributes.getDataType());
+			dataCodecInfos(attributes.getDataCodecInfos());
+			if (attributes.isSharded()) {
+				chunkSize(attributes.getChunkSize());
+				blockSize(attributes.getBlockSize());
+			} else {
+				blockSize(attributes.getBlockSize());
+			}
 		}
 
 		/**
@@ -685,16 +704,37 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		}
 
 		/**
-		 * Sets the shard shape for sharded arrays.
+		 * Sets the chunk shape for sharded arrays.
 		 * When set, chunks will be grouped into shards of this size.
 		 *
-		 * @param shardSize the shard dimensions
+		 * @param chunkSize the shard dimensions
 		 * @return this builder
 		 */
-		public Builder shardSize(final int[] shardSize) {
+		public Builder chunkSize(final int[] chunkSize) {
 
-			this.shardSize = shardSize.clone();
+			validateLength("chunk size", chunkSize.length);
+			validateBlockChunkSize(blockSize, chunkSize);
+
+			this.chunkSize = chunkSize.clone();
 			return this;
+		}
+		
+		private void validateBlockChunkSize( int[] blockSize, int[] chunkSize ) {
+
+			if (blockSize != null && chunkSize != null) {
+				for (int i = 0; i < chunkSize.length; i++) {
+					if (chunkSize[i] > blockSize[i])
+						throw new IllegalArgumentException(
+								String.format("index %d: chunk size (%d) is greater than block size (%d)",
+										i, chunkSize[i], blockSize[i]));
+				}
+			}
+		}
+
+		private void validateLength(final String name, final int length) {
+			if (length != dimensions.length)
+				throw new IllegalArgumentException(name + " must be same length as dimensions (" +
+						+dimensions.length + ") but is (" + length + ")");
 		}
 
 		/**
@@ -754,7 +794,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		public Builder compression(final Compression compression) {
 
 			if (compression != null && !(compression instanceof RawCompression)) {
-				this.dataCodecInfos = new DataCodecInfo[]{ZarrV3Compressor.fromCompression(compression)};
+				this.dataCodecInfos = new DataCodecInfo[]{compression};
 			}
 			return this;
 		}
@@ -824,21 +864,23 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 					? chunkKeyEncoding
 					: new DefaultChunkKeyEncoding(dimensionSeparator);
 
-			final int[] resolvedBlockSize = blockSize != null
-					? blockSize
-					: defaultChunkShape(dimensions);
 
 			// Determine if sharding is enabled
-			if (shardSize != null) {
+			if (blockSize != null && chunkSize != null) {
+				// if both blockSize and chunkSize are specified, the dataset is sharded
+				final int[] resolvedChunkSize = chunkSize != null
+						? chunkSize
+						: defaultChunkShape(dimensions);
+
 				// Sharded configuration
 				final BlockCodecInfo resolvedBlockCodecInfo = blockCodecInfo != null
 						? blockCodecInfo
-						: defaultShardCodecInfo(resolvedBlockSize, dataCodecInfos, shardIndexDataCodecInfos);
+						: defaultShardCodecInfo(resolvedChunkSize, dataCodecInfos, shardIndexDataCodecInfos);
 
 				// For sharding, the outer chunk is the shard size
 				return new ZarrV3DatasetAttributes(
 						dimensions,
-						shardSize,
+						blockSize,
 						dataType,
 						fillValue,
 						resolvedDimensionNames,
@@ -846,6 +888,17 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 						resolvedBlockCodecInfo,
 						datasetCodecInfos);
 			} else {
+				// one or both of blockSize or chunkSize is null.
+				// either one sets the block size
+				final int[] resolvedBlockSize; 
+				if( chunkSize != null )
+					resolvedBlockSize = chunkSize;
+				else if( blockSize != null )
+					
+					resolvedBlockSize = blockSize;
+				else
+					resolvedBlockSize = defaultChunkShape(dimensions);
+
 				// Non-sharded configuration
 				final BlockCodecInfo resolvedBlockCodecInfo = blockCodecInfo != null
 						? blockCodecInfo
