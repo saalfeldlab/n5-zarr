@@ -442,12 +442,12 @@ public class ZarrV3Test extends AbstractN5Test {
 		final long[] dims = new long[]{4};
 		final int[] blockSize = new int[]{4};
 
-		final ZarrV3DatasetAttributes attrsBE = ZarrV3DatasetAttributes.builder(dims, DataType.INT32)
+		final ZarrV3DatasetAttributes attrsBE = ZarrV3DatasetAttributes.zarr3Builder(dims, DataType.INT32)
 				.blockSize(blockSize)
 				.blockCodecInfo(new RawBlockCodecInfo(ByteOrder.BIG_ENDIAN))
 				.build();
 
-		final ZarrV3DatasetAttributes attrsLE = ZarrV3DatasetAttributes.builder(dims, DataType.INT32)
+		final ZarrV3DatasetAttributes attrsLE = ZarrV3DatasetAttributes.zarr3Builder(dims, DataType.INT32)
 				.blockSize(blockSize)
 				.blockCodecInfo(new RawBlockCodecInfo(ByteOrder.LITTLE_ENDIAN))
 				.build();
