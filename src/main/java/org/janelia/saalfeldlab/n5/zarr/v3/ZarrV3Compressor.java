@@ -217,9 +217,6 @@ public static ZarrV3Compressor fromCompression(final DataCodecInfo dataCodec) {
 			case BloscCompression.BITSHUFFLE:
 				shuffle = "bitshuffle";
 				break;
-			case BloscCompression.AUTOSHUFFLE:
-				shuffle = typesize == 1 ? "bitshuffle" : "shuffle";
-				break;
 			default:
 				throw new N5Exception("Invalid shuffle: " + _shuffle);
 			}
