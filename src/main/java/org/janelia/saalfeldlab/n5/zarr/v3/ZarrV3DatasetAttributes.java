@@ -623,7 +623,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 	 *     .build();
 	 * }</pre>
 	 */
-	public static class Builder {
+	public static class Builder extends DatasetAttributes.Builder {
 
 		// Required parameters
 		private final long[] dimensions;
@@ -651,6 +651,8 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		 */
 		public Builder(final long[] dimensions, final DataType dataType) {
 
+
+			super(dimensions, dataType);
 			this.dimensions = dimensions.clone();
 			this.dataType = ZarrV3DataType.fromDataType(dataType);
 			this.blockSize = Arrays.stream(dimensions).mapToInt(x -> (int)x).toArray();
@@ -664,6 +666,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		 */
 		public Builder(final long[] dimensions, final ZarrV3DataType dataType) {
 
+			super(dimensions, dataType.getDataType());
 			this.dimensions = dimensions.clone();
 			this.dataType = dataType;
 			this.blockSize = Arrays.stream(dimensions).mapToInt(x -> (int)x).toArray();
@@ -685,7 +688,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		 * Sets the shard shape for sharded arrays.
 		 * When set, chunks will be grouped into shards of this size.
 		 *
-		 * @param shardShape the shard dimensions
+		 * @param shardSize the shard dimensions
 		 * @return this builder
 		 */
 		public Builder shardSize(final int[] shardSize) {
