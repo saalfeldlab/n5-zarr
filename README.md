@@ -1,10 +1,8 @@
 # n5-zarr [![Build Status](https://github.com/saalfeldlab/n5-zarr/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/n5-zarr/actions/workflows/build-main.yml)
 Zarr filesystem backend for N5.
 
-This library provides best effort compatibility with existing [Zarr v2](https://zarr.readthedocs.io/en/stable/spec/v2.html) data stored in filesystem containers.  So far, I have tested
-
-* self-consistency, i.e. data writing and reading in this implementation works,
-* reading of some example zarr containers written with Python (check the [examples](https://github.com/saalfeldlab/n5-zarr/blob/master/src/test/python/zarr-test.py))
+This library provides best effort compatibility with existing [Zarr v2](https://zarr-specs.readthedocs.io/en/latest/v2/v2.0.html) and
+[Zarr v3](https://zarr-specs.readthedocs.io/en/latest/v3/core/index.html).
 
 ## Examples
 
@@ -27,11 +25,34 @@ This also works without Blosc compression if not available.
 
 ## Supported Zarr features
 
+### Zarr v3
+
+This implementation supports arbitrary metadata and arrays stored with core codecs and data types.
+
+<dl>
+  <dt>Groups and array metadata</dt>
+  <dd>as described in <a href="https://zarr-specs.readthedocs.io/en/latest/v3/core/index.html#metadata">Zarr v3 metadata spec</a>.</dd>
+  <dt><a href="https://zarr-specs.readthedocs.io/en/latest/v3/chunk-key-encodings/index.html">Chunk key encodings</a></dt>
+  <dd>"default", "v2"</dd>
+  <dt><a href="https://zarr-specs.readthedocs.io/en/latest/v3/chunk-grids/index.html">Chunk grids</a></dt>
+  <dd>"regular"</dd>
+  <dt>Compression ("bytes -> bytes") codecs</dt>
+  <dd>"gzip", "blosc", "zstd"</dd>
+  <dd>and others not officially supported by the zarr spec: "bzip2", "lz4", "xz"</dd>
+  <dt>Other codecs</dt>
+  <dd>"bytes", "sharding", "transpose", "crc32c"</dd>
+  <dt><a href="https://zarr-specs.readthedocs.io/en/latest/v3/data-types/index.html">Data typeg</a></dt>
+  <dd>(u)int{8,16,32,64}, float{32,64}</dd>
+</dl>
+
+
+### Zarr v2
+
 This implementation currently supports the following Zarr features
 
 <dl>
   <dt>Groups</dt>
-  <dd>as described by the <a href="https://zarr.readthedocs.io/en/stable/spec/v2.html#hierarchies">Zarr v2 spec for hierarchies</a>.</dd>
+  <dd>as described by the <a href="https://zarr-specs.readthedocs.io/en/latest/v2/v2.0.html#hierarchies">Zarr v2 spec for hierarchies</a>.</dd>
   <dt>N-dimensional arrays in C and F order</dt>
   <dd>for efficiency, both array types are opened without changing the order of elements in memory, only the chunk order and shape are adjusted such that chunks form the correct transposed tensor.  When used via <a href="https://github.com/saalfeldlab/n5-imglib2/">n5-imglib2</a>, a <a href="https://javadoc.scijava.org/ImgLib2/net/imglib2/view/Views.html#permute-net.imglib2.RandomAccessibleInterval-int-int-">view with permuted axes</a> can be easily created.</dd>
   <dt>Arbitrary meta-data</dt>
@@ -46,6 +67,7 @@ This implementation currently supports the following Zarr features
 
 [Filters](https://zarr.readthedocs.io/en/stable/spec/v2.html#filters) are not currently supported because I feel ambiguous about them.  Please let me know of use cases that I am missing, it is not hard to add data filters of any kind.  I just cannot come up with a single thing that I would like to do here right now.  
 
-## N5 gimmicks
+
+#### N5 gimmicks
 
 Optionally, N5 dataset attributes ("dimensions", "blockSize", "compression", "dataType") can be virtually mapped such that N5-API based code that reads or writes them directly via general attribute access will see and modify the corresponding zarray (dataset) attributes.  Keep in mind that this will lead to name clashes if a Zarr dataset uses any of these attributes for other purposes, try switching the mapping off first if that is an issue.
