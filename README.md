@@ -37,11 +37,10 @@ This implementation supports arbitrary metadata and arrays stored with core code
   <dt><a href="https://zarr-specs.readthedocs.io/en/latest/v3/chunk-grids/index.html">Chunk grids</a></dt>
   <dd>"regular"</dd>
   <dt>Compression ("bytes -> bytes") codecs</dt>
-  <dd>"gzip", "blosc", "zstd"</dd>
-  <dd>and others not officially supported by the zarr spec: "bzip2", "lz4", "xz"</dd>
+  <dd>"gzip", "blosc", "zstd" and others not officially supported by the zarr spec: "bzip2", "lz4", "xz"</dd>
   <dt>Other codecs</dt>
   <dd>"bytes", "sharding", "transpose", "crc32c"</dd>
-  <dt><a href="https://zarr-specs.readthedocs.io/en/latest/v3/data-types/index.html">Data typeg</a></dt>
+  <dt><a href="https://zarr-specs.readthedocs.io/en/latest/v3/data-types/index.html">Data types</a></dt>
   <dd>(u)int{8,16,32,64}, float{32,64}</dd>
 </dl>
 
