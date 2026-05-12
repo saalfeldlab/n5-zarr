@@ -1,8 +1,7 @@
 # n5-zarr [![Build Status](https://github.com/saalfeldlab/n5-zarr/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/n5-zarr/actions/workflows/build-main.yml)
-Zarr filesystem backend for N5.
 
-This library provides best effort compatibility with existing [Zarr v2](https://zarr-specs.readthedocs.io/en/latest/v2/v2.0.html) and
-[Zarr v3](https://zarr-specs.readthedocs.io/en/latest/v3/core/index.html).
+This library provides support for the [Zarr v2](https://zarr-specs.readthedocs.io/en/latest/v2/v2.0.html) and
+[Zarr v3](https://zarr-specs.readthedocs.io/en/latest/v3/core/index.html) storage formats for the N5 API.
 
 ## Examples
 
