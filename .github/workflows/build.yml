@@ -4,12 +4,17 @@ on:
   push:
     branches:
       - master
+      - development
     tags:
       - "*-[0-9]+.*"
+  pull_request:
+    branches:
+      - master
+      - development
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+        runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
@@ -25,8 +30,10 @@ jobs:
           cache: 'maven'
       - name: Set up CI environment
         run: .github/setup.sh
+        shell: bash
       - name: Execute the build
         run: .github/build.sh
+        shell: bash
         env:
           GPG_KEY_NAME: ${{ secrets.GPG_KEY_NAME }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
