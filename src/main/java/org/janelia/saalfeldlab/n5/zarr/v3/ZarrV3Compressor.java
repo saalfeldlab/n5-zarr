@@ -234,26 +234,19 @@ public static ZarrV3Compressor fromCompression(final DataCodecInfo dataCodec) {
 
 		private static final String ID = "gzip";
 
+		private static final int ZARR_DEFAULT_GZIP_LEVEL = 6;
+
 		@NameConfig.Parameter
 		private final int level;
 
-		@NameConfig.Parameter(optional = true)
-		private final boolean useZlib;
-
 		public Gzip() {
 
-			this(Deflater.DEFAULT_COMPRESSION);
-		}
-
-		public Gzip(final int level, boolean useZlib) {
-
-			this.level = level;
-			this.useZlib = useZlib;
+			this(ZARR_DEFAULT_GZIP_LEVEL);
 		}
 
 		public Gzip(final int level) {
 
-			this(level, false);
+			this.level = level;
 		}
 
 		public Gzip(final GzipCompression compression) throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException {
@@ -264,11 +257,6 @@ public static ZarrV3Compressor fromCompression(final DataCodecInfo dataCodec) {
 			field.setAccessible(true);
 			level = field.getInt(compression);
 			field.setAccessible(false);
-
-			final Field fieldZlib = clazz.getDeclaredField("level");
-			fieldZlib.setAccessible(true);
-			useZlib = fieldZlib.getBoolean(compression);
-			fieldZlib.setAccessible(false);
 		}
 
 		@Override
