@@ -6,11 +6,19 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.junit.Test;
+
+import com.google.gson.GsonBuilder;
 
 public class ZarrV3DatasetAttributesTest {
 
@@ -99,5 +107,28 @@ public class ZarrV3DatasetAttributesTest {
 			throw new AssertionError("Expected IllegalArgumentException for chunkSize > blockSize");
 		} catch (final IllegalArgumentException expected) {}
 	}
+	
+	@Test
+	public void serializationTests() throws IOException {
+
+		final Path tmp = Files.createTempDirectory("zarr-v3-test");
+		try (ZarrV3KeyValueWriter zarr = new ZarrV3KeyValueWriter(new FileSystemKeyValueAccess(), tmp.toFile().getCanonicalPath(), new GsonBuilder(), true)) {
+
+			final ZarrV3DatasetAttributes datasetAttributes = ZarrV3DatasetAttributes
+					.builder(new long[]{64, 64, 64}, DataType.INT16)
+					.blockSize(new int[]{64, 64, 64})
+					.chunkSize(new int[]{32, 32, 32})
+					.compression(new GzipCompression())
+					.build();
+
+			zarr.createDataset("gz", datasetAttributes);
+			assertTrue(zarr.datasetExists("gz"));
+
+			zarr.remove();
+		} catch (IOException e) {}
+
+	}
+
+
 
 }
