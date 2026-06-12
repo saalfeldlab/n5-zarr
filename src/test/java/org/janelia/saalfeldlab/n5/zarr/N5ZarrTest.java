@@ -1,5 +1,8 @@
 package org.janelia.saalfeldlab.n5.zarr;
 
+import static org.apache.commons.lang3.ArrayUtils.reverse;
+import static org.janelia.saalfeldlab.n5.zarr.ZArrayAttributes.dimensionSeparatorKey;
+import static org.janelia.saalfeldlab.n5.zarr.ZArrayAttributes.fillValueKey;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -12,6 +15,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.reflect.Type;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -28,17 +32,20 @@ import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
 import org.janelia.saalfeldlab.n5.GsonKeyValueN5Writer;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.IntArrayDataBlock;
 import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
+import org.janelia.saalfeldlab.n5.N5Path;
+import org.janelia.saalfeldlab.n5.N5Path.N5FilePath;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.n5.FileSystemKeyValueRoot;
+import org.janelia.saalfeldlab.n5.KeyValueRoot;
 import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
@@ -54,8 +61,6 @@ import org.junit.Test;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 import com.google.gson.reflect.TypeToken;
 
 import net.imglib2.RandomAccess;
@@ -77,10 +82,6 @@ public class N5ZarrTest extends AbstractN5Test {
 
 	static private final String testZarrDatasetName = "test/data";
 
-	public static KeyValueAccess createKeyValueAccess() {
-		return new FileSystemKeyValueAccess();
-	}
-
 	@Override
 	protected String tempN5Location() {
 
@@ -95,7 +96,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	protected N5Writer createN5Writer()  {
 
 		final String testDirPath = tempN5Location();
-		return new ZarrKeyValueWriter(createKeyValueAccess(), testDirPath, new GsonBuilder(), true, true, ".",false);
+		return new ZarrKeyValueWriter(new FileSystemKeyValueRoot(testDirPath), new GsonBuilder(), true, true, ".", false);
 	}
 
 	@Override
@@ -130,7 +131,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			final boolean mapN5DatasetAttributes,
 			final boolean cacheAttributes) {
 
-		final ZarrKeyValueWriter tempWriter = new ZarrKeyValueWriter(createKeyValueAccess(), location, gsonBuilder, mapN5DatasetAttributes, true, dimensionSeparator, cacheAttributes);
+		final ZarrKeyValueWriter tempWriter = new ZarrKeyValueWriter(new FileSystemKeyValueRoot(location),
+				gsonBuilder, mapN5DatasetAttributes, true, dimensionSeparator, cacheAttributes);
 		tempWriters.add(tempWriter);
 		return tempWriter;
 	}
@@ -138,7 +140,7 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Override
 	protected N5Reader createN5Reader(final String location, final GsonBuilder gson) throws IOException {
 
-		return new ZarrKeyValueReader(createKeyValueAccess(), location, gson, true, true, false);
+		return new ZarrKeyValueReader(new FileSystemKeyValueRoot(location), gson, true, true, false);
 	}
 
 	@Override
@@ -184,14 +186,15 @@ public class N5ZarrTest extends AbstractN5Test {
 	public void testCreateNestedDataset() throws IOException {
 
 		final String datasetName = "/test/nested/data";
+		final String[] parents = {"/test/nested", "/test", "/"};
 
 		final String testDirPath = tempN5Location();
-		final ZarrKeyValueWriter n5Nested = (ZarrKeyValueWriter) createTempN5Writer(testDirPath, "/");
-
-		n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-		assertEquals("/", n5Nested.getZArrayAttributes(datasetName).getDimensionSeparator());
-
-		// TODO test that parents of nested dataset are groups
+		try (GsonKeyValueN5Writer n5Nested = (GsonKeyValueN5Writer) createTempN5Writer(testDirPath, "/")) {
+			n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			assertTrue("Dataset does not exist", n5Nested.datasetExists(datasetName));
+			for (String parent : parents)
+				assertTrue("Parent group does not exist: " + parent, n5Nested.groupExists(parent));
+		}
 	}
 
 	@Test
@@ -232,7 +235,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		final byte[] dst = N5ZarrWriter.padCrop(src, srcBlockSize, dstBlockSize, nBytes, nBits, fillValue);
 		assertArrayEquals(new byte[]{1, 2, 99, 3, 4, 99, 99, 99, 99}, dst);
 	}
-	
+
 	@Test
 	@Ignore("Zarr does not truncate blocks")
 	public void testUnalignedBlocksTruncatedAtEnd() {
@@ -275,8 +278,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.createDataset(dsetPath, attributes);
 			n5.writeChunk(dsetPath, attributes, blk10);
 
-			final KeyValueAccess kva = ((GsonKeyValueN5Writer)n5).getKeyValueAccess();
-			try (VolatileReadData rd = kva.createReadData(kva.compose(n5.getURI(), "1.0"))) {
+			final KeyValueRoot kvr = ((GsonKeyValueN5Writer)n5).getKeyValueRoot();
+			try (VolatileReadData rd = kvr.createReadData(N5FilePath.of("1.0"))) {
 				assertArrayEquals(expectedPaddedData, rd.allBytes());
 			}
 
@@ -291,13 +294,10 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		try (final N5Writer writer = createTempN5Writer()) {
 
-			final ZarrKeyValueWriter zarr = (ZarrKeyValueWriter)writer;
 			final Version n5Version = writer.getVersion();
 			assertEquals(n5Version, N5ZarrReader.VERSION);
 
-			final JsonObject bumpVersion = new JsonObject();
-			bumpVersion.add(N5ZarrReader.ZARR_FORMAT_KEY, new JsonPrimitive(N5ZarrReader.VERSION.getMajor() + 1));
-			zarr.writeZGroup("", bumpVersion);
+			writer.setAttribute("", N5ZarrReader.ZARR_FORMAT_KEY, N5ZarrReader.VERSION.getMajor() + 1);
 
 			final Version version = writer.getVersion();
 			assertFalse(N5ZarrReader.VERSION.isCompatible(version));
@@ -474,7 +474,7 @@ public class N5ZarrTest extends AbstractN5Test {
 
 		try (final N5Writer n5 = createTempN5Writer()) {
 
-			final KeyValueAccess kva = ((GsonKeyValueN5Writer)n5).getKeyValueAccess();
+			final KeyValueRoot kvr = ((GsonKeyValueN5Writer)n5).getKeyValueRoot();
 
 			// big endian
 			ZarrDatasetAttributes attrsBE = new ZarrDatasetAttributes(dims, blockSize, be, new RawCompression(), true, "0");
@@ -482,7 +482,7 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.writeBlock("be", attrsBE, blk);
 			assertArrayEquals(data, (int[])n5.readBlock("be", n5.getDatasetAttributes("be"), 0).getData());
 
-			final ByteBuffer beBuf = getBuffer(kva, kva.compose(n5.getURI(), "be", "0"));
+			final ByteBuffer beBuf = getBuffer(kvr, N5FilePath.of("be/0"));
 			beBuf.order(ByteOrder.BIG_ENDIAN);
 			for (int i = 0; i < data.length; i++)
 				assertEquals(data[i], beBuf.getInt());
@@ -493,16 +493,16 @@ public class N5ZarrTest extends AbstractN5Test {
 			n5.writeBlock("le", attrsLE, blk);
 			assertArrayEquals(data, (int[])n5.readBlock("le", n5.getDatasetAttributes("le"), 0).getData());
 
-			final ByteBuffer leBuf = getBuffer(kva, kva.compose(n5.getURI(), "le", "0"));
+			final ByteBuffer leBuf = getBuffer(kvr, N5FilePath.of("le/0"));
 			leBuf.order(ByteOrder.LITTLE_ENDIAN);
 			for (int i = 0; i < data.length; i++)
 				assertEquals(data[i], leBuf.getInt());
 		}
 	}
 
-	private ByteBuffer getBuffer(KeyValueAccess kva, String key) {
+	private ByteBuffer getBuffer(final KeyValueRoot kvr, final N5FilePath key) {
 
-		try (final VolatileReadData rd = kva.createReadData(key)) {
+		try (final VolatileReadData rd = kvr.createReadData(key)) {
 			final ByteBuffer buf = rd.materialize().toByteBuffer();
 			return buf;
 		}
@@ -552,17 +552,17 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Test
 	public void testReadZarrPython() throws IOException, InterruptedException {
 
-		final String testZarrDirPath = tempN5Location();	
+		final String testZarrDirPath = tempN5Location();
 		//TODO: decided what to do with it for windows
 		String testZarrDirPathForPython;
-		
+
 		if (System.getProperty("os.name").startsWith("Windows"))
 			testZarrDirPathForPython = testZarrDirPath.substring(1);
 		else
 			testZarrDirPathForPython = testZarrDirPath;
-		
+
 		System.err.println("For Python: " + testZarrDirPathForPython);
-				
+
 		/* create test data with python */
 		if (!runPythonTest("zarr-test.py", testZarrDirPathForPython)) {
 			System.out.println("Couldn't run Python test, skipping compatibility test with Python.");
@@ -709,7 +709,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		final RandomAccessibleInterval<UnsignedIntType> a3x2_c_bu4_f1_after = N5Utils.open(n5Zarr, datasetName);
 		assertIsSequence(Views.interval(a3x2_c_bu4_f1_after, a3x2_c_bu4_f1), refUnsignedInt);
 		final RandomAccess<UnsignedIntType> ra = a3x2_c_bu4_f1_after.randomAccess();
-		final int fill_value = Integer.parseInt(n5Zarr.getZArrayAttributes(datasetName).getFillValue());
+		final int fill_value = Integer.parseInt(n5Zarr.getAttribute(datasetName, fillValueKey, String.class));
 		ra.setPosition(shape[0] - 5, 0);
 		assertEquals(fill_value, ra.get().getInteger());
 		ra.setPosition(shape[1] - 5, 1);
@@ -775,7 +775,7 @@ public class N5ZarrTest extends AbstractN5Test {
 		assertArrayEquals(datasetAttributesC.getDimensions(), new long[]{3, 2});
 		assertArrayEquals(datasetAttributesC.getBlockSize(), new int[]{3, 2});
 		assertEquals(datasetAttributesC.getDataType(), DataType.UINT8);
-		assertEquals(n5Zarr.getZArrayAttributes(testZarrDatasetName + "/3x2_c_u1").getDimensionSeparator(), "/");
+		assertEquals(n5Zarr.getAttribute(testZarrDatasetName + "/3x2_c_u1", dimensionSeparatorKey, String.class), "/");
 
 		final UnsignedByteType refUnsignedByte = new UnsignedByteType();
 		assertIsSequence(N5Utils.open(n5Zarr, testZarrDatasetName + "/3x2_c_u1"), refUnsignedByte);
@@ -792,10 +792,10 @@ public class N5ZarrTest extends AbstractN5Test {
 				DataType.UINT16,
 				new RawCompression());
 
-		final String zarrayLocation = n5.getKeyValueAccess().compose(n5.getURI(), testZarrDatasetName, ".zarray");
-		final KeyValueAccess kva = n5.getKeyValueAccess();
+		final N5FilePath zarrayLocation = N5Path.N5DirectoryPath.of(testZarrDatasetName).resolve(".zarray").asFile();
+		final KeyValueRoot kvr = n5.getKeyValueRoot();
 		final JSONParser jsonParser = new JSONParser();
-		try ( VolatileReadData rd = kva.createReadData(zarrayLocation) ) {
+		try ( VolatileReadData rd = kvr.createReadData(zarrayLocation) ) {
 			String json = new String(rd.allBytes());
 			final JSONObject zarray = (JSONObject)jsonParser.parse(json);
 			final JSONObject compressor = (JSONObject)zarray.get("compressor");
@@ -816,9 +816,8 @@ public class N5ZarrTest extends AbstractN5Test {
 			/* class interface */
 			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", String.class));
 			/* type interface */
-			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {
-
-			}.getType()));
+			final Type typeString = new TypeToken<String>() {}.getType();
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", typeString));
 
 			final Map<String, String> newAttributes = new HashMap<>();
 			newAttributes.put("key2", "value2");
@@ -831,40 +830,23 @@ public class N5ZarrTest extends AbstractN5Test {
 			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", String.class));
 			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", String.class));
 			/* type interface */
-			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", new TypeToken<String>() {
-
-			}.getType()));
-			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", new TypeToken<String>() {
-
-			}.getType()));
-			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {
-
-			}.getType()));
+			Assert.assertEquals("value1", n5.getAttribute(groupName, "key1", typeString));
+			Assert.assertEquals("value2", n5.getAttribute(groupName, "key2", typeString));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", typeString));
 
 			n5.setAttribute(groupName, "key1", 1);
 			n5.setAttribute(groupName, "key2", 2);
 
 			Assert.assertEquals(4, n5.listAttributes(groupName).size());
 			/* class interface */
-			Assert.assertEquals(new Integer(1), n5.getAttribute(groupName, "key1", Integer.class));
-			Assert.assertEquals(new Integer(2), n5.getAttribute(groupName, "key2", Integer.class));
+			Assert.assertEquals(Integer.valueOf(1), n5.getAttribute(groupName, "key1", Integer.class));
+			Assert.assertEquals(Integer.valueOf(2), n5.getAttribute(groupName, "key2", Integer.class));
 			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", String.class));
 			/* type interface */
-			Assert
-					.assertEquals(
-							new Integer(1),
-							n5.getAttribute(groupName, "key1", new TypeToken<Integer>() {
-
-							}.getType()));
-			Assert
-					.assertEquals(
-							new Integer(2),
-							n5.getAttribute(groupName, "key2", new TypeToken<Integer>() {
-
-							}.getType()));
-			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", new TypeToken<String>() {
-
-			}.getType()));
+			final Type typeInteger = new TypeToken<Integer>() {}.getType();
+			Assert.assertEquals(Integer.valueOf(1), n5.getAttribute(groupName, "key1", typeInteger));
+			Assert.assertEquals(Integer.valueOf(2), n5.getAttribute(groupName, "key2", typeInteger));
+			Assert.assertEquals("value3", n5.getAttribute(groupName, "key3", typeString));
 
 			n5.removeAttribute(groupName, "key1");
 			n5.removeAttribute(groupName, "key2");
@@ -881,11 +863,16 @@ public class N5ZarrTest extends AbstractN5Test {
 
 			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 
+			final String order = n5.getAttribute(datasetName, ZArrayAttributes.orderKey, String.class);
 			long[] dimsZarr = n5.getAttribute(datasetName, ZArrayAttributes.shapeKey, long[].class);
+			if( "C".equals(order))
+				reverse(dimsZarr);
 			long[] dimsN5 = n5.getAttribute(datasetName, DatasetAttributes.DIMENSIONS_KEY, long[].class);
 			assertArrayEquals(dimsZarr, dimsN5);
 
 			int[] blkZarr = n5.getAttribute(datasetName, ZArrayAttributes.chunksKey, int[].class);
+			if( "C".equals(order))
+				reverse(blkZarr);
 			int[] blkN5 = n5.getAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, int[].class);
 			assertArrayEquals(blkZarr, blkN5);
 
@@ -907,12 +894,16 @@ public class N5ZarrTest extends AbstractN5Test {
 			// ensure variables can be set through the n5 variables as well
 			n5.setAttribute(datasetName, DatasetAttributes.DIMENSIONS_KEY, newDims);
 			dimsZarr = n5.getAttribute(datasetName, ZArrayAttributes.shapeKey, long[].class);
+			if( "C".equals(order))
+				reverse(dimsZarr);
 			dimsN5 = n5.getAttribute(datasetName, DatasetAttributes.DIMENSIONS_KEY, long[].class);
 			assertArrayEquals(newDims, dimsZarr);
 			assertArrayEquals(newDims, dimsN5);
 
 			n5.setAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, newBlk);
 			blkZarr = n5.getAttribute(datasetName, ZArrayAttributes.shapeKey, int[].class);
+			if( "C".equals(order))
+				reverse(blkZarr);
 			blkN5 = n5.getAttribute(datasetName, DatasetAttributes.BLOCK_SIZE_KEY, int[].class);
 			assertArrayEquals(newBlk, blkZarr);
 			assertArrayEquals(newBlk, blkN5);

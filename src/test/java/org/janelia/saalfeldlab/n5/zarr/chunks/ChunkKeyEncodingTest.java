@@ -1,21 +1,17 @@
 package org.janelia.saalfeldlab.n5.zarr.chunks;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
-import org.janelia.saalfeldlab.n5.FileSystemKeyValueAccess;
+import org.janelia.saalfeldlab.n5.FileSystemKeyValueRoot;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DataType;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes;
@@ -24,10 +20,11 @@ import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3KeyValueWriter;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 public class ChunkKeyEncodingTest {
 
@@ -77,7 +74,7 @@ public class ChunkKeyEncodingTest {
 		assertEquals("c.0.0.0", dot.getChunkPath(new long[]{0, 0, 0}));
 		assertEquals("c.3.2.1", dot.getChunkPath(new long[]{1, 2, 3}));
 		assertEquals("c.5", dot.getChunkPath(new long[]{5}));
-		
+
 		assertThrows("invalid separator", IllegalArgumentException.class, () -> new DefaultChunkKeyEncoding("#"));
 		assertThrows("empty separator", IllegalArgumentException.class, () -> new DefaultChunkKeyEncoding(""));
 		assertThrows("null separator", IllegalArgumentException.class, () -> new DefaultChunkKeyEncoding(null));
@@ -216,7 +213,7 @@ public class ChunkKeyEncodingTest {
 
 		final byte[] data = new byte[]{1, 2, 3, 4};
 		try (ZarrV3KeyValueWriter zarr = new ZarrV3KeyValueWriter(
-				new FileSystemKeyValueAccess(), root.toString(), new GsonBuilder(), false)) {
+				new FileSystemKeyValueRoot(root.toString()), new GsonBuilder(), false)) {
 
 			zarr.createDataset("a", attributes);
 			zarr.writeBlock("a", attributes, new ByteArrayDataBlock(chunkShape, new long[]{0, 0}, data));
@@ -257,7 +254,7 @@ public class ChunkKeyEncodingTest {
 		Files.write(dataset.resolve("1.0"), data);
 
 		try (ZarrV3KeyValueReader zarr = new ZarrV3KeyValueReader(
-				new FileSystemKeyValueAccess(), root.toString(), new GsonBuilder(), false)) {
+				new FileSystemKeyValueRoot(root.toString()), new GsonBuilder(), false)) {
 
 			final ZarrV3DatasetAttributes attributes = (ZarrV3DatasetAttributes)zarr.getDatasetAttributes("/a");
 			assertEquals("1.0", attributes.relativeBlockPath(0, 1));
