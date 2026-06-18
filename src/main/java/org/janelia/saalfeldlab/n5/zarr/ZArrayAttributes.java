@@ -2,11 +2,13 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import java.util.StringJoiner;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.zarr.ZarrCompressor.Raw;
@@ -274,4 +276,18 @@ public class ZArrayAttributes {
 
 	public static class EmptyZarrFilters { }
 
+	@Override
+	public String toString() {
+		return new StringJoiner(", ", ZArrayAttributes.class.getSimpleName() + "[", "]")
+				.add("zarr_format=" + zarr_format)
+				.add("shape=" + Arrays.toString(shape))
+				.add("chunks=" + Arrays.toString(chunks))
+				.add("dtype=" + dtype)
+				.add("compressor=" + compressor)
+				.add("fillValue=" + fillValue)
+				.add("order=" + order)
+				.add("dimensionSeparator='" + dimensionSeparator + "'")
+				.add("filters=" + filters)
+				.toString();
+	}
 }

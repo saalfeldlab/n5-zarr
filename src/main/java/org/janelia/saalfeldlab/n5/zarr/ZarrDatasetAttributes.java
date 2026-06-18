@@ -2,6 +2,8 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import java.util.Arrays;
+import java.util.StringJoiner;
 import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -191,5 +193,14 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 				dType.getFilters());
 
 		return zArrayAttributes;
+	}
+
+	@Override
+	public String toString() {
+		return new StringJoiner(", ", ZarrDatasetAttributes.class.getSimpleName() + "[", "]")
+				.add("zarray=" + zarray)
+				.add("fillBytes=" + Arrays.toString(fillBytes))
+				.add("super=" + super.toString())
+				.toString();
 	}
 }
