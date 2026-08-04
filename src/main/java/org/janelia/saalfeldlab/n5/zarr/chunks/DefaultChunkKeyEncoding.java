@@ -27,7 +27,9 @@ public class DefaultChunkKeyEncoding implements ChunkKeyEncoding {
 
 	public DefaultChunkKeyEncoding(final String separator) {
 
-		assert (VALID_SEPARATORS.contains(separator));
+		if (!VALID_SEPARATORS.contains(separator))
+			throw new IllegalArgumentException("Invalid separator: \"" + separator + "\", must be one of " + VALID_SEPARATORS);
+
 		this.separator = separator;
 	}
 
