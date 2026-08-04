@@ -37,7 +37,6 @@ public class V2ChunkKeyEncoding implements ChunkKeyEncoding {
 	public String getChunkPath(final long[] gridPosition) {
 
 		final StringBuilder pathStringBuilder = new StringBuilder();
-		pathStringBuilder.append(getSeparator());
 		pathStringBuilder.append(gridPosition[gridPosition.length - 1]);
 		for (int i = gridPosition.length - 2; i >= 0; --i) {
 			pathStringBuilder.append(getSeparator());
