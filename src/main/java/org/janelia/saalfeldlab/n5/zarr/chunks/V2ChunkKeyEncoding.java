@@ -20,6 +20,10 @@ public class V2ChunkKeyEncoding implements ChunkKeyEncoding {
 	public static String DEFAULT_SEPARATOR = ".";
 
 	public V2ChunkKeyEncoding(final String separator) {
+
+		if (!VALID_SEPARATORS.contains(separator))
+			throw new IllegalArgumentException("Invalid separator: \"" + separator + "\", must be one of " + VALID_SEPARATORS);
+
 		this.separator = separator;
 	}
 
