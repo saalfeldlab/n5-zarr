@@ -40,6 +40,9 @@ public class V2ChunkKeyEncoding implements ChunkKeyEncoding {
 	@Override
 	public String getChunkPath(final long[] gridPosition) {
 
+		// the v2 encoding has no prefix and no leading separator, i.e. the key
+		// for chunk (1, 2, 3) is "1.2.3" - see
+		// https://zarr-specs.readthedocs.io/en/latest/v3/chunk-key-encodings/v2/index.html
 		final StringBuilder pathStringBuilder = new StringBuilder();
 		pathStringBuilder.append(gridPosition[gridPosition.length - 1]);
 		for (int i = gridPosition.length - 2; i >= 0; --i) {
@@ -50,4 +53,8 @@ public class V2ChunkKeyEncoding implements ChunkKeyEncoding {
 		return pathStringBuilder.toString();
 	}
 
+	@Override public String toString() {
+
+		return String.format("%s[separator=%s]", getClass().getSimpleName(), getSeparator());
+	}
 }
