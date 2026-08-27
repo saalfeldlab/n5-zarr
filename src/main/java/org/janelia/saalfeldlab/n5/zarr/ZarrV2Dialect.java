@@ -81,6 +81,11 @@ public final class ZarrV2Dialect implements ContainerDialect {
 		return gson;
 	}
 
+	@Override
+	public ContainerDialect withStore(final HierarchyStore store) {
+		return new ZarrV2Dialect(store, gson, mapN5Attributes, mergeAttributes);
+	}
+
 	private <T> T getAttribute(
 			final N5DirectoryPath path,
 			final String filename,

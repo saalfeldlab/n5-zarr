@@ -82,6 +82,11 @@ public final class ZarrV3Dialect implements ContainerDialect {
 	}
 
 	@Override
+	public ContainerDialect withStore(final HierarchyStore store) {
+		return new ZarrV3Dialect(store, gson);
+	}
+
+	@Override
 	public <T> T getAttribute(
 			final N5DirectoryPath path,
 			final String key,
