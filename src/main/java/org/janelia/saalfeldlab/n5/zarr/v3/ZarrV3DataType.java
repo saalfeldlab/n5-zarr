@@ -10,8 +10,8 @@ public enum ZarrV3DataType {
 
 	private final int nBytes;
 
-	ZarrV3DataType(final int nBytes) {
-		this.nBytes = nBytes;
+	ZarrV3DataType(final int nBits) {
+		this.nBytes = nBits / 8;
 	}
 
 	public DataType getDataType() {

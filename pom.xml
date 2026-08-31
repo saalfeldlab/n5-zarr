@@ -134,9 +134,6 @@
 		<license.skipUpdateLicense>true</license.skipUpdateLicense>
 		<license.skipUpdateProjectLicense>true</license.skipUpdateProjectLicense>
 
-		<scijava.jvm.version>8</scijava.jvm.version>
-		<scijava.jvm.build.version>[1.8.0-101,)</scijava.jvm.build.version>
-
 		<doclint>none</doclint>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
@@ -144,7 +141,7 @@
 
 		<json-simple.version>1.1.1</json-simple.version>
 
-		<n5.version>4.0.0</n5.version>
+		<n5.version>4.0.3-SNAPSHOT</n5.version>
 		<n5-blosc.version>2.0.0</n5-blosc.version>
 		<n5-imglib2.version>8.0.0</n5-imglib2.version>
 		<n5-zstandard.version>2.0.0</n5-zstandard.version>
@@ -154,10 +151,6 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>net.imglib2</groupId>
-			<artifactId>imglib2</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>

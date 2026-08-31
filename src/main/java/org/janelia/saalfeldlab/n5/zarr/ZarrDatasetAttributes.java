@@ -2,6 +2,8 @@ package org.janelia.saalfeldlab.n5.zarr;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import java.util.Arrays;
+import java.util.StringJoiner;
 import org.apache.commons.lang3.ArrayUtils;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -9,7 +11,6 @@ import org.janelia.saalfeldlab.n5.codec.BlockCodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.codec.PaddedRawBlockCodecInfo;
 
 import java.nio.ByteOrder;
-import java.util.HashMap;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -84,6 +85,14 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		return zarray.getDType();
 	}
 
+	/**
+	 * @return {@code String} representation of the "fill_value" attribute.
+	 */
+	public String getFillValue() {
+
+		return zarray.getFillValue();
+	}
+
 	public byte[] getFillBytes() {
 
 		return fillBytes;
@@ -112,11 +121,6 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		}
 
 		return pathStringBuilder.toString();
-	}
-
-	@Override
-	public HashMap<String, Object> asMap() {
-		return zarray.asMap();
 	}
 
 	private static boolean isRowMajor(final ZArrayAttributes zarray) {
@@ -168,9 +172,14 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 		}
 
 		final long[] shape = datasetAttributes.getDimensions().clone();
-		ArrayUtils.reverse(shape);
-		final int[] chunks = datasetAttributes.getChunkSize().clone();
-		ArrayUtils.reverse(chunks);
+		final int[] chunks = datasetAttributes.getBlockSize().clone();
+
+		// datasetAttributes has shape and chunks in F-order.
+		// If we want ZArrayAttributes with C-order, reverse
+		if (order == 'C') {
+			ArrayUtils.reverse(shape);
+			ArrayUtils.reverse(chunks);
+		}
 
 		final ZArrayAttributes zArrayAttributes = new ZArrayAttributes(
 				N5ZarrReader.VERSION.getMajor(),
@@ -184,5 +193,14 @@ public class ZarrDatasetAttributes extends DatasetAttributes {
 				dType.getFilters());
 
 		return zArrayAttributes;
+	}
+
+	@Override
+	public String toString() {
+		return new StringJoiner(", ", ZarrDatasetAttributes.class.getSimpleName() + "[", "]")
+				.add("zarray=" + zarray)
+				.add("fillBytes=" + Arrays.toString(fillBytes))
+				.add("super=" + super.toString())
+				.toString();
 	}
 }
