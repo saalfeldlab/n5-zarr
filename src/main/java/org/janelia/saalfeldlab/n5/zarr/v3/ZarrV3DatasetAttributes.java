@@ -318,7 +318,7 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		return new ZarrV3DatasetAttributes(dimensions, chunkAttrs,
 				dType, fillValue, defaultDimensionNames(dimensions.length),
 				replaceBlockCodec(datasetAttributes.getBlockCodecInfo(), dType, fillValue),
-				null, // dataset codecs
+				datasetAttributes.getDatasetCodecInfos(),
 				datasetAttributes.getDataCodecInfos());
 	}
 
