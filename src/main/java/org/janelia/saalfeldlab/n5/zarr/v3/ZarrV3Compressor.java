@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.lang.reflect.Field;
-import java.util.zip.Deflater;
 
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
@@ -22,8 +21,9 @@ public static ZarrV3Compressor fromCompression(final DataCodecInfo dataCodec) {
 	if (dataCodec instanceof ZarrV3Compressor)
 		return (ZarrV3Compressor)dataCodec;
 
-		// Currently (Oct 2025), zarr 3 only officially supports Blosc and Zstandard compression
-		// but let's make as much work as we can
+		// Currently (Sept 2026), zarr 3 only officially supports Blosc and Gzip 
+		// https://zarr-specs.readthedocs.io/en/v3.1.0/v3/codecs/index.html
+		// but  we'll put Zstandard in there too.
 		try {
 			if (dataCodec instanceof BloscCompression) {
 				return new Blosc((BloscCompression) dataCodec);
@@ -133,7 +133,6 @@ public static ZarrV3Compressor fromCompression(final DataCodecInfo dataCodec) {
 		@NameConfig.Parameter
 		private final int typesize;
 
-		@NameConfig.Parameter(optional = true)
 		private final int nthreads;
 
 		public Blosc() {
