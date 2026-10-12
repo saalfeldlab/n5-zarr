@@ -347,6 +347,17 @@ public final class ZarrV3Dialect implements ContainerDialect {
 		// TODO: revise createDataset / setDatasetAttributes / setAttributes
 		//       implemenetation and javadoc
 		//       to make it clear when something is created and when non-existence is an error.
+
+		// NB: Create explicit parent groups, as ZarrV2Dialect.createDataset does. The v3 spec
+		// requires this: "Creating an array at path P implies the existence of groups at all
+		// ancestor paths of P", and every group must have its own zarr.json. Implicit groups --
+		// an intermediate node with no metadata document -- were part of the provisional v3 spec
+		// and were removed in zarr-specs PR #292 (merged 2024-08-26), reinforced by PR #350; a
+		// stale non-normative example in the spec still describes them. Without this, neither
+		// groupExists nor exists reports the parents of a nested dataset.
+		if (path.parent() != null)
+			createGroup(path.parent());
+
 		setDatasetAttributes(path, attributes);
 	}
 
