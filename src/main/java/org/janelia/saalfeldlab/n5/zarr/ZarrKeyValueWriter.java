@@ -62,8 +62,7 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 				cacheAttributes,
 				false);
 
-		validateDimensionSeparator(dimensionSeparator);
-		this.dimensionSeparator = dimensionSeparator;
+		setDimensionSeparator(dimensionSeparator);
 
 		Version version = null;
 		try {
@@ -76,15 +75,6 @@ public class ZarrKeyValueWriter extends ZarrKeyValueReader implements CachedGson
 		if (version == null || version.equals(NO_VERSION)) {
 			createGroup("/");
 			setVersion();
-		}
-	}
-
-	private void validateDimensionSeparator(final String dimSep) {
-
-		if (!(dimSep.equals(".") || dimSep.equals("/"))) {
-			throw new N5Exception("Invalid dimension_separator.\n" +
-					"Must be \".\" or \"/\", but found: \""
-					+ dimSep + "\"");
 		}
 	}
 

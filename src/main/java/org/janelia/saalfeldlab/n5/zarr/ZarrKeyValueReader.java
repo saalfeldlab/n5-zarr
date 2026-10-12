@@ -57,6 +57,8 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	public static final String ZATTRS_FILE = ".zattrs";
 	public static final String ZGROUP_FILE = ".zgroup";
 
+	public static final String DEFAULT_DIMENSION_SEPARATOR = ".";
+
 	protected final KeyValueRoot keyValueRoot;
 	protected final HierarchyStore metaStore;
 	protected final ContainerDialect store;
@@ -69,7 +71,7 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 
 	protected final boolean mergeAttributes;
 
-	protected String dimensionSeparator;
+	protected String dimensionSeparator = DEFAULT_DIMENSION_SEPARATOR;
 
 	/**
 	 * Opens an {@link ZarrKeyValueReader} at a given base path with a custom {@link GsonBuilder} to support custom
@@ -178,6 +180,40 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 			throws N5Exception {
 
 		this(true, keyValueRoot, gsonBuilder, mapN5DatasetAttributes, mergeAttributes, cacheMeta);
+	}
+
+	/**
+	 * The dimension separator used for chunk keys of a dataset whose own
+	 * {@code .zarray} does not specify one.
+	 *
+	 * @return the dimension separator
+	 */
+	public String getDimensionSeparator() {
+
+		return dimensionSeparator;
+	}
+
+	/**
+	 * Set the dimension separator to use for chunk keys of a dataset whose own
+	 * {@code .zarray} does not specify one. A dataset that does specify one is
+	 * unaffected: the container always wins.
+	 *
+	 * @param dimensionSeparator the separator, {@code "."} or {@code "/"}
+	 * @throws N5Exception if the separator is neither
+	 */
+	public void setDimensionSeparator(final String dimensionSeparator) {
+
+		validateDimensionSeparator(dimensionSeparator);
+		this.dimensionSeparator = dimensionSeparator;
+	}
+
+	static void validateDimensionSeparator(final String dimSep) {
+
+		if (!(".".equals(dimSep) || "/".equals(dimSep))) {
+			throw new N5Exception("Invalid dimension_separator.\n" +
+					"Must be \".\" or \"/\", but found: \""
+					+ dimSep + "\"");
+		}
 	}
 
 	@Override
