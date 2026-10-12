@@ -50,6 +50,8 @@ import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.readdata.VolatileReadData;
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes;
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Dialect;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -160,21 +162,24 @@ public class N5ZarrTest extends AbstractN5Test {
 		};
 	}
 
-	@Override
+	/**
+	 * Asserts that a newly created dataset has {@code fill_value} as a JSON number, or as {@code null} (not as a string).
+	 * <p>
+	 * {@code getAttribute(datasetName, "/", JsonElement.class)} is enough to read the whole
+	 * {@code .zarray}: {@link ZarrV2Dialect} resolves an attribute path against {@code .zattrs},
+	 * then {@code .zarray}, then {@code .zgroup}, and {@link ZarrV2Dialect#createDataset} writes
+	 * only {@code .zarray} -- so {@code .zarray}, where {@code fill_value} lives, is what answers.
+	 * <p>
+	 * {@link ZarrDatasetAttributes} would carry the assertion too, via
+	 * {@code getZArrayAttributes().getFillValueJson()}: {@link ZArrayAttributes.JsonAdapter} keeps
+	 * the raw {@link JsonElement} instead of re-deriving one from {@code getAsString()}, so the
+	 * type in the document survives parsing. Reading the document is just the more direct test.
+	 */
 	@Test
-	public void testCreateDataset()  {
+	public void testFillValue() {
 
-		final DatasetAttributes info;
 		try (N5Writer n5 = createTempN5Writer()) {
 			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-
-			assertTrue("Dataset does not exist", n5.exists(datasetName));
-
-			info = n5.getDatasetAttributes(datasetName);
-			assertArrayEquals(dimensions, info.getDimensions());
-			assertArrayEquals(blockSize, info.getBlockSize());
-			assertEquals(DataType.UINT64, info.getDataType());
-			assertEquals(getCompressions()[0].getClass(), info.getCompression().getClass());
 
 			final JsonElement elem = n5.getAttribute(datasetName, "/", JsonElement.class);
 			final JsonElement fillValueJson = elem.getAsJsonObject().get("fill_value");
@@ -194,6 +199,20 @@ public class N5ZarrTest extends AbstractN5Test {
 			assertTrue("Dataset does not exist", n5Nested.datasetExists(datasetName));
 			for (String parent : parents)
 				assertTrue("Parent group does not exist: " + parent, n5Nested.groupExists(parent));
+		}
+	}
+
+	@Test
+	public void testDimensionSeparator() throws IOException {
+
+		final String datasetName = "/test/nested/data";
+
+		final String testDirPath = tempN5Location();
+		try (N5Writer n5 = createTempN5Writer(testDirPath, "/")) {
+			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+
+			final ZarrDatasetAttributes dsetAttrs = (ZarrDatasetAttributes)n5.getDatasetAttributes(datasetName);
+			assertEquals("/", dsetAttrs.getDimensionSeparator());
 		}
 	}
 
@@ -297,81 +316,20 @@ public class N5ZarrTest extends AbstractN5Test {
 			final Version n5Version = writer.getVersion();
 			assertEquals(n5Version, N5ZarrReader.VERSION);
 
-			writer.setAttribute("", N5ZarrReader.ZARR_FORMAT_KEY, N5ZarrReader.VERSION.getMajor() + 1);
+			writer.setAttribute("/", N5ZarrReader.ZARR_FORMAT_KEY, N5ZarrReader.VERSION.getMajor() + 1);
 
 			final Version version = writer.getVersion();
 			assertFalse(N5ZarrReader.VERSION.isCompatible(version));
 
 			// check that writer creation fails for incompatible version
 			assertThrows(N5Exception.N5IOException.class, () -> createTempN5Writer(writer.getURI().toString()));
-
-			//			final Version compatibleVersion = new Version(N5ZarrReader.VERSION.getMajor(), N5ZarrReader.VERSION.getMinor(), N5Reader.VERSION.getPatch());
-			//			writer.setAttribute("/", ZarrUtils.ZARR_FORMAT_KEY, compatibleVersion.toString());
 		}
 	}
-
 
 	@Test
+	@Ignore("zarr is v2/v3 via zarr_format, not with N5Reader.VERSION_KEY")
 	@Override
-	public void testReaderCreation() throws IOException, URISyntaxException {
-
-		final String canonicalPath = tempN5Location();
-		try (N5Writer writer = createTempN5Writer(canonicalPath)) {
-
-			final N5Reader n5r = createN5Reader(canonicalPath);
-			assertNotNull(n5r);
-
-			// existing directory without attributes is okay;
-			// Remove and create to remove attributes store
-			writer.remove("/");
-			writer.createGroup("/");
-			final N5Reader na = createN5Reader(canonicalPath);
-			assertNotNull(na);
-
-			// existing location with attributes, but no version
-			writer.remove("/");
-			writer.createGroup("/");
-			writer.setAttribute("/", "mystring", "ms");
-			final N5Reader wa = createN5Reader(canonicalPath);
-			assertNotNull(wa);
-
-			// non-existent directory should fail
-			writer.remove("/");
-			assertThrows(
-					"Non-existant location throws error",
-					N5Exception.N5IOException.class,
-					() -> {
-						final N5Reader test = createN5Reader(canonicalPath);
-						test.list("/");
-					});
-		}
-	}
-
-	@Override
-	@Test
-	public void testExists()  {
-
-		final String groupName2 = groupName + "-2";
-		final String datasetName2 = datasetName + "-2";
-		final String notExists = groupName + "-notexists";
-
-		try (N5Writer n5 = createTempN5Writer()) {
-
-			n5.createDataset(datasetName2, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-			assertTrue(n5.exists(datasetName2));
-			assertTrue(n5.datasetExists(datasetName2));
-
-			n5.createGroup(groupName2);
-			assertTrue(n5.exists(groupName2));
-			assertFalse(n5.datasetExists(groupName2));
-
-			assertFalse(n5.exists(notExists));
-			assertFalse(n5.datasetExists(notExists));
-
-			assertTrue(n5.remove(datasetName2));
-			assertTrue(n5.remove(groupName2));
-		}
-	}
+	public void testReaderCreationIncompatibleVersion() {}
 
 	@Override
 	@Test
@@ -383,33 +341,42 @@ public class N5ZarrTest extends AbstractN5Test {
 		try (N5Writer n5 = createTempN5Writer()) {
 
 			n5.createDataset(datasetName2, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-			n5.setAttribute(datasetName2, "attr1", new double[]{1, 2, 3});
-			n5.setAttribute(datasetName2, "attr2", new String[]{"a", "b", "c"});
-			n5.setAttribute(datasetName2, "attr3", 1.0);
-			n5.setAttribute(datasetName2, "attr4", "a");
-			n5.setAttribute(datasetName2, "attr5", 5.4);
-
-			Map<String, Class<?>> attributesMap = n5.listAttributes(datasetName2);
-			assertSame(attributesMap.get("attr1"), long[].class);
-			assertSame(attributesMap.get("attr2"), String[].class);
-			assertSame(attributesMap.get("attr3"), long.class);
-			assertSame(attributesMap.get("attr4"), String.class);
-			assertSame(attributesMap.get("attr5"), double.class);
+			setListAttributes(n5, datasetName2);
+			assertListAttributes(n5.listAttributes(datasetName2));
 
 			n5.createGroup(groupName2);
-			n5.setAttribute(groupName2, "attr1", new double[]{1, 2, 3});
-			n5.setAttribute(groupName2, "attr2", new String[]{"a", "b", "c"});
-			n5.setAttribute(groupName2, "attr3", 1.0);
-			n5.setAttribute(groupName2, "attr4", "a");
-			n5.setAttribute(groupName2, "attr5", 5.4);
-
-			attributesMap = n5.listAttributes(datasetName2);
-			assertSame(attributesMap.get("attr1"), long[].class);
-			assertSame(attributesMap.get("attr2"), String[].class);
-			assertSame(attributesMap.get("attr3"), long.class);
-			assertSame(attributesMap.get("attr4"), String.class);
-			assertSame(attributesMap.get("attr5"), double.class);
+			setListAttributes(n5, groupName2);
+			assertListAttributes(n5.listAttributes(groupName2));
 		}
+	}
+
+	/**
+	 * The attribute values of {@link #testListAttributes()}. Note the whole-number {@code double}s:
+	 * zarr round-trips them through json as integers, which is what makes the expectations in
+	 * {@link #assertListAttributes(Map)} differ from {@code AbstractN5Test}'s.
+	 */
+	private static void setListAttributes(final N5Writer n5, final String path) {
+
+		n5.setAttribute(path, "attr1", new double[]{1, 2, 3});
+		n5.setAttribute(path, "attr2", new String[]{"a", "b", "c"});
+		n5.setAttribute(path, "attr3", 1.0);
+		n5.setAttribute(path, "attr4", "a");
+		n5.setAttribute(path, "attr5", 5.4);
+		n5.setAttribute(path, "attr6", 1);
+		n5.setAttribute(path, "attr7", new double[]{1, 2, 3.1});
+		n5.setAttribute(path, "attr8", new Object[]{"1", 2, 3.1});
+	}
+
+	private static void assertListAttributes(final Map<String, Class<?>> attributesMap) {
+
+		assertSame(long[].class, attributesMap.get("attr1"));
+		assertSame(String[].class, attributesMap.get("attr2"));
+		assertSame(long.class, attributesMap.get("attr3"));
+		assertSame(String.class, attributesMap.get("attr4"));
+		assertSame(double.class, attributesMap.get("attr5"));
+		assertSame(long.class, attributesMap.get("attr6"));
+		assertSame(double[].class, attributesMap.get("attr7"));
+		assertSame(Object[].class, attributesMap.get("attr8"));
 	}
 
 	@Override
@@ -424,35 +391,6 @@ public class N5ZarrTest extends AbstractN5Test {
 	@Ignore("Zarr does not currently support mode 2 data blocks and serialized objects.")
 	public void testWriteReadSerializableBlock() {
 
-	}
-
-//	@Test
-//	@Ignore
-//	@Override
-//	public void testWriteReadByteBlockMultipleCodecs() {
-//		// not yet supported
-//	}
-
-	@Test
-	@Override
-	public void testWriteReadStringBlock()  {
-		final DataType dataType = DataType.STRING;
-		final int[] blockSize = new int[]{3, 2, 1};
-		final String[] stringBlock = new String[]{"", "a", "bc", "de", "fgh", ":-þ"};
-		final Compression[] compressions = this.getCompressions();
-
-		for (final Compression compression : compressions) {
-
-			try (final N5Writer n5 = createTempN5Writer()) {
-				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
-				final DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
-				final StringDataBlock dataBlock = new StringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
-				n5.writeChunk("/test/group/dataset", attributes, dataBlock);
-				final DataBlock<?> loadedDataBlock = n5.readChunk("/test/group/dataset", attributes, 0L, 0L, 0L);
-				assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());
-				assertTrue(n5.remove("/test/group/dataset"));
-			}
-		}
 	}
 
 	@Test

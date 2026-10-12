@@ -34,6 +34,7 @@ import org.janelia.saalfeldlab.n5.KeyValueRoot;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
 import org.janelia.saalfeldlab.n5.N5Path;
+import org.janelia.saalfeldlab.n5.N5Path.N5DirectoryPath;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Reader.Version;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -179,35 +180,61 @@ public class ZarrV3Test extends AbstractN5Test {
 		}
 	}
 
-	@Override
 	@Test
-	public void testCreateGroup() {
+	public void testCreateNestedDataset() throws IOException {
 
-		// for zarr, create group does not create intermediate groups
-		// or should it?
-		try (N5Writer n5 = createTempN5Writer()) {
-			n5.createGroup(groupName);
-			assertTrue("Group does not exist: " + groupName, n5.exists(groupName));
+		final String datasetName = "/test/nested/data";
+		final String[] parents = {"/test/nested", "/test", "/"};
+
+		final String testDirPath = tempN5Location();
+		try (GsonKeyValueN5Writer n5Nested = (GsonKeyValueN5Writer) createTempN5Writer(testDirPath, "/")) {
+			n5Nested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			assertTrue("Dataset does not exist", n5Nested.datasetExists(datasetName));
+			for (String parent : parents)
+				assertTrue("Parent group does not exist: " + parent, n5Nested.groupExists(parent));
 		}
 	}
 
-
 	@Test
-	@Ignore
-	public void testCreateNestedDataset() throws IOException {
+	public void testChunkKeyEncodingSeparator() throws IOException {
 
 		final String datasetName = "/test/nested/data";
 
 		final String testDirPath = tempN5Location();
-		final ZarrV3KeyValueWriter zarrNested = (ZarrV3KeyValueWriter)createTempN5Writer(testDirPath, "/");
+		try (N5Writer n5 = createTempN5Writer(testDirPath, "/")) {
+			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
 
-		zarrNested.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+			final ZarrV3DatasetAttributes dsetAttrs = (ZarrV3DatasetAttributes)n5.getDatasetAttributes(datasetName);
+			final String sep = ((DefaultChunkKeyEncoding)dsetAttrs.getChunkAttributes().getKeyEncoding()).getSeparator();
+			assertEquals("/", sep);
+		}
+	}
 
-		final ZarrV3DatasetAttributes dsetAttrs = (ZarrV3DatasetAttributes)zarrNested.getDatasetAttributes(datasetName);
-		final String sep = ((DefaultChunkKeyEncoding)dsetAttrs.getChunkAttributes().getKeyEncoding()).getSeparator();
-		assertEquals("/", sep);
+	/**
+	 * Asserts that a newly created dataset has {@code fill_value} as a JSON number, or as {@code null} (not as a string).
+	 * <p>
+	 * Both of the shorter ways to get at the value would make that assertion vacuous, so the whole
+	 * document is read through {@code ContainerDialect.getAttributes(N5DirectoryPath)}:
+	 * <ul>
+	 * <li>{@code getAttribute(datasetName, "/", JsonElement.class)} returns only
+	 * {@code zarr.json}'s user {@code attributes} member, because {@link ZarrV3Dialect} rewrites
+	 * the root attribute key {@code ""} to {@code "attributes/"} -- and a fresh dataset has no such
+	 * member, so the result is {@code null}.</li>
+	 * <li>{@link ZarrV3DatasetAttributes} does not retain the JSON type: its adapter reads the key
+	 * with {@code getAsString()} and re-derives a {@code JsonPrimitive} from that string, so
+	 * {@code 0} and {@code "0"} in the document parse to the same object.</li>
+	 * </ul>
+	 */
+	@Test
+	public void testFillValue() throws IOException {
 
-		// TODO test that parents of nested dataset are groups
+		try (GsonKeyValueN5Writer n5 = (GsonKeyValueN5Writer)createTempN5Writer()) {
+			n5.createDataset(datasetName, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
+
+			final JsonElement elem = n5.getContainerDialect().getAttributes(N5DirectoryPath.of(datasetName));
+			final JsonElement fillValueJson = elem.getAsJsonObject().get("fill_value");
+			assertTrue(fillValueJson.isJsonNull() || fillValueJson.getAsJsonPrimitive().isNumber());
+		}
 	}
 
 	@Test
@@ -244,7 +271,7 @@ public class ZarrV3Test extends AbstractN5Test {
 			final Version n5Version = writer.getVersion();
 			assertEquals(n5Version, ZarrV3KeyValueReader.ZARR_3_VERSION);
 
-			writer.setAttribute("", N5ZarrReader.ZARR_FORMAT_KEY,  ZarrV3KeyValueReader.ZARR_3_VERSION.getMajor() + 1);
+			writer.setAttribute("/", ZarrV3Node.ZARR_FORMAT_KEY, ZarrV3KeyValueReader.ZARR_3_VERSION.getMajor() + 1);
 
 			final Version version = writer.getVersion();
 			assertFalse(ZarrV3KeyValueReader.ZARR_3_VERSION.isCompatible(version));
@@ -255,66 +282,9 @@ public class ZarrV3Test extends AbstractN5Test {
 	}
 
 	@Test
+	@Ignore("zarr is v2/v3 via zarr_format, not with N5Reader.VERSION_KEY")
 	@Override
-	public void testReaderCreation() throws IOException, URISyntaxException {
-
-		final String canonicalPath = tempN5Location();
-		try (N5Writer writer = createTempN5Writer(canonicalPath)) {
-
-			final N5Reader n5r = createN5Reader(canonicalPath);
-			assertNotNull(n5r);
-
-			// existing directory without attributes is okay;
-			// Remove and create to remove attributes store
-			writer.remove("/");
-			writer.createGroup("/");
-			final N5Reader na = createN5Reader(canonicalPath);
-			assertNotNull(na);
-
-			// existing location with attributes, but no version
-			writer.remove("/");
-			writer.createGroup("/");
-			writer.setAttribute("/", "mystring", "ms");
-			final N5Reader wa = createN5Reader(canonicalPath);
-			assertNotNull(wa);
-
-			// non-existent directory should fail
-			writer.remove("/");
-			assertThrows(
-					"Non-existant location throws error",
-					N5Exception.N5IOException.class,
-					() -> {
-						final N5Reader test = createN5Reader(canonicalPath);
-						test.list("/");
-					});
-		}
-	}
-
-	@Override
-	@Test
-	public void testExists()  {
-
-		final String groupName2 = groupName + "-2";
-		final String datasetName2 = datasetName + "-2";
-		final String notExists = groupName + "-notexists";
-
-		try (N5Writer n5 = createTempN5Writer()) {
-
-			n5.createDataset(datasetName2, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-			assertTrue(n5.exists(datasetName2));
-			assertTrue(n5.datasetExists(datasetName2));
-
-			n5.createGroup(groupName2);
-			assertTrue(n5.exists(groupName2));
-			assertFalse(n5.datasetExists(groupName2));
-
-			assertFalse(n5.exists(notExists));
-			assertFalse(n5.datasetExists(notExists));
-
-			assertTrue(n5.remove(datasetName2));
-			assertTrue(n5.remove(groupName2));
-		}
-	}
+	public void testReaderCreationIncompatibleVersion() {}
 
 	@Override
 	@Test
@@ -326,33 +296,42 @@ public class ZarrV3Test extends AbstractN5Test {
 		try (N5Writer n5 = createTempN5Writer()) {
 
 			n5.createDataset(datasetName2, dimensions, blockSize, DataType.UINT64, getCompressions()[0]);
-			n5.setAttribute(datasetName2, "attr1", new double[]{1, 2, 3});
-			n5.setAttribute(datasetName2, "attr2", new String[]{"a", "b", "c"});
-			n5.setAttribute(datasetName2, "attr3", 1.0);
-			n5.setAttribute(datasetName2, "attr4", "a");
-			n5.setAttribute(datasetName2, "attr5", 5.4);
-
-			Map<String, Class<?>> attributesMap = n5.listAttributes(datasetName2);
-			assertSame(attributesMap.get("attr1"), long[].class);
-			assertSame(attributesMap.get("attr2"), String[].class);
-			assertSame(attributesMap.get("attr3"), long.class);
-			assertSame(attributesMap.get("attr4"), String.class);
-			assertSame(attributesMap.get("attr5"), double.class);
+			setListAttributes(n5, datasetName2);
+			assertListAttributes(n5.listAttributes(datasetName2));
 
 			n5.createGroup(groupName2);
-			n5.setAttribute(groupName2, "attr1", new double[]{1, 2, 3});
-			n5.setAttribute(groupName2, "attr2", new String[]{"a", "b", "c"});
-			n5.setAttribute(groupName2, "attr3", 1.0);
-			n5.setAttribute(groupName2, "attr4", "a");
-			n5.setAttribute(groupName2, "attr5", 5.4);
-
-			attributesMap = n5.listAttributes(datasetName2);
-			assertSame(attributesMap.get("attr1"), long[].class);
-			assertSame(attributesMap.get("attr2"), String[].class);
-			assertSame(attributesMap.get("attr3"), long.class);
-			assertSame(attributesMap.get("attr4"), String.class);
-			assertSame(attributesMap.get("attr5"), double.class);
+			setListAttributes(n5, groupName2);
+			assertListAttributes(n5.listAttributes(groupName2));
 		}
+	}
+
+	/**
+	 * The attribute values of {@link #testListAttributes()}. Note the whole-number {@code double}s:
+	 * zarr round-trips them through json as integers, which is what makes the expectations in
+	 * {@link #assertListAttributes(Map)} differ from {@code AbstractN5Test}'s.
+	 */
+	private static void setListAttributes(final N5Writer n5, final String path) {
+
+		n5.setAttribute(path, "attr1", new double[]{1, 2, 3});
+		n5.setAttribute(path, "attr2", new String[]{"a", "b", "c"});
+		n5.setAttribute(path, "attr3", 1.0);
+		n5.setAttribute(path, "attr4", "a");
+		n5.setAttribute(path, "attr5", 5.4);
+		n5.setAttribute(path, "attr6", 1);
+		n5.setAttribute(path, "attr7", new double[]{1, 2, 3.1});
+		n5.setAttribute(path, "attr8", new Object[]{"1", 2, 3.1});
+	}
+
+	private static void assertListAttributes(final Map<String, Class<?>> attributesMap) {
+
+		assertSame(long[].class, attributesMap.get("attr1"));
+		assertSame(String[].class, attributesMap.get("attr2"));
+		assertSame(long.class, attributesMap.get("attr3"));
+		assertSame(String.class, attributesMap.get("attr4"));
+		assertSame(double.class, attributesMap.get("attr5"));
+		assertSame(long.class, attributesMap.get("attr6"));
+		assertSame(double[].class, attributesMap.get("attr7"));
+		assertSame(Object[].class, attributesMap.get("attr8"));
 	}
 
 	@Override
@@ -380,24 +359,8 @@ public class ZarrV3Test extends AbstractN5Test {
 	@Test
 	@Override
 	@Ignore(value = "No String type in Zarr v3")
-	public void testWriteReadStringBlock()  {
-		final DataType dataType = DataType.STRING;
-		final int[] blockSize = new int[]{3, 2, 1};
-		final String[] stringBlock = new String[]{"", "a", "bc", "de", "fgh", ":-þ"};
-		final Compression[] compressions = this.getCompressions();
+	public void testWriteReadStringBlock() {
 
-		for (final Compression compression : compressions) {
-
-			try (final N5Writer n5 = createTempN5Writer()) {
-				n5.createDataset("/test/group/dataset", dimensions, blockSize, dataType, compression);
-				final DatasetAttributes attributes = n5.getDatasetAttributes("/test/group/dataset");
-				final StringDataBlock dataBlock = new StringDataBlock(blockSize, new long[]{0L, 0L, 0L}, stringBlock);
-				n5.writeChunk("/test/group/dataset", attributes, dataBlock);
-				final DataBlock<?> loadedDataBlock = n5.readChunk("/test/group/dataset", attributes, 0L, 0L, 0L);
-				assertArrayEquals(stringBlock, (String[])loadedDataBlock.getData());
-				assertTrue(n5.remove("/test/group/dataset"));
-			}
-		}
 	}
 
 	@Test
@@ -802,49 +765,10 @@ public class ZarrV3Test extends AbstractN5Test {
 	@Test
 	@Override
 	@Ignore
-	public void testNullAttributes()  {
+	public void testNullAttributes() {
 
-		// serializeNulls must be on for Zarr to be able to write datasets with raw compression
-
-		/* serializeNulls*/
-		try (N5Writer writer = createTempN5Writer(tempN5Location(), new GsonBuilder().serializeNulls())) {
-
-			writer.createGroup(groupName);
-			writer.setAttribute(groupName, "nullValue", null);
-			assertNull(writer.getAttribute(groupName, "nullValue", Object.class));
-			assertEquals(JsonNull.INSTANCE, writer.getAttribute(groupName, "nullValue", JsonElement.class));
-			final HashMap<String, Object> nulls = new HashMap<>();
-			nulls.put("anotherNullValue", null);
-			nulls.put("structured/nullValue", null);
-			nulls.put("implicitNulls[3]", null);
-			writer.setAttributes(groupName, nulls);
-
-			assertNull(writer.getAttribute(groupName, "anotherNullValue", Object.class));
-			assertEquals(JsonNull.INSTANCE, writer.getAttribute(groupName, "anotherNullValue", JsonElement.class));
-
-			assertNull(writer.getAttribute(groupName, "structured/nullValue", Object.class));
-			assertEquals(JsonNull.INSTANCE, writer.getAttribute(groupName, "structured/nullValue", JsonElement.class));
-
-			assertNull(writer.getAttribute(groupName, "implicitNulls[3]", Object.class));
-			assertEquals(JsonNull.INSTANCE, writer.getAttribute(groupName, "implicitNulls[3]", JsonElement.class));
-
-			assertNull(writer.getAttribute(groupName, "implicitNulls[1]", Object.class));
-			assertEquals(JsonNull.INSTANCE, writer.getAttribute(groupName, "implicitNulls[1]", JsonElement.class));
-
-			/* Negative test; a value that truly doesn't exist will still return `null` but will also return `null` when querying as a `JsonElement` */
-			assertNull(writer.getAttribute(groupName, "implicitNulls[10]", Object.class));
-			assertNull(writer.getAttribute(groupName, "implicitNulls[10]", JsonElement.class));
-
-			assertNull(writer.getAttribute(groupName, "keyDoesn'tExist", Object.class));
-			assertNull(writer.getAttribute(groupName, "keyDoesn'tExist", JsonElement.class));
-
-			/* check existing value gets overwritten */
-			writer.setAttribute(groupName, "existingValue", 1);
-			assertEquals((Integer)1, writer.getAttribute(groupName, "existingValue", Integer.class));
-			writer.setAttribute(groupName, "existingValue", null);
-			assertThrows(N5ClassCastException.class, () -> writer.getAttribute(groupName, "existingValue", Integer.class));
-			assertEquals(JsonNull.INSTANCE, writer.getAttribute(groupName, "existingValue", JsonElement.class));
-		}
+		// NB: body removed -- it was dead under @Ignore and a copy of the live
+		// N5ZarrTest.testNullAttributes, which is where to look for what it covered.
 	}
 
 	@Test
