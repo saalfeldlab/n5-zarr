@@ -567,10 +567,20 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 		}
 	}
 
-	private static CodecInfo[] concatenateCodecs( ZarrV3DatasetAttributes attributes) {
-		final CodecInfo[] codecs = new CodecInfo[ attributes.getDataCodecInfos().length + 1 ];
-		codecs[0] = attributes.getBlockCodecInfo();
-		System.arraycopy(attributes.getDataCodecInfos(), 0, codecs, 1, attributes.getDataCodecInfos().length);
+	/**
+	 * The codecs in the order zarr lists them: array-to-array (the dataset
+	 * codecs), then array-to-bytes (the block codec), then bytes-to-bytes (the
+	 * data codecs).
+	 */
+	private static CodecInfo[] concatenateCodecs(ZarrV3DatasetAttributes attributes) {
+
+		final DatasetCodecInfo[] datasetCodecs = attributes.getDatasetCodecInfos();
+		final DataCodecInfo[] dataCodecs = attributes.getDataCodecInfos();
+
+		final CodecInfo[] codecs = new CodecInfo[datasetCodecs.length + 1 + dataCodecs.length];
+		System.arraycopy(datasetCodecs, 0, codecs, 0, datasetCodecs.length);
+		codecs[datasetCodecs.length] = attributes.getBlockCodecInfo();
+		System.arraycopy(dataCodecs, 0, codecs, datasetCodecs.length + 1, dataCodecs.length);
 		return codecs;
 	}
 
