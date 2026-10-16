@@ -21,8 +21,8 @@ import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueReader.ZarrVersion;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
-import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrder;
-import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrderAdapter;
+import org.janelia.saalfeldlab.n5.zarr.codec.transpose.TransposeCodecInfo.ZarrTransposeOrder;
+import org.janelia.saalfeldlab.n5.zarr.codec.transpose.TransposeCodecInfo.ZarrTransposeOrderAdapter;
 
 import static org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3Node.ZARR_FORMAT_KEY;
 

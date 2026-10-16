@@ -19,8 +19,7 @@ import org.janelia.saalfeldlab.n5.codec.CodecParser;
 import org.janelia.saalfeldlab.n5.codec.DataCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.DatasetCodecInfo;
 import org.janelia.saalfeldlab.n5.codec.N5BlockCodecInfo;
-import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodec;
-import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodecInfo;
+import org.janelia.saalfeldlab.n5.zarr.codec.transpose.TransposeCodec;
 import org.janelia.saalfeldlab.n5.shard.DefaultShardCodecInfo;
 import org.janelia.saalfeldlab.n5.shard.ShardCodecInfo;
 import org.janelia.saalfeldlab.n5.shard.ShardIndex.IndexLocation;
@@ -28,7 +27,7 @@ import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.codec.PaddedRawBlockCodecInfo;
-import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo;
+import org.janelia.saalfeldlab.n5.zarr.codec.transpose.TransposeCodecInfo;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -523,18 +522,18 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 			// address this when other such codecs are implemented and supported
 
 			for (int i = 0; i < datasetCodecs.length; i++)
-				if (!(datasetCodecs[i] instanceof ZarrTransposeCodecInfo)) {
+				if (!(datasetCodecs[i] instanceof TransposeCodecInfo)) {
 					System.err.println("Warning: can not parse " + i + "th dataset codec."
 							+ "Trying to continue.");
 
 					return new DatasetCodecInfo[0];
 				}
 
-			ZarrTransposeCodecInfo[] transposeCodecs = new ZarrTransposeCodecInfo[datasetCodecs.length];
+			TransposeCodecInfo[] transposeCodecs = new TransposeCodecInfo[datasetCodecs.length];
 			for( int i = 0; i < datasetCodecs.length; i++ )
-				transposeCodecs[i] = (ZarrTransposeCodecInfo)datasetCodecs[i];
+				transposeCodecs[i] = (TransposeCodecInfo)datasetCodecs[i];
 
-			ZarrTransposeCodecInfo info = ZarrTransposeCodecInfo.concatenate(transposeCodecs);
+			TransposeCodecInfo info = TransposeCodecInfo.concatenate(transposeCodecs);
 			if (info == null || TransposeCodec.isIdentity(info.getOrder()))
 				return new DatasetCodecInfo[0];
 			else

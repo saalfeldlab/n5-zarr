@@ -6,10 +6,7 @@ import java.util.stream.IntStream;
 
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Exception;
-import org.janelia.saalfeldlab.n5.codec.DatasetCodec;
 import org.janelia.saalfeldlab.n5.codec.DatasetCodecInfo;
-import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodec;
-import org.janelia.saalfeldlab.n5.codec.transpose.TransposeCodecInfo;
 import org.janelia.saalfeldlab.n5.serialization.NameConfig;
 
 import com.google.gson.JsonDeserializationContext;
@@ -32,20 +29,19 @@ import com.google.gson.JsonSerializer;
  * <p>
  * See the specification of <a href="https://zarr-specs.readthedocs.io/en/latest/v3/codecs/transpose/index.html#transpose-codec">Zarr's Transpose codec<a>.
  */
-@NameConfig.Prefix("data-codec")
-@NameConfig.Name(value = ZarrTransposeCodecInfo.TYPE)
-public class ZarrTransposeCodecInfo implements DatasetCodecInfo {
+@NameConfig.Name(value = TransposeCodecInfo.TYPE)
+public class TransposeCodecInfo implements DatasetCodecInfo {
 
 	public static final String TYPE = "transpose";
 
 	@NameConfig.Parameter
 	private ZarrTransposeOrder order;
 
-	public ZarrTransposeCodecInfo() {
+	public TransposeCodecInfo() {
 		// for serialization
 	}
 
-	public ZarrTransposeCodecInfo(int[] order) {
+	public TransposeCodecInfo(int[] order) {
 
 		this.order = new ZarrTransposeOrder(order);
 	}
@@ -71,8 +67,8 @@ public class ZarrTransposeCodecInfo implements DatasetCodecInfo {
 	@Override
 	public boolean equals(Object obj) {
 
-		if (obj instanceof ZarrTransposeCodecInfo)
-			return Arrays.equals(order.param, ((ZarrTransposeCodecInfo)obj).getOrder());
+		if (obj instanceof TransposeCodecInfo)
+			return Arrays.equals(order.param, ((TransposeCodecInfo)obj).getOrder());
 
 		return false;
 	}
@@ -89,8 +85,8 @@ public class ZarrTransposeCodecInfo implements DatasetCodecInfo {
 			throw new N5Exception("Invalid order for TransposeCodec. Missing indexes: " + Arrays.toString(missingIndexes));
 
 	}
-	
-	public static ZarrTransposeCodecInfo concatenate(ZarrTransposeCodecInfo[] infos) {
+
+	public static TransposeCodecInfo concatenate(TransposeCodecInfo[] infos) {
 
 		if( infos == null || infos.length == 0)
 			return null;
@@ -99,12 +95,12 @@ public class ZarrTransposeCodecInfo implements DatasetCodecInfo {
 
 		// copy the initial order so we don't modify to the original
 		int[] order = new int[infos[0].order.param.length];
-		System.arraycopy(infos[0].order, 0, order, 0, order.length);
+		System.arraycopy(infos[0].order.param, 0, order, 0, order.length);
 
 		for( int i = 1; i < infos.length; i++ )
 			order = TransposeCodec.concatenatePermutations(order, infos[i].order.param);
 
-		return new ZarrTransposeCodecInfo(order);
+		return new TransposeCodecInfo(order);
 	}
 
 	/**

@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.AbstractN5Test;
+import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
@@ -32,7 +33,6 @@ import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.IntArrayDataBlock;
 import org.janelia.saalfeldlab.n5.KeyValueRoot;
 import org.janelia.saalfeldlab.n5.N5Exception;
-import org.janelia.saalfeldlab.n5.N5Exception.N5ClassCastException;
 import org.janelia.saalfeldlab.n5.N5Path;
 import org.janelia.saalfeldlab.n5.N5Path.N5DirectoryPath;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -41,19 +41,18 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.n5.FileSystemKeyValueRoot;
-import org.janelia.saalfeldlab.n5.StringDataBlock;
 import org.janelia.saalfeldlab.n5.blosc.BloscCompression;
 import org.janelia.saalfeldlab.n5.codec.RawBlockCodecInfo;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.readdata.VolatileReadData;
 import org.janelia.saalfeldlab.n5.zarr.Filter;
-import org.janelia.saalfeldlab.n5.zarr.N5ZarrReader;
 import org.janelia.saalfeldlab.n5.zarr.ZarrDatasetAttributes;
 import org.janelia.saalfeldlab.n5.zarr.ZarrKeyValueWriter;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkKeyEncoding;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
+import org.janelia.saalfeldlab.n5.zarr.codec.transpose.TransposeCodecInfo;
 import org.janelia.scicomp.n5.zstandard.ZstandardCompression;
 import org.junit.Assert;
 import org.junit.Ignore;
@@ -61,7 +60,6 @@ import org.junit.Test;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
 import com.google.gson.reflect.TypeToken;
 
 import net.imglib2.RandomAccess;
@@ -234,6 +232,38 @@ public class ZarrV3Test extends AbstractN5Test {
 			final JsonElement elem = n5.getContainerDialect().getAttributes(N5DirectoryPath.of(datasetName));
 			final JsonElement fillValueJson = elem.getAsJsonObject().get("fill_value");
 			assertTrue(fillValueJson.isJsonNull() || fillValueJson.getAsJsonPrimitive().isNumber());
+		}
+	}
+
+	/**
+	 * A transpose codec must be written to {@code zarr.json}: the writer applies it
+	 * to every chunk, so a reader that does not find it there returns the data
+	 * transposed. (The order must not be the identity, which is simplified away.)
+	 */
+	@Test
+	public void testTransposeCodecRoundTrip() throws IOException {
+
+		final long[] dims = {4, 3, 2};
+		final int[] bs = {4, 3, 2};
+		final int[] order = {1, 2, 0};
+		final byte[] data = new byte[24];
+		for (int i = 0; i < data.length; i++)
+			data[i] = (byte)i;
+
+		final String location = tempN5Location();
+		try (N5Writer n5 = createTempN5Writer(location)) {
+			final ZarrV3DatasetAttributes attrs = ZarrV3DatasetAttributes.builder(dims, DataType.UINT8)
+					.blockSize(bs)
+					.datasetCodecInfos(new TransposeCodecInfo(order))
+					.build();
+			n5.createDataset(datasetName, attrs);
+			n5.writeChunk(datasetName, attrs, new ByteArrayDataBlock(bs, new long[3], data.clone()));
+
+			try (N5Reader reader = createN5Reader(location, new GsonBuilder())) {
+				final DatasetAttributes read = reader.getDatasetAttributes(datasetName);
+				assertEquals(1, read.getDatasetCodecInfos().length);
+				assertArrayEquals(data, (byte[])reader.readChunk(datasetName, read, 0, 0, 0).getData());
+			}
 		}
 	}
 

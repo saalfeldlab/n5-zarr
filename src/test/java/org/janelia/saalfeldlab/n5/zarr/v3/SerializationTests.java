@@ -7,9 +7,10 @@ import static org.junit.Assert.assertTrue;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.NameConfigAdapter;
 import org.janelia.saalfeldlab.n5.codec.CodecInfo;
-import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo;
-import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrder;
-import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo.ZarrTransposeOrderAdapter;
+import org.janelia.saalfeldlab.n5.zarr.codec.transpose.TransposeCodec;
+import org.janelia.saalfeldlab.n5.zarr.codec.transpose.TransposeCodecInfo;
+import org.janelia.saalfeldlab.n5.zarr.codec.transpose.TransposeCodecInfo.ZarrTransposeOrder;
+import org.janelia.saalfeldlab.n5.zarr.codec.transpose.TransposeCodecInfo.ZarrTransposeOrderAdapter;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -34,14 +35,14 @@ public class SerializationTests {
 	public void testTransposeSerialization() {
 
 		final int[] origOrder = new int[] {2,0,1};
-		final ZarrTransposeCodecInfo codec = new ZarrTransposeCodecInfo(origOrder);
+		final TransposeCodecInfo codec = new TransposeCodecInfo(origOrder);
 		final JsonElement json = gson.toJsonTree(codec);
 
 		JsonElement orderJsonArr = json.getAsJsonObject().get("configuration").getAsJsonObject().get("order");
 		int[] serializedOrder = gson.fromJson(orderJsonArr, int[].class);
 		assertArrayEquals(new int[]{1,2,0}, serializedOrder);
 
-		final ZarrTransposeCodecInfo deserializedCodec = (ZarrTransposeCodecInfo)gson.fromJson(json, CodecInfo.class);
+		final TransposeCodecInfo deserializedCodec = (TransposeCodecInfo)gson.fromJson(json, CodecInfo.class);
 		assertArrayEquals(origOrder, deserializedCodec.getOrder());
 	}
 
