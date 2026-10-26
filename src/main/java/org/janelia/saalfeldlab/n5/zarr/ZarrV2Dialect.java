@@ -86,6 +86,11 @@ public final class ZarrV2Dialect implements ContainerDialect {
 		return new ZarrV2Dialect(store, gson, mapN5Attributes, mergeAttributes);
 	}
 
+	@Override
+	public ContainerDialect withGson(final Gson gson) {
+		return new ZarrV2Dialect(store, gson, mapN5Attributes, mergeAttributes);
+	}
+
 	private <T> T getAttribute(
 			final N5DirectoryPath path,
 			final String filename,
