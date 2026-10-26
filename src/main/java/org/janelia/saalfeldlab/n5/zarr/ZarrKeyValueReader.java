@@ -62,7 +62,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 	protected final KeyValueRoot keyValueRoot;
 	protected final HierarchyStore metaStore;
 	protected final ContainerDialect store;
-	protected final Gson gson;
 	protected final boolean cacheMeta;
 
 	protected final Map<DatasetAttributes, ZarrDatasetAttributes> datasetAttributesMap = new ConcurrentHashMap<>();
@@ -123,9 +122,9 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 			final boolean checkRootExists) {
 
 		this.keyValueRoot = keyValueRoot;
-		this.gson = registerGson(gsonBuilder);
 		this.cacheMeta = cacheMeta;
 		this.metaStore = createHierarchyStore(keyValueRoot, cacheMeta);
+		final Gson gson = registerGson(gsonBuilder);
 		this.store = new ZarrV2Dialect(metaStore, gson, mapN5DatasetAttributes, mergeAttributes);
 		this.mapN5DatasetAttributes = mapN5DatasetAttributes;
 		this.mergeAttributes = mergeAttributes;
@@ -221,12 +220,6 @@ public class ZarrKeyValueReader implements CachedGsonKeyValueN5Reader {
 
 		// not used internally, since the methods that use this are overridden
 		return ZATTRS_FILE;
-	}
-
-	@Override
-	public Gson getGson() {
-
-		return gson;
 	}
 
 	@Override

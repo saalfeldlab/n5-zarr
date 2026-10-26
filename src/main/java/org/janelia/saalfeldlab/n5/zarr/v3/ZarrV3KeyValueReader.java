@@ -41,7 +41,6 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 	protected final KeyValueRoot keyValueRoot;
 	protected final HierarchyStore metaStore;
 	protected final ContainerDialect store;
-	protected final Gson gson;
 	protected final boolean cacheMeta;
 
 
@@ -110,9 +109,9 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 			final boolean checkRootExists) {
 
 		this.keyValueRoot = keyValueRoot;
-		this.gson = addTypeAdapters(gsonBuilder).create();
 		this.cacheMeta = cacheMeta;
 		this.metaStore = createHierarchyStore(keyValueRoot, cacheMeta);
+		final Gson gson = addTypeAdapters(gsonBuilder).create();
 		this.store = new ZarrV3Dialect(metaStore, gson);
 
 		boolean versionFound = false;
@@ -143,12 +142,6 @@ public class ZarrV3KeyValueReader implements CachedGsonKeyValueN5Reader {
 	public String getAttributesKey() {
 
 		return ZARR_KEY;
-	}
-
-	@Override
-	public Gson getGson() {
-
-		return gson;
 	}
 
 	@Override
