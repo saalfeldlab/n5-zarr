@@ -1,12 +1,14 @@
 package org.janelia.saalfeldlab.n5.zarr.v3;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.util.FloatValueParser;
 
 public enum ZarrV3DataType {
-	int8(8), uint8(8), int16(16), uint16(16), int32(32), uint32(32), int64(64), uint64(64), float32(32), float64(64);
+	int8(8), uint8(8), int16(16), uint16(16), int32(32), uint32(32), int64(64), uint64(64), float32(32), float64(64),
+	string(-1);
 
 	private final int nBytes;
 
@@ -36,6 +38,10 @@ public enum ZarrV3DataType {
 	}
 
 	public byte[] createFillBytes(final String fill_value) {
+
+		// variable-length types have no fixed-width representation
+		if (this == string)
+			return fill_value.getBytes(StandardCharsets.UTF_8);
 
 		final byte[] fillBytes = new byte[nBytes];
 		final ByteBuffer fillBuffer = ByteBuffer.wrap(fillBytes);
