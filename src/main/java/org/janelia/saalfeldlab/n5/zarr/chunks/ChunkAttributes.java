@@ -39,7 +39,7 @@ public class ChunkAttributes implements Serializable, JsonSerializer<ChunkAttrib
 	}
 
 	public String getChunkPath(final long[] gridPosition) {
-		return getKeyEncoding().getChunkPath(gridPosition);
+		return getKeyEncoding().getChunkPath(grid.toChunkPosition(gridPosition));
 	}
 
 	@Override public String toString() {

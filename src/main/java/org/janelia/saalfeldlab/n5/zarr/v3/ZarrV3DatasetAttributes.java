@@ -25,6 +25,9 @@ import org.janelia.saalfeldlab.n5.shard.ShardCodecInfo;
 import org.janelia.saalfeldlab.n5.shard.ShardIndex.IndexLocation;
 import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkAttributes;
 import org.janelia.saalfeldlab.n5.zarr.chunks.DefaultChunkKeyEncoding;
+import org.janelia.saalfeldlab.n5.zarr.chunks.ChunkGrid;
+import org.janelia.saalfeldlab.n5.zarr.chunks.RectilinearBlockCodecInfo;
+import org.janelia.saalfeldlab.n5.zarr.chunks.RectilinearChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.chunks.RegularChunkGrid;
 import org.janelia.saalfeldlab.n5.zarr.codec.PaddedRawBlockCodecInfo;
 import org.janelia.saalfeldlab.n5.zarr.codec.transpose.ZarrTransposeCodecInfo;
@@ -450,13 +453,27 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 						dataType,
 						obj.get(FILL_VALUE_KEY).getAsString(),
 						dimensionNames,
-						blockCodec,
+						blockCodecForGrid(chunkAttributes.getGrid(), dimensions, blockCodec),
 						datasetCodecs,
 						dataCodecs);
 
 			} catch (final Exception e) {
 				return null;
 			}
+		}
+
+		/**
+		 * On a rectilinear chunk grid N5 sees the largest blocks every chunk is a whole number of, and a
+		 * block is read out of its chunk, which the array's block codec decodes: so wrap that codec.
+		 */
+		private static BlockCodecInfo blockCodecForGrid(final ChunkGrid grid, final long[] dimensions,
+				final BlockCodecInfo blockCodec) {
+
+			if (!(grid instanceof RectilinearChunkGrid))
+				return blockCodec;
+			final RectilinearChunkGrid rectilinear = (RectilinearChunkGrid)grid;
+			rectilinear.validate(dimensions);
+			return new RectilinearBlockCodecInfo(blockCodec, rectilinear);
 		}
 
 		@Override
@@ -569,7 +586,11 @@ public class ZarrV3DatasetAttributes extends DatasetAttributes implements ZarrV3
 
 	private static CodecInfo[] concatenateCodecs( ZarrV3DatasetAttributes attributes) {
 		final CodecInfo[] codecs = new CodecInfo[ attributes.getDataCodecInfos().length + 1 ];
-		codecs[0] = attributes.getBlockCodecInfo();
+		final BlockCodecInfo blockCodecInfo = attributes.getBlockCodecInfo();
+		// the metadata names the array's own codec, not the wrapper that reads blocks out of its chunks
+		codecs[0] = blockCodecInfo instanceof RectilinearBlockCodecInfo
+				? ((RectilinearBlockCodecInfo)blockCodecInfo).getInner()
+				: blockCodecInfo;
 		System.arraycopy(attributes.getDataCodecInfos(), 0, codecs, 1, attributes.getDataCodecInfos().length);
 		return codecs;
 	}
