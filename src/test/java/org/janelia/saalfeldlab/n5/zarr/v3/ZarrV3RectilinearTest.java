@@ -166,7 +166,7 @@ public class ZarrV3RectilinearTest {
 		final ZarrV3KeyValueReader reader = writePlain();
 		final DatasetAttributes attributes = reader.getDatasetAttributes("a");
 		assertTrue(reader.blockExists("a", attributes, 4, 3));
-		Files.delete(java.nio.file.Paths.get(reader.getURI().getPath(), "a", "c", "1", "1"));
+		Files.delete(java.nio.file.Paths.get(reader.getURI()).resolve("a").resolve("c").resolve("1").resolve("1"));
 		assertFalse(reader.blockExists("a", attributes, 4, 3));
 		assertNull("a chunk that is not stored has no blocks", reader.readBlock("a", attributes, 4, 3));
 		assertNotNull("others are unaffected", reader.readBlock("a", attributes, 0, 0));
